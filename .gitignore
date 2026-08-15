@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Editor / local tooling
+.claude/
+.vercel/
+
+# Source asset (original hi-res logo, not served)
+LOGO CCC.jpg

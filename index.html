@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creative Club Cult — The cult is forming.</title>
+  <meta name="description" content="A creative studio launching soon. Brand, design, and ideas worth committing to. Est. 2026 — Bandung, ID." />
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Creative Club Cult — The cult is forming." />
+  <meta property="og:description" content="A creative studio launching soon. Brand, design, and ideas worth committing to." />
+  <meta property="og:url" content="https://creativeclubcult.com" />
+  <meta property="og:image" content="https://creativeclubcult.com/logo-ccc.png" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="canonical" href="https://creativeclubcult.com" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0A0A0A;
+      --ink: #EFEBE4;
+      --muted: rgba(239, 235, 228, 0.60);
+      --faint: rgba(239, 235, 228, 0.14);
+      --line: rgba(239, 235, 228, 0.22);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    ::selection { background: var(--ink); color: var(--bg); }
+    ::-moz-selection { background: var(--ink); color: var(--bg); }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      letter-spacing: -0.01em;
+      min-height: 100svh;
+      overflow-x: hidden;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Signature drifting background text ---- */
+    .drift {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: -0.28em;
+      z-index: 0;
+      pointer-events: none;
+      white-space: nowrap;
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-style: italic;
+      font-size: clamp(120px, 22vw, 340px);
+      line-height: 1;
+      color: var(--ink);
+      opacity: 0.06;
+      will-change: transform;
+      animation: drift 40s linear infinite;
+    }
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-33.333%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .drift { animation: none; }
+    }
+
+    /* ---- Layout shell ---- */
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100svh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: clamp(20px, 4vw, 44px);
+      gap: clamp(28px, 6vh, 64px);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: clamp(12px, 1.1vw, 14px);
+      letter-spacing: -0.01em;
+    }
+
+    /* ---- Header ---- */
+    header.row .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+    }
+    header.row .brand img {
+      height: 20px;
+      width: auto;
+      display: block;
+      opacity: 0.85;
+    }
+    header.row .meta {
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* ---- Center block ---- */
+    main {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: clamp(28px, 4vh, 44px);
+      max-width: 1180px;
+    }
+
+    h1.headline {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(64px, 15vw, 180px);
+      line-height: 0.9;
+      letter-spacing: -0.01em;
+    }
+    h1.headline em {
+      font-style: italic;
+    }
+
+    .tagline {
+      max-width: 46ch;
+      font-size: clamp(15px, 1.6vw, 18px);
+      line-height: 1.5;
+      color: var(--muted);
+      letter-spacing: -0.01em;
+    }
+
+    /* ---- Email capture ---- */
+    form.notify {
+      display: flex;
+      align-items: flex-end;
+      gap: 18px;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 460px;
+    }
+    .field {
+      flex: 1 1 240px;
+      min-width: 200px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .field input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 15px;
+      padding: 8px 2px;
+      letter-spacing: 0.02em;
+      transition: border-color 0.25s ease;
+    }
+    .field input::placeholder { color: rgba(239, 235, 228, 0.35); }
+    .field input:focus {
+      outline: none;
+      border-bottom-color: var(--ink);
+    }
+
+    button.submit {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--ink);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      padding: 8px 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.25s ease, letter-spacing 0.25s ease;
+    }
+    button.submit:hover { letter-spacing: 0.10em; }
+    button.submit:disabled { opacity: 0.5; cursor: default; letter-spacing: 0.04em; }
+
+    .form-note {
+      min-height: 1.2em;
+      font-size: 12px;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      margin-top: 4px;
+      flex-basis: 100%;
+    }
+
+    /* ---- Footer ---- */
+    footer.row a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.25s ease;
+    }
+    footer.row a:hover { color: var(--ink); }
+    footer.row .right { text-align: right; }
+
+    @media (max-width: 560px) {
+      header.row, footer.row { font-size: 11px; }
+      header.row .brand span.name { display: none; }
+      form.notify { gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="drift" aria-hidden="true">ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;</div>
+
+  <div class="shell">
+    <header class="row">
+      <div class="brand">
+        <img src="logo-ccc.png" alt="Creative Club Cult logo" width="1000" height="475" />
+        <span class="name">Creative Club Cult</span>
+      </div>
+      <div class="meta">Est. 2026 — Bandung, ID</div>
+    </header>
+
+    <main>
+      <h1 class="headline">The cult is <em>forming.</em></h1>
+      <p class="tagline">A creative studio launching soon. Brand, design, and ideas worth committing to.</p>
+
+      <form class="notify" id="notify" novalidate>
+        <div class="field">
+          <label for="email">Join the list</label>
+          <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" required />
+        </div>
+        <button type="submit" class="submit">Notify me →</button>
+        <p class="form-note" id="note" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <footer class="row">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a class="right" href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">@creativeclubcult</a>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.getElementById('notify');
+      var input = document.getElementById('email');
+      var note = document.getElementById('note');
+      var btn = form.querySelector('button.submit');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = input.value.trim();
+        var ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        if (!ok) {
+          note.textContent = 'Enter a valid email to commit.';
+          input.focus();
+          return;
+        }
+        // No backend yet — capture intent gracefully.
+        btn.disabled = true;
+        note.textContent = "You're on the list. We'll be in touch.";
+        input.value = '';
+        input.setAttribute('placeholder', 'noted ✓');
+      });
+    })();
+  </script>
+</body>
+</html>
