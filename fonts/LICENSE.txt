@@ -1,0 +1,13 @@
+TeX Gyre Heros
+==============
+
+The web fonts in this directory (heros-regular.woff2, heros-bold.woff2) are
+subset WOFF2 builds of TeX Gyre Heros, a free Helvetica-compatible typeface.
+
+Copyright: GUST e-foundry (Bogusław Jackowski and Janusz M. Nowacki)
+License:   GUST Font License (GFL), a free license akin to the LaTeX Project
+           Public License (LPPL). Free to use, embed, and redistribute.
+Source:    https://www.gust.org.pl/projects/e-foundry/tex-gyre/heros
+License:   http://www.gust.org.pl/projects/e-foundry/licenses
+
+Subset to Latin + a few symbols (© · → – — ✓) for web delivery.

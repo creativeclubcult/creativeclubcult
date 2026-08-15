@@ -12,7 +12,7 @@
   <meta property="og:image" content="https://creativeclubcult.com/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta name="theme-color" content="#0A0A0A" />
+  <meta name="theme-color" content="#05070C" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://creativeclubcult.com/og-image.png" />
 
@@ -20,74 +20,73 @@
   <link rel="apple-touch-icon" href="favicon.png" />
   <link rel="canonical" href="https://creativeclubcult.com" />
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <!-- Fonts (self-hosted TeX Gyre Heros — faithful Helvetica clone) -->
+  <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
 
   <style>
+    @font-face {
+      font-family: 'Heros';
+      font-style: normal;
+      font-weight: 400 500;
+      font-display: swap;
+      src: url('fonts/heros-regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Heros';
+      font-style: normal;
+      font-weight: 600 700;
+      font-display: swap;
+      src: url('fonts/heros-bold.woff2') format('woff2');
+    }
+
     :root {
-      --bg: #0A0A0A;
-      --ink: #EFEBE4;
-      --muted: rgba(239, 235, 228, 0.60);
-      --faint: rgba(239, 235, 228, 0.14);
-      --line: rgba(239, 235, 228, 0.22);
+      --bg: #05070C;
+      --ink: #EAEDF1;
+      --muted: rgba(234, 237, 241, 0.55);
+      --faint: rgba(234, 237, 241, 0.32);
+      --steel: #9FB2C9;
+      --line: rgba(234, 237, 241, 0.22);
+      --card: rgba(6, 10, 18, 0.55);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    ::selection { background: var(--ink); color: var(--bg); }
-    ::-moz-selection { background: var(--ink); color: var(--bg); }
+    ::selection { background: var(--ink); color: #05070C; }
+    ::-moz-selection { background: var(--ink); color: #05070C; }
 
     html { -webkit-text-size-adjust: 100%; }
 
     body {
       background: var(--bg);
       color: var(--ink);
-      font-family: Helvetica, 'Helvetica Neue', 'Arimo', Arial, sans-serif;
+      font-family: 'Heros', Helvetica, 'Helvetica Neue', Arial, sans-serif;
       letter-spacing: -0.01em;
       min-height: 100svh;
       overflow-x: hidden;
-      position: relative;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ---- Signature drifting background text ---- */
-    .drift {
+    /* ---- Background video ---- */
+    .bg {
       position: fixed;
-      left: 0;
-      right: 0;
-      bottom: -0.28em;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
       z-index: 0;
       pointer-events: none;
-      white-space: nowrap;
-      font-family: 'Instrument Serif', Georgia, serif;
-      font-style: italic;
-      font-size: clamp(120px, 22vw, 340px);
-      line-height: 1;
-      color: var(--ink);
-      opacity: 0.06;
-      will-change: transform;
-      animation: drift 40s linear infinite;
-    }
-    @keyframes drift {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-33.333%); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .drift { animation: none; }
     }
 
     /* ---- Layout shell ---- */
-    .shell {
+    .page {
       position: relative;
       z-index: 1;
       min-height: 100svh;
-      display: grid;
-      grid-template-rows: 1fr auto;
-      padding: clamp(20px, 4vw, 44px);
-      gap: clamp(28px, 6vh, 64px);
+      display: flex;
+      flex-direction: column;
+      padding: clamp(20px, 3.2vw, 40px);
+      gap: clamp(24px, 4vh, 40px);
     }
 
     .row {
@@ -95,89 +94,169 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      font-size: clamp(12px, 1.1vw, 14px);
-      letter-spacing: -0.01em;
+      font-size: clamp(12px, 1.05vw, 14px);
+      letter-spacing: 0.01em;
     }
 
-    /* ---- Header ---- */
-    header.row .brand {
+    header .brand { font-weight: 500; }
+    header a.goback,
+    footer a {
+      color: var(--ink);
+      text-decoration: none;
+      transition: opacity 0.25s ease;
+    }
+    header a.goback {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      opacity: 0.9;
+    }
+    header a.goback:hover { opacity: 0.6; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--ink); }
+    footer .right { text-align: right; }
+
+    /* ---- Main stage ---- */
+    main {
+      flex: 1;
       display: flex;
       align-items: center;
-      gap: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 500;
+      justify-content: center;
+      position: relative;
     }
-    header.row .brand img {
-      height: 20px;
-      width: auto;
-      display: block;
-      opacity: 0.85;
-    }
-    header.row .meta {
-      color: var(--muted);
-      text-align: right;
-    }
-
-    /* ---- Center block ---- */
-    main {
+    /* .hero is centered in the viewport -> the stone sits dead-center.
+       .below hangs beneath it without affecting that centering. */
+    .hero {
+      position: relative;
+      width: 100%;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      text-align: center;
-      gap: clamp(40px, 6vh, 72px);
+    }
+    .stage {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .below {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: clamp(12px, 2vh, 22px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(12px, 1.8vh, 18px);
+    }
+    /* short screens: simple centered flow, no overlap with footer */
+    @media (max-height: 820px) {
+      main {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(16px, 3vh, 28px);
+      }
+      .hero { display: contents; }
+      .below {
+        position: static;
+        margin-top: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: clamp(12px, 1.8vh, 18px);
+      }
+    }
+    .stage .four04 {
+      font-size: clamp(20px, 2.4vw, 34px);
+      font-weight: 400;
+      color: rgba(234, 237, 241, 0.85);
+      letter-spacing: 0.01em;
+      flex: 0 0 auto;
+    }
+    .four04 .zero {
+      position: relative;
+      display: inline-block;
+    }
+    .four04 .zero::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0.07em;
+      height: 0.56em;
+      background: currentColor;
+      border-radius: 0.035em;
+      transform: translate(-50%, -50%) rotate(28deg);
     }
 
-    .hero-logo {
-      width: clamp(220px, 56vw, 640px);
+    /* perspective container -> idle float -> cursor tilt (JS) */
+    .stone-wrap {
+      flex: 0 1 auto;
+      perspective: 1000px;
+      perspective-origin: center;
+    }
+    .stone-float {
+      animation: float 7s ease-in-out infinite;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .stone {
+      width: clamp(260px, 34vw, 520px);
       height: auto;
       display: block;
+      filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
+      transform-origin: center;
+      backface-visibility: hidden;
+      will-change: transform;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+      50%      { transform: translateY(-18px) rotate(0.6deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stone-float { animation: none; }
     }
 
-    h1.headline {
-      font-family: 'Instrument Serif', Georgia, serif;
-      font-weight: 400;
-      font-size: clamp(64px, 15vw, 180px);
-      line-height: 0.9;
-      letter-spacing: -0.01em;
-    }
-    h1.headline em {
-      font-style: italic;
+    /* ---- Copy + form ---- */
+    .brb {
+      font-size: clamp(12px, 1.15vw, 15px);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-align: center;
     }
 
-    .tagline {
-      max-width: 46ch;
-      font-size: clamp(15px, 1.6vw, 18px);
-      line-height: 1.5;
-      color: var(--muted);
-      letter-spacing: -0.01em;
-    }
-
-    /* ---- Email capture ---- */
     form.notify {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: clamp(16px, 2vw, 20px) clamp(18px, 2.4vw, 24px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .join {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--steel);
+    }
+    .fieldrow {
+      width: 100%;
       display: flex;
       align-items: flex-end;
       gap: 18px;
-      flex-wrap: wrap;
-      width: 100%;
-      max-width: 460px;
     }
-    .field {
-      flex: 1 1 240px;
-      min-width: 200px;
-    }
-    .field label {
-      display: block;
-      font-size: 12px;
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-    .field input {
-      width: 100%;
+    .fieldrow input {
+      flex: 1 1 auto;
+      min-width: 0;
       background: transparent;
       border: none;
       border-bottom: 1px solid var(--line);
@@ -185,71 +264,79 @@
       font-family: inherit;
       font-size: 15px;
       padding: 8px 2px;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
       transition: border-color 0.25s ease;
     }
-    .field input::placeholder { color: rgba(239, 235, 228, 0.35); }
-    .field input:focus {
-      outline: none;
-      border-bottom-color: var(--ink);
-    }
+    .fieldrow input::placeholder { color: var(--faint); }
+    .fieldrow input:focus { outline: none; border-bottom-color: var(--ink); }
 
-    button.submit {
+    .fieldrow button {
+      flex: 0 0 auto;
       background: transparent;
       border: none;
-      border-bottom: 1px solid var(--ink);
-      color: var(--ink);
+      color: var(--steel);
       font-family: inherit;
       font-size: 14px;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.02em;
       padding: 8px 2px;
       cursor: pointer;
       white-space: nowrap;
-      transition: opacity 0.25s ease, letter-spacing 0.25s ease;
+      transition: color 0.25s ease, letter-spacing 0.25s ease;
     }
-    button.submit:hover { letter-spacing: 0.10em; }
-    button.submit:disabled { opacity: 0.5; cursor: default; letter-spacing: 0.04em; }
+    .fieldrow button:hover { color: var(--ink); letter-spacing: 0.08em; }
+    .fieldrow button:disabled { opacity: 0.55; cursor: default; letter-spacing: 0.02em; }
 
-    .form-note {
-      min-height: 1.2em;
+    .note {
       font-size: 12px;
-      letter-spacing: 0.03em;
-      color: var(--muted);
-      margin-top: 4px;
-      flex-basis: 100%;
+      letter-spacing: 0.02em;
+      color: var(--steel);
+      text-align: center;
     }
-
-    /* ---- Footer ---- */
-    footer.row a {
-      color: var(--muted);
-      text-decoration: none;
-      transition: color 0.25s ease;
-    }
-    footer.row a:hover { color: var(--ink); }
-    footer.row .right { text-align: right; }
+    .note:empty { display: none; }
 
     @media (max-width: 560px) {
-      header.row, footer.row { font-size: 11px; }
-      header.row .brand span.name { display: none; }
-      form.notify { gap: 20px; }
+      .stage .four04 { font-size: 16px; }
+      .stone { width: min(74vw, 340px); }
+      .fieldrow { gap: 12px; }
     }
   </style>
 </head>
 <body>
-  <div class="drift" aria-hidden="true">ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;ccc&nbsp;·&nbsp;</div>
+  <video class="bg" autoplay muted loop playsinline poster="bg-poster.jpg">
+    <source src="bg.mp4" type="video/mp4" />
+  </video>
 
-  <div class="shell">
+  <div class="page">
+    <header class="row">
+      <span class="brand">CreativeClubCult©</span>
+      <a class="goback" href="/" onclick="return goBack(event)">Go Back</a>
+    </header>
+
     <main>
-      <img class="hero-logo" src="logo-ccc.png" alt="Creative Club Cult logo" width="1000" height="475" />
-
-      <form class="notify" id="notify" novalidate>
-        <div class="field">
-          <label for="email">Join the list</label>
-          <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" required />
+      <div class="hero">
+        <div class="stage">
+          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
+          <div class="stone-wrap">
+            <div class="stone-float">
+              <img class="stone" src="stone.png" alt="Creative Club Cult logo carved in stone" width="714" height="509" />
+            </div>
+          </div>
+          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
         </div>
-        <button type="submit" class="submit">Notify me →</button>
-        <p class="form-note" id="note" role="status" aria-live="polite"></p>
-      </form>
+
+        <div class="below">
+          <p class="brb">BRB, making things look cool</p>
+
+          <form class="notify" id="notify" novalidate>
+            <p class="join">Join the list</p>
+            <div class="fieldrow">
+              <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email address" />
+              <button type="submit">Notify me →</button>
+            </div>
+            <p class="note" id="note" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
     </main>
 
     <footer class="row">
@@ -259,11 +346,53 @@
   </div>
 
   <script>
+    function goBack(e) {
+      if (history.length > 1) { e.preventDefault(); history.back(); return false; }
+      return true; // no history: follow href="/"
+    }
+
+    /* Cursor-driven 3D perspective tilt on the stone */
+    (function () {
+      var img = document.querySelector('.stone');
+      var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!img || !canHover || reduce) return;
+
+      var MAX_Y = 20;   // deg, left/right
+      var MAX_X = 14;   // deg, up/down
+      var PARA  = 14;   // px parallax shift
+      var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+
+      function onMove(e) {
+        tx = (e.clientX / window.innerWidth  - 0.5) * 2;   // -1..1
+        ty = (e.clientY / window.innerHeight - 0.5) * 2;
+        if (!raf) raf = requestAnimationFrame(loop);
+      }
+      function recenter() { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(loop); }
+
+      function loop() {
+        cx += (tx - cx) * 0.09;
+        cy += (ty - cy) * 0.09;
+        var ry = cx * MAX_Y, rx = -cy * MAX_X;
+        img.style.transform =
+          'translate3d(' + (cx * PARA).toFixed(2) + 'px,' + (cy * PARA).toFixed(2) + 'px,0) ' +
+          'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+        if (Math.abs(tx - cx) > 0.001 || Math.abs(ty - cy) > 0.001) {
+          raf = requestAnimationFrame(loop);
+        } else {
+          raf = null;
+        }
+      }
+
+      window.addEventListener('mousemove', onMove, { passive: true });
+      document.addEventListener('mouseleave', recenter);
+    })();
+
     (function () {
       var form = document.getElementById('notify');
       var input = document.getElementById('email');
       var note = document.getElementById('note');
-      var btn = form.querySelector('button.submit');
+      var btn = form.querySelector('button');
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -274,7 +403,6 @@
           input.focus();
           return;
         }
-        // No backend yet — capture intent gracefully.
         btn.disabled = true;
         note.textContent = "You're on the list. We'll be in touch.";
         input.value = '';

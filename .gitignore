@@ -5,5 +5,12 @@
 .claude/
 .vercel/
 
-# Source asset (original hi-res logo, not served)
+# Source assets (originals, not served — optimized versions are committed)
 LOGO CCC.jpg
+Background Web.mp4
+Batu Ajaib.png
+Text Copywriting.png
+
+# Reference recordings / screenshots (not served)
+*.mov
+Screen Recording*.png
