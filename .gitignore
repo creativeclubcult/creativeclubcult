@@ -14,3 +14,6 @@ Text Copywriting.png
 # Reference recordings / screenshots (not served)
 *.mov
 Screen Recording*.png
+
+# Internal docs (not for public deploy)
+CCC_Website_PRD_v1.0.pdf

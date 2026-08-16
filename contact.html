@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Creative Club Cult</title>
+  <meta name="description" content="Start a conversation with CCC — tell us about your project, a collaboration, or just say hi." />
+  <meta name="theme-color" content="#05070C" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="tide" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="index.html"><img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" /></a>
+    <button class="menu-btn" aria-label="Menu" aria-expanded="false">Menu</button>
+    <nav class="links" id="menu">
+      <a href="work.html">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="#journal">Journal</a>
+      <a href="contact.html" class="active">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="page-hero" style="padding-bottom:clamp(20px,3vh,40px)">
+      <div class="wrap">
+        <p class="eyebrow" style="margin-bottom:22px">Contact</p>
+        <h1>Let's talk.</h1>
+      </div>
+    </section>
+
+    <section class="sec" style="padding-top:clamp(20px,4vh,50px)">
+      <div class="wrap">
+        <div class="contact-grid">
+          <!-- Left: info -->
+          <div class="contact-info reveal">
+            <h3>Have something worth building? Tell us what you're thinking.</h3>
+            <a class="big-mail" href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+            <div class="detail">
+              Creative Club Cult<br />
+              Bandung, Indonesia<br />
+              Est. 2026<br /><br />
+              <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener" style="color:var(--ink);border-bottom:1px solid var(--line-strong);padding-bottom:2px">Instagram ↗</a>
+            </div>
+          </div>
+
+          <!-- Right: form -->
+          <form class="inquiry reveal" novalidate>
+            <div class="field">
+              <label>What's this about?</label>
+              <div class="type-row">
+                <button type="button" class="active">I have a project</button>
+                <button type="button">Let's collaborate</button>
+                <button type="button">Just saying hi</button>
+              </div>
+              <input type="hidden" name="inquiryType" value="I have a project" />
+            </div>
+
+            <div class="field two">
+              <div class="field"><label>Name <span class="req">*</span></label><input type="text" name="name" placeholder="Your name" autocomplete="name" required /></div>
+              <div class="field"><label>Company / Brand</label><input type="text" name="company" placeholder="Optional" autocomplete="organization" /></div>
+            </div>
+
+            <div class="field two">
+              <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" placeholder="you@email.com" autocomplete="email" required /></div>
+              <div class="field"><label>Preferred contact</label>
+                <select name="preferred">
+                  <option value="Email">Email</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Instagram DM">Instagram DM</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field"><label>Project description <span class="req">*</span></label><textarea name="description" placeholder="Tell us what you're thinking..." required></textarea></div>
+
+            <div class="field two">
+              <div class="field"><label>Timeline</label>
+                <select name="timeline">
+                  <option value="">Select</option>
+                  <option>ASAP</option>
+                  <option>1–3 months</option>
+                  <option>3–6 months</option>
+                  <option>Just exploring</option>
+                </select>
+              </div>
+              <div class="field"><label>Budget range</label>
+                <select name="budget">
+                  <option value="">Select</option>
+                  <option>Under 50M IDR</option>
+                  <option>50–150M IDR</option>
+                  <option>150–500M IDR</option>
+                  <option>500M+ IDR</option>
+                  <option>Not sure yet</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Send inquiry →</button>
+            <p class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site wrap">
+    <div class="col brandcol">
+      <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
+      <div class="big">Creative Club Cult</div>
+    </div>
+    <div class="col">
+      <h4>Menu</h4>
+      <a href="work.html">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="#journal">Journal</a>
+      <a href="contact.html">Contact</a>
+    </div>
+    <div class="col">
+      <h4>Connect</h4>
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+    </div>
+  </footer>
+  <div class="footbar wrap">
+    <span>© 2026 Creative Club Cult. All rights reserved.</span>
+    <span>Think → Direct → Create → Produce</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

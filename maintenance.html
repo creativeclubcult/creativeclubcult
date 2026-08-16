@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creative Club Cult</title>
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Creative Club Cult" />
+  <meta property="og:url" content="https://creativeclubcult.com" />
+  <meta property="og:image" content="https://creativeclubcult.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="theme-color" content="#05070C" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://creativeclubcult.com/og-image.png" />
+
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+  <link rel="canonical" href="https://creativeclubcult.com" />
+
+  <!-- Fonts (self-hosted TeX Gyre Heros — faithful Helvetica clone) -->
+  <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+
+  <style>
+    @font-face {
+      font-family: 'Heros';
+      font-style: normal;
+      font-weight: 400 500;
+      font-display: swap;
+      src: url('fonts/heros-regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Heros';
+      font-style: normal;
+      font-weight: 600 700;
+      font-display: swap;
+      src: url('fonts/heros-bold.woff2') format('woff2');
+    }
+
+    :root {
+      --bg: #05070C;
+      --ink: #EAEDF1;
+      --muted: rgba(234, 237, 241, 0.55);
+      --faint: rgba(234, 237, 241, 0.32);
+      --steel: #9FB2C9;
+      --line: rgba(234, 237, 241, 0.22);
+      --card: rgba(6, 10, 18, 0.55);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    ::selection { background: var(--ink); color: #05070C; }
+    ::-moz-selection { background: var(--ink); color: #05070C; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Heros', Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      letter-spacing: -0.01em;
+      min-height: 100svh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Background: black with a blue glow that rises & falls ---- */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: #010101;
+      overflow: hidden;
+    }
+    .bg::before {
+      content: "";
+      position: absolute;
+      left: -12%;
+      right: -12%;
+      bottom: -8%;
+      height: 68%;
+      background: radial-gradient(120% 100% at 50% 100%,
+        #8CAFCE 0%,
+        #6E97BA 16%,
+        #46748F 32%,
+        #294A61 46%,
+        #14293700 68%);
+      transform-origin: 50% 100%;
+      animation: tide 13s ease-in-out infinite;
+      will-change: transform, opacity;
+    }
+    /* the blue tide rises and falls */
+    @keyframes tide {
+      0%, 100% { transform: scaleY(0.62); opacity: 0.9; }
+      50%      { transform: scaleY(1.05); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg::before { animation: none; transform: scaleY(0.85); }
+    }
+
+    /* ---- Layout shell ---- */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(20px, 3.2vw, 40px);
+      gap: clamp(24px, 4vh, 40px);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: clamp(12px, 1.05vw, 14px);
+      letter-spacing: 0.01em;
+    }
+
+    header .brand { font-weight: 500; }
+    header a.goback,
+    footer a {
+      color: var(--ink);
+      text-decoration: none;
+      transition: opacity 0.25s ease;
+    }
+    header a.goback {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      opacity: 0.9;
+    }
+    header a.goback:hover { opacity: 0.6; }
+    footer a { color: #05070C; }
+    footer a:hover { color: #000; opacity: 0.65; }
+    footer .right { text-align: right; }
+
+    /* ---- Main stage ---- */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    /* .hero is centered in the viewport -> the stone sits dead-center.
+       .below hangs beneath it without affecting that centering. */
+    .hero {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stage {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .below {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: clamp(12px, 2vh, 22px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(12px, 1.8vh, 18px);
+    }
+    /* short screens: simple centered flow, no overlap with footer */
+    @media (max-height: 820px) {
+      main {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(16px, 3vh, 28px);
+      }
+      .hero { display: contents; }
+      .below {
+        position: static;
+        margin-top: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: clamp(12px, 1.8vh, 18px);
+      }
+    }
+    .stage .four04 {
+      font-size: clamp(20px, 2.4vw, 34px);
+      font-weight: 400;
+      color: rgba(234, 237, 241, 0.85);
+      letter-spacing: 0.01em;
+      flex: 0 0 auto;
+    }
+    .four04 .zero {
+      position: relative;
+      display: inline-block;
+    }
+    .four04 .zero::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0.07em;
+      height: 0.56em;
+      background: currentColor;
+      border-radius: 0.035em;
+      transform: translate(-50%, -50%) rotate(28deg);
+    }
+
+    /* perspective container -> idle float -> cursor tilt (JS) */
+    .stone-wrap {
+      flex: 0 1 auto;
+      perspective: 1000px;
+      perspective-origin: center;
+    }
+    .stone-float {
+      animation: float 7s ease-in-out infinite;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .stone {
+      width: clamp(260px, 34vw, 520px);
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
+      transform-origin: center;
+      backface-visibility: hidden;
+      will-change: transform;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+      50%      { transform: translateY(-18px) rotate(0.6deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stone-float { animation: none; }
+    }
+
+    /* ---- Copy + form ---- */
+    .brb {
+      font-size: clamp(12px, 1.15vw, 15px);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    form.notify {
+      width: 100%;
+      max-width: 420px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .join {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--steel);
+    }
+    .fieldrow {
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      gap: 18px;
+    }
+    .fieldrow input {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 15px;
+      padding: 8px 2px;
+      letter-spacing: 0.01em;
+      transition: border-color 0.25s ease;
+    }
+    .fieldrow input::placeholder { color: var(--faint); }
+    .fieldrow input:focus { outline: none; border-bottom-color: var(--ink); }
+
+    .fieldrow button {
+      flex: 0 0 auto;
+      background: transparent;
+      border: none;
+      color: var(--steel);
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      padding: 8px 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.25s ease, letter-spacing 0.25s ease;
+    }
+    .fieldrow button:hover { color: var(--ink); letter-spacing: 0.08em; }
+    .fieldrow button:disabled { opacity: 0.55; cursor: default; letter-spacing: 0.02em; }
+
+    .note {
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      color: var(--steel);
+      text-align: center;
+    }
+    .note:empty { display: none; }
+
+    @media (max-width: 560px) {
+      .stage { gap: 8px; }
+      .stage .four04 { font-size: 15px; }
+      .stone { width: min(58vw, 290px); }
+      .fieldrow { gap: 12px; }
+    }
+    @media (max-width: 380px) {
+      .stage .four04 { font-size: 13px; }
+      .stone { width: 54vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="row">
+      <span class="brand">CreativeClubCult©</span>
+      <a class="goback" href="/" onclick="return goBack(event)">Go Back</a>
+    </header>
+
+    <main>
+      <div class="hero">
+        <div class="stage">
+          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
+          <div class="stone-wrap">
+            <div class="stone-float">
+              <img class="stone" src="stone.png" alt="Creative Club Cult logo carved in stone" width="714" height="509" />
+            </div>
+          </div>
+          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
+        </div>
+
+        <div class="below">
+          <p class="brb">BRB, making things look cool</p>
+
+          <form class="notify" id="notify" novalidate>
+            <p class="join">Join the list</p>
+            <div class="fieldrow">
+              <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email address" />
+              <button type="submit">Notify me →</button>
+            </div>
+            <p class="note" id="note" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <footer class="row">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a class="right" href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">@creativeclubcult</a>
+    </footer>
+  </div>
+
+  <script>
+    function goBack(e) {
+      if (history.length > 1) { e.preventDefault(); history.back(); return false; }
+      return true; // no history: follow href="/"
+    }
+
+    /* 3D perspective tilt on the stone — cursor (desktop) or gyroscope (mobile) */
+    (function () {
+      var img = document.querySelector('.stone');
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!img || reduce) return;
+
+      var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      var MAX_Y = 20;   // deg, left/right
+      var MAX_X = 14;   // deg, up/down
+      var PARA  = 14;   // px parallax shift
+      var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+
+      function clamp(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
+      function kick() { if (!raf) raf = requestAnimationFrame(loop); }
+
+      function loop() {
+        cx += (tx - cx) * 0.09;
+        cy += (ty - cy) * 0.09;
+        var ry = cx * MAX_Y, rx = -cy * MAX_X;
+        img.style.transform =
+          'translate3d(' + (cx * PARA).toFixed(2) + 'px,' + (cy * PARA).toFixed(2) + 'px,0) ' +
+          'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+        if (Math.abs(tx - cx) > 0.001 || Math.abs(ty - cy) > 0.001) {
+          raf = requestAnimationFrame(loop);
+        } else {
+          raf = null;
+        }
+      }
+
+      /* Desktop: follow the cursor */
+      if (canHover) {
+        window.addEventListener('mousemove', function (e) {
+          tx = (e.clientX / window.innerWidth  - 0.5) * 2;   // -1..1
+          ty = (e.clientY / window.innerHeight - 0.5) * 2;
+          kick();
+        }, { passive: true });
+        document.addEventListener('mouseleave', function () { tx = 0; ty = 0; kick(); });
+      }
+
+      /* Mobile: follow the phone's tilt (gyroscope) */
+      var base = null;
+      function onOrient(e) {
+        if (e.gamma == null || e.beta == null) return;
+        if (!base) base = { g: e.gamma, b: e.beta };   // first reading = neutral
+        tx = clamp((e.gamma - base.g) / 28);
+        ty = clamp((e.beta  - base.b) / 28);
+        kick();
+      }
+      function startGyro() { window.addEventListener('deviceorientation', onOrient, { passive: true }); }
+
+      if (window.DeviceOrientationEvent) {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          // iOS 13+: sensor access needs a user gesture to grant
+          window.addEventListener('touchend', function grant() {
+            window.removeEventListener('touchend', grant);
+            DeviceOrientationEvent.requestPermission()
+              .then(function (state) { if (state === 'granted') startGyro(); })
+              .catch(function () {});
+          }, { once: true });
+        } else if (!canHover) {
+          startGyro();
+        }
+      }
+    })();
+
+    (function () {
+      var form = document.getElementById('notify');
+      var input = document.getElementById('email');
+      var note = document.getElementById('note');
+      var btn = form.querySelector('button');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = input.value.trim();
+        var ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        if (!ok) {
+          note.textContent = 'Enter a valid email to commit.';
+          input.focus();
+          return;
+        }
+        btn.disabled = true;
+        note.textContent = "You're on the list. We'll be in touch.";
+        input.value = '';
+        input.setAttribute('placeholder', 'noted ✓');
+      });
+    })();
+  </script>
+</body>
+</html>
