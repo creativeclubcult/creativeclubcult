@@ -5,17 +5,20 @@
   // ---- Mobile menu ----
   var btn = document.querySelector('.menu-btn');
   var menu = document.getElementById('menu');
+  var navEl = document.querySelector('header.nav');
   if (btn && menu) {
     btn.addEventListener('click', function () {
       var open = menu.classList.toggle('open');
-      btn.textContent = open ? 'Close' : 'Menu';
+      if (navEl) navEl.classList.toggle('menu-open', open);
       btn.setAttribute('aria-expanded', open);
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Menu');
     });
     menu.addEventListener('click', function (e) {
       if (e.target.tagName === 'A') {
         menu.classList.remove('open');
-        btn.textContent = 'Menu';
+        if (navEl) navEl.classList.remove('menu-open');
         btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', 'Menu');
       }
     });
   }

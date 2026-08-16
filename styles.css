@@ -59,7 +59,16 @@ header.nav .brand-logo { height: 30px; width: auto; display: block; }
 header.nav .links { display: flex; gap: clamp(18px, 2.2vw, 34px); font-size: 14px; }
 header.nav .links a { color: #fff; opacity: 0.85; transition: opacity .25s; }
 header.nav .links a:hover, header.nav .links a.active { opacity: 0.45; }
-.menu-btn { display: none; background: none; border: none; color: #fff; font: inherit; cursor: pointer; }
+.menu-btn { display: none; background: none; border: none; color: #fff; cursor: pointer; padding: 6px; margin: -6px; }
+.menu-btn .bars { display: block; width: 30px; height: 13px; position: relative; }
+.menu-btn .bars i { position: absolute; left: 0; height: 1.5px; background: currentColor; border-radius: 2px;
+  transition: transform .45s cubic-bezier(.7,0,.2,1), width .35s ease, top .35s cubic-bezier(.7,0,.2,1); }
+.menu-btn .bars i:nth-child(1) { top: 2px; width: 100%; }
+.menu-btn .bars i:nth-child(2) { top: 9px; width: 60%; }
+.menu-btn:hover .bars i:nth-child(2) { width: 100%; }
+header.nav.menu-open .menu-btn .bars i:nth-child(1) { top: 6px; width: 100%; transform: rotate(45deg); }
+header.nav.menu-open .menu-btn .bars i:nth-child(2) { top: 6px; width: 100%; transform: rotate(-45deg); }
+@keyframes menuIn { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Background tide ---------- */
 .tide { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -313,10 +322,37 @@ html.pt-fallback body.pt-out { opacity: 0; }
    RESPONSIVE
    =========================================================== */
 @media (max-width: 860px) {
-  header.nav .links { display: none; }
-  header.nav .links.open { display: flex; position: fixed; inset: 0; z-index: 99; background: var(--bg); flex-direction: column; justify-content: center; align-items: center; gap: 28px; mix-blend-mode: normal; font-size: 28px; }
-  header.nav .links.open a { color: var(--ink); opacity: 1; }
+  /* keep logo + hamburger above the overlay */
+  header.nav .brand { position: relative; z-index: 101; }
   .menu-btn { display: block; z-index: 100; position: relative; }
+  /* menu open: drop header's difference blend so the overlay renders cleanly */
+  header.nav.menu-open { mix-blend-mode: normal; isolation: isolate; }
+  header.nav.menu-open .menu-btn { color: var(--ink); }
+
+  /* full-screen overlay: soft dark + blur (not solid black), animated */
+  header.nav .links {
+    position: fixed; inset: 0; z-index: 99;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: clamp(22px, 4.5vh, 42px);
+    background: rgba(7, 10, 17, 0.72);
+    -webkit-backdrop-filter: blur(26px) saturate(120%);
+    backdrop-filter: blur(26px) saturate(120%);
+    mix-blend-mode: normal;
+    font-size: clamp(32px, 9vw, 48px); font-weight: 500; letter-spacing: -0.02em;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .5s ease, visibility .5s;
+  }
+  header.nav .links.open { opacity: 1; visibility: visible; pointer-events: auto; }
+  header.nav .links a { color: var(--ink); opacity: 1; position: relative; }
+  header.nav .links a::after {
+    content: ""; position: absolute; left: 50%; bottom: -8px; width: 0; height: 1.5px;
+    background: currentColor; transform: translateX(-50%); transition: width .35s cubic-bezier(.2,.8,.2,1);
+  }
+  header.nav .links.open a { animation: menuIn .55s cubic-bezier(.2,.85,.25,1) backwards; }
+  header.nav .links.open a:nth-child(1) { animation-delay: .10s; }
+  header.nav .links.open a:nth-child(2) { animation-delay: .17s; }
+  header.nav .links.open a:nth-child(3) { animation-delay: .24s; }
+  header.nav .links.open a:nth-child(4) { animation-delay: .31s; }
   .framework { grid-template-columns: repeat(2, 1fr); }
   .framework .step:nth-child(3) { border-left: none; padding-left: 0; }
   .card, .card.tall { grid-column: span 12; }
@@ -332,6 +368,12 @@ html.pt-fallback body.pt-out { opacity: 0; }
   .contact-grid { grid-template-columns: 1fr; }
   .jitem { grid-template-columns: 1fr; gap: 8px; }
   .jitem .date { text-align: left; order: 3; }
+}
+/* menu link hover (pointer devices) — dim the rest, underline the target */
+@media (max-width: 860px) and (hover: hover) {
+  header.nav .links.open:hover a { opacity: 0.38; transition: opacity .3s ease; }
+  header.nav .links.open a:hover { opacity: 1; }
+  header.nav .links.open a:hover::after { width: 44px; }
 }
 @media (max-width: 480px) {
   .hero .sub { flex-direction: column; align-items: flex-start; }
