@@ -20,18 +20,61 @@
     });
   }
 
-  // ---- Scroll reveal ----
+  // ---- Motion: reveals + word-mask text ----
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var els = document.querySelectorAll('.reveal');
+
+  // Wrap each word of a heading in a masked span (preserves nested markup like .dim / <em>)
+  function wrapWords(node, out) {
+    Array.prototype.slice.call(node.childNodes).forEach(function (child) {
+      if (child.nodeType === 3) {
+        var frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach(function (tok) {
+          if (tok === '') return;
+          if (/^\s+$/.test(tok)) { frag.appendChild(document.createTextNode(tok)); return; }
+          var w = document.createElement('span'); w.className = 'word';
+          var wi = document.createElement('span'); wi.className = 'wi'; wi.textContent = tok;
+          w.appendChild(wi); frag.appendChild(w); out.push(wi);
+        });
+        node.replaceChild(frag, child);
+      } else if (child.nodeType === 1 && child.tagName !== 'BR') {
+        wrapWords(child, out);
+      }
+    });
+  }
+
+  if (!reduce) {
+    // Word-mask the big entry headings
+    document.querySelectorAll('.hero h1, .page-hero h1, .proj-hero h1').forEach(function (h) {
+      h.classList.add('anim-text');
+      var inners = []; wrapWords(h, inners);
+      inners.forEach(function (wi, i) { wi.style.transitionDelay = (0.045 * i) + 's'; });
+    });
+
+    // Hero / page-hero entrance fade-ups (staggered)
+    var fades = document.querySelectorAll('.hero .eyebrow, .hero .sub, .hero .framework, .page-hero .eyebrow, .page-hero .lead');
+    fades.forEach(function (e, i) { e.classList.add('reveal'); e.style.transitionDelay = (0.12 + 0.08 * i) + 's'; });
+
+    // Stagger grid children
+    ['.work-grid', '.capabilities', '.journal-list'].forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (group) {
+        var n = 0;
+        Array.prototype.slice.call(group.children).forEach(function (k) {
+          if (k.classList.contains('reveal')) { k.style.transitionDelay = (0.06 * n) + 's'; n++; }
+        });
+      });
+    });
+  }
+
+  var revealEls = document.querySelectorAll('.reveal, .anim-text');
   if (reduce || !('IntersectionObserver' in window)) {
-    els.forEach(function (e) { e.classList.add('in'); });
+    revealEls.forEach(function (e) { e.classList.add('in'); });
   } else {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-    els.forEach(function (e) { io.observe(e); });
+    revealEls.forEach(function (e) { io.observe(e); });
   }
 
   // ---- Work archive filters ----
