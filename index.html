@@ -67,15 +67,39 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ---- Background video ---- */
+    /* ---- Background: black with a blue glow that rises & falls ---- */
     .bg {
       position: fixed;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
       z-index: 0;
       pointer-events: none;
+      background: #010101;
+      overflow: hidden;
+    }
+    .bg::before {
+      content: "";
+      position: absolute;
+      left: -12%;
+      right: -12%;
+      bottom: -8%;
+      height: 68%;
+      background: radial-gradient(120% 100% at 50% 100%,
+        #8CAFCE 0%,
+        #6E97BA 16%,
+        #46748F 32%,
+        #294A61 46%,
+        #14293700 68%);
+      transform-origin: 50% 100%;
+      animation: tide 13s ease-in-out infinite;
+      will-change: transform, opacity;
+    }
+    /* the blue tide rises and falls */
+    @keyframes tide {
+      0%, 100% { transform: scaleY(0.62); opacity: 0.9; }
+      50%      { transform: scaleY(1.05); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg::before { animation: none; transform: scaleY(0.85); }
     }
 
     /* ---- Layout shell ---- */
@@ -111,8 +135,8 @@
       opacity: 0.9;
     }
     header a.goback:hover { opacity: 0.6; }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--ink); }
+    footer a { color: #05070C; }
+    footer a:hover { color: #000; opacity: 0.65; }
     footer .right { text-align: right; }
 
     /* ---- Main stage ---- */
@@ -231,16 +255,11 @@
     form.notify {
       width: 100%;
       max-width: 420px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: clamp(16px, 2vw, 20px) clamp(18px, 2.4vw, 24px);
+      padding: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
     .join {
       font-size: 11px;
@@ -295,16 +314,19 @@
     .note:empty { display: none; }
 
     @media (max-width: 560px) {
-      .stage .four04 { font-size: 16px; }
-      .stone { width: min(74vw, 340px); }
+      .stage { gap: 8px; }
+      .stage .four04 { font-size: 15px; }
+      .stone { width: min(58vw, 290px); }
       .fieldrow { gap: 12px; }
+    }
+    @media (max-width: 380px) {
+      .stage .four04 { font-size: 13px; }
+      .stone { width: 54vw; }
     }
   </style>
 </head>
 <body>
-  <video class="bg" autoplay muted loop playsinline poster="bg-poster.jpg">
-    <source src="bg.mp4" type="video/mp4" />
-  </video>
+  <div class="bg" aria-hidden="true"></div>
 
   <div class="page">
     <header class="row">
@@ -351,24 +373,20 @@
       return true; // no history: follow href="/"
     }
 
-    /* Cursor-driven 3D perspective tilt on the stone */
+    /* 3D perspective tilt on the stone — cursor (desktop) or gyroscope (mobile) */
     (function () {
       var img = document.querySelector('.stone');
-      var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!img || !canHover || reduce) return;
+      if (!img || reduce) return;
 
+      var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       var MAX_Y = 20;   // deg, left/right
       var MAX_X = 14;   // deg, up/down
       var PARA  = 14;   // px parallax shift
       var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
 
-      function onMove(e) {
-        tx = (e.clientX / window.innerWidth  - 0.5) * 2;   // -1..1
-        ty = (e.clientY / window.innerHeight - 0.5) * 2;
-        if (!raf) raf = requestAnimationFrame(loop);
-      }
-      function recenter() { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(loop); }
+      function clamp(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
+      function kick() { if (!raf) raf = requestAnimationFrame(loop); }
 
       function loop() {
         cx += (tx - cx) * 0.09;
@@ -384,8 +402,40 @@
         }
       }
 
-      window.addEventListener('mousemove', onMove, { passive: true });
-      document.addEventListener('mouseleave', recenter);
+      /* Desktop: follow the cursor */
+      if (canHover) {
+        window.addEventListener('mousemove', function (e) {
+          tx = (e.clientX / window.innerWidth  - 0.5) * 2;   // -1..1
+          ty = (e.clientY / window.innerHeight - 0.5) * 2;
+          kick();
+        }, { passive: true });
+        document.addEventListener('mouseleave', function () { tx = 0; ty = 0; kick(); });
+      }
+
+      /* Mobile: follow the phone's tilt (gyroscope) */
+      var base = null;
+      function onOrient(e) {
+        if (e.gamma == null || e.beta == null) return;
+        if (!base) base = { g: e.gamma, b: e.beta };   // first reading = neutral
+        tx = clamp((e.gamma - base.g) / 28);
+        ty = clamp((e.beta  - base.b) / 28);
+        kick();
+      }
+      function startGyro() { window.addEventListener('deviceorientation', onOrient, { passive: true }); }
+
+      if (window.DeviceOrientationEvent) {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          // iOS 13+: sensor access needs a user gesture to grant
+          window.addEventListener('touchend', function grant() {
+            window.removeEventListener('touchend', grant);
+            DeviceOrientationEvent.requestPermission()
+              .then(function (state) { if (state === 'granted') startGyro(); })
+              .catch(function () {});
+          }, { once: true });
+        } else if (!canHover) {
+          startGyro();
+        }
+      }
     })();
 
     (function () {
