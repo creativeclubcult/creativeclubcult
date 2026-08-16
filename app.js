@@ -94,6 +94,65 @@
     });
   }
 
+  // ---- Custom cursor (desktop / fine pointer only) ----
+  (function () {
+    var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!fine) return;
+    var cur = document.createElement('div');
+    cur.className = 'cursor';
+    cur.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(cur);
+    document.body.classList.add('has-cursor');
+
+    var x = window.innerWidth / 2, y = window.innerHeight / 2, cx = x, cy = y, ready = false;
+    window.addEventListener('mousemove', function (e) {
+      x = e.clientX; y = e.clientY;
+      if (!ready) { ready = true; cx = x; cy = y; cur.classList.add('ready'); }
+    }, { passive: true });
+    document.addEventListener('mouseleave', function () { cur.style.opacity = '0'; });
+    document.addEventListener('mouseenter', function () { if (ready) cur.style.opacity = ''; });
+
+    (function loop() {
+      cx += (x - cx) * 0.2; cy += (y - cy) * 0.2;
+      cur.style.transform = 'translate(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px)';
+      requestAnimationFrame(loop);
+    })();
+
+    var sel = 'a, button, input, textarea, select, .card, .wstep, .jitem, [data-cursor]';
+    document.addEventListener('mouseover', function (e) {
+      if (e.target.closest && e.target.closest(sel)) cur.classList.add('hover');
+    });
+    document.addEventListener('mouseout', function (e) {
+      var to = e.relatedTarget;
+      if (e.target.closest && e.target.closest(sel) && !(to && to.closest && to.closest(sel))) {
+        cur.classList.remove('hover');
+      }
+    });
+  })();
+
+  // ---- Page transition fallback (browsers without cross-document View Transitions) ----
+  (function () {
+    if ('startViewTransition' in document) return; // native VT handles it via CSS
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.documentElement.classList.add('pt-fallback');
+    if (reduce) return;
+    window.addEventListener('pageshow', function () {
+      document.body.classList.remove('pt-out');
+      requestAnimationFrame(function () { document.body.classList.add('pt-in'); });
+    });
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a');
+      if (!a) return;
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#' || href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0 ||
+          a.target === '_blank' || (a.host && a.host !== location.host)) return;
+      e.preventDefault();
+      document.body.classList.remove('pt-in');
+      document.body.classList.add('pt-out');
+      setTimeout(function () { location.href = href; }, 320);
+    });
+  })();
+
   // ---- Contact form ----
   var form = document.querySelector('form.inquiry');
   if (form) {

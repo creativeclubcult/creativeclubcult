@@ -273,6 +273,43 @@ form.inquiry .type-row button.active { color: #05070C; background: var(--ink); b
 .form-status { font-size: 14px; color: var(--steel); min-height: 1em; }
 
 /* ===========================================================
+   MARQUEE TICKER
+   =========================================================== */
+.marquee { overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: clamp(16px, 2.4vw, 32px); position: relative; z-index: 1; }
+.marquee-track { display: inline-flex; white-space: nowrap; animation: marquee 30s linear infinite; will-change: transform; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.mgroup { display: inline-flex; align-items: center; }
+.mgroup span { font-size: clamp(26px, 5vw, 70px); font-weight: 500; letter-spacing: -0.02em; padding: 0 clamp(14px, 2vw, 30px); }
+.mgroup i { color: var(--steel); font-style: normal; font-size: clamp(16px, 2.4vw, 34px); }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+/* ===========================================================
+   CUSTOM CURSOR
+   =========================================================== */
+.cursor { position: fixed; top: 0; left: 0; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #EAEDF1; pointer-events: none; z-index: 9999; mix-blend-mode: difference; opacity: 0; transition: width .28s cubic-bezier(.2,.8,.2,1), height .28s cubic-bezier(.2,.8,.2,1), margin .28s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+.cursor.ready { opacity: 1; }
+.cursor.hover { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
+body.has-cursor, body.has-cursor * { cursor: none !important; }
+@media (hover: none), (pointer: coarse) { .cursor { display: none !important; } }
+
+/* ===========================================================
+   PAGE TRANSITIONS
+   =========================================================== */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: pt-out .34s ease both; }
+::view-transition-new(root) { animation: pt-in .46s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pt-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes pt-in { from { opacity: 0; transform: translateY(14px); } }
+html.pt-fallback body { opacity: 0; transition: opacity .34s ease; }
+html.pt-fallback body.pt-in { opacity: 1; }
+html.pt-fallback body.pt-out { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  html.pt-fallback body { opacity: 1 !important; transition: none; }
+}
+
+/* ===========================================================
    RESPONSIVE
    =========================================================== */
 @media (max-width: 860px) {
