@@ -160,8 +160,7 @@
       width: 100%;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 16px;
+      justify-content: center;
     }
     .below {
       position: absolute;
@@ -191,28 +190,6 @@
         align-items: center;
         gap: clamp(12px, 1.8vh, 18px);
       }
-    }
-    .stage .four04 {
-      font-size: clamp(20px, 2.4vw, 34px);
-      font-weight: 400;
-      color: rgba(234, 237, 241, 0.85);
-      letter-spacing: 0.01em;
-      flex: 0 0 auto;
-    }
-    .four04 .zero {
-      position: relative;
-      display: inline-block;
-    }
-    .four04 .zero::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 0.07em;
-      height: 0.56em;
-      background: currentColor;
-      border-radius: 0.035em;
-      transform: translate(-50%, -50%) rotate(28deg);
     }
 
     /* perspective container -> idle float -> cursor tilt (JS) */
@@ -314,13 +291,10 @@
     .note:empty { display: none; }
 
     @media (max-width: 560px) {
-      .stage { gap: 8px; }
-      .stage .four04 { font-size: 15px; }
       .stone { width: min(58vw, 290px); }
       .fieldrow { gap: 12px; }
     }
     @media (max-width: 380px) {
-      .stage .four04 { font-size: 13px; }
       .stone { width: 54vw; }
     }
   </style>
@@ -337,13 +311,11 @@
     <main>
       <div class="hero">
         <div class="stage">
-          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
           <div class="stone-wrap">
             <div class="stone-float">
               <img class="stone" src="stone.png" alt="Creative Club Cult logo carved in stone" width="714" height="509" />
             </div>
           </div>
-          <span class="four04" aria-hidden="true">4<span class="zero">0</span>4</span>
         </div>
 
         <div class="below">
