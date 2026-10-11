@@ -11,57 +11,76 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="tide" aria-hidden="true"></div>
-
-  <header class="nav">
-    <a class="brand" href="index.html"><img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" /></a>
-    <button class="menu-btn" aria-label="Menu" aria-expanded="false"><span class="bars" aria-hidden="true"><i></i><i></i></span></button>
-    <nav class="links" id="menu">
-      <a href="work.html">Work</a>
-      <a href="ccc.html">CCC</a>
-      <a href="journal.html" class="active">Journal</a>
-      <a href="contact.html">Contact</a>
-    </nav>
+  <header class="site-header">
+    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
+      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
+      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </header>
 
-  <main>
-    <section class="sec" style="padding-top:clamp(120px,18vh,220px)">
-      <div class="wrap">
-        <article class="article">
-          <p class="eyebrow" style="margin-bottom:26px"><a href="journal.html" style="color:var(--steel)">← Journal</a></p>
-          <div class="a-head">
-            <span class="cat">Thoughts</span>
-            <h1>Taste is a discipline.</h1>
-            <p class="byline">By CCC · August 2026</p>
-          </div>
-          <div class="body">
-            <p>There's a lazy idea that strategy and craft sit on opposite ends of a spectrum — that you either think or you make. We don't buy it. The best work is both: thought all the way through, and made beautifully.</p>
-            <p>Taste isn't a mood or a lucky accident. It's a discipline — a thousand small decisions held to a standard, over and over, until the whole thing feels inevitable.</p>
-            <div class="figure" style="display:grid;place-items:center;background:radial-gradient(140% 120% at 30% 20%, #16283a 0%, #0a121c 55%, #070b12 100%);border-radius:4px"><span style="color:rgba(159,178,201,0.14);font-size:clamp(50px,10vw,120px);font-weight:600">CCC</span></div>
-            <h3>Serious intent</h3>
-            <p>"A creative playground with serious intent" isn't a contradiction. The playground is where the ideas come from. The serious intent is what makes them land — the rigor, the craft, and the refusal to ship anything we don't believe in.</p>
-            <blockquote>We think before we make, and we make things worth committing to.</blockquote>
-            <p>That's the whole thing, really. Everything else — the framework, the process, the polish — is just how we keep that promise on every project.</p>
-          </div>
-        </article>
-      </div>
-    </section>
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-links" aria-label="Main">
+      <a href="work.html">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="journal.html" aria-current="page">Journal</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="menu-foot">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+      <span>Bandung, Indonesia</span>
+    </div>
+  </div>
 
-    <section class="sec" style="padding-top:0">
+  <div id="smooth-wrapper"><div id="smooth-content">
+  <main>
+    <article>
+      <section class="page-hero article-head">
+        <div class="wrap">
+          <p class="eyebrow"><a href="journal.html">← Journal</a> &nbsp;/&nbsp; Thoughts</p>
+          <h1 class="display">Taste is a discipline.</h1>
+          <div class="article-grid">
+            <aside class="article-aside">
+              <span class="tag">Thoughts</span>
+              <span>By CCC</span>
+              <span>August 2026</span>
+            </aside>
+            <div class="article-body">
+              <p>There's a lazy idea that strategy and craft sit on opposite ends of a spectrum — that you either think or you make. We don't buy it. The best work is both: thought all the way through, and made beautifully.</p>
+              <p>Taste isn't a mood or a lucky accident. It's a discipline — a thousand small decisions held to a standard, over and over, until the whole thing feels inevitable.</p>
+              <div class="figure wide"><span class="ph">CCC</span></div>
+              <h2>Serious intent</h2>
+              <p>"A creative playground with serious intent" isn't a contradiction. The playground is where the ideas come from. The serious intent is what makes them land — the rigor, the craft, and the refusal to ship anything we don't believe in.</p>
+              <blockquote>We think before we make, and we make things worth committing to.</blockquote>
+              <p>That's the whole thing, really. Everything else — the framework, the process, the polish — is just how we keep that promise on every project.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </article>
+
+    <section class="sec">
       <div class="wrap">
-        <div class="sec-head reveal"><h2 style="font-size:clamp(24px,3.4vw,44px)">Keep reading</h2><span class="idx">Related</span></div>
-        <div class="journal-list">
-          <a class="jitem reveal" href="article.html"><span class="cat">Thoughts</span><span class="jt">Think → Direct → Create → Produce.</span><span class="date">Jul 2026</span></a>
-          <a class="jitem reveal" href="article.html"><span class="cat">Notes</span><span class="jt">Notes on making things worth committing to.</span><span class="date">Jul 2026</span></a>
+        <div class="sec-head reveal">
+          <div>
+            <p class="eyebrow">Related</p>
+            <h2 class="heading">Keep reading</h2>
+          </div>
+        </div>
+        <div class="cards">
+          <a class="card reveal" href="article.html"><div class="media"><div class="ph"><span>T</span></div></div><span class="tag">Thoughts</span><div class="meta"><h3>Think → Direct → Create → Produce.</h3><span class="y">Jul 2026</span></div><p>Breaking down the framework behind how CCC approaches a creative challenge, end to end.</p></a>
+          <a class="card reveal" href="article.html"><div class="media"><div class="ph"><span>N</span></div></div><span class="tag">Notes</span><div class="meta"><h3>Notes on making things worth committing to.</h3><span class="y">Jul 2026</span></div><p>A short field guide to the standards we hold ourselves to across every project.</p></a>
+          <a class="card tint reveal" href="journal.html"><p class="eyebrow">Journal</p><p class="heading-sm">All entries.</p><span class="go">Back to the journal <span>→</span></span></a>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="site wrap">
+  <footer class="site-footer">
     <div class="col brandcol">
       <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="big">Creative Club Cult</div>
+      <div class="heading-sm">Creative Club Cult</div>
     </div>
     <div class="col">
       <h4>Menu</h4>
@@ -75,12 +94,21 @@
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
     </div>
+    <div class="col">
+      <h4>Studio</h4>
+      <span>Bandung, Indonesia</span>
+      <span>Est. 2026</span>
+    </div>
+    <div class="footbar">
+      <span>© 2026 Creative Club Cult. All rights reserved.</span>
+      <span>Think → Direct → Create → Produce</span>
+    </div>
   </footer>
-  <div class="footbar wrap">
-    <span>© 2026 Creative Club Cult. All rights reserved.</span>
-    <span>Think → Direct → Create → Produce</span>
-  </div>
+  </div></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

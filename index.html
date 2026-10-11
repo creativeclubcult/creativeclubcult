@@ -5,156 +5,142 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Creative Club Cult — A creative company</title>
   <meta name="description" content="CCC is a creative company working across disciplines — from strategy and thinking through direction, creation, and production. Est. 2026, Bandung." />
-
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Creative Club Cult" />
   <meta property="og:description" content="A creative playground with serious intent. Think, direct, create, produce." />
   <meta property="og:url" content="https://creativeclubcult.com" />
   <meta property="og:image" content="https://creativeclubcult.com/og-image.png" />
-  <meta name="theme-color" content="#05070C" />
   <meta name="twitter:card" content="summary_large_image" />
-
-  <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="favicon.png" />
   <link rel="canonical" href="https://creativeclubcult.com" />
+  <meta name="theme-color" content="#05070C" />
+  <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="tide" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
+      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
+      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
+  </header>
 
-  <header class="nav">
-    <a class="brand" href="index.html"><img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" /></a>
-    <button class="menu-btn" aria-label="Menu" aria-expanded="false"><span class="bars" aria-hidden="true"><i></i><i></i></span></button>
-    <nav class="links" id="menu">
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-links" aria-label="Main">
       <a href="work.html">Work</a>
       <a href="ccc.html">CCC</a>
       <a href="journal.html">Journal</a>
       <a href="contact.html">Contact</a>
     </nav>
-  </header>
+    <div class="menu-foot">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+      <span>Bandung, Indonesia</span>
+    </div>
+  </div>
 
-  <main id="top">
-    <!-- HERO -->
+  <div id="smooth-wrapper"><div id="smooth-content">
+  <main>
     <section class="hero">
       <div class="wrap">
-        <h1>A creative playground <span class="dim">with serious intent.</span></h1>
-        <div class="sub">
+        <h1 class="display">A creative playground<br /><span class="dim">with serious intent.</span></h1>
+        <div class="hero-meta">
           <p>CCC works across disciplines — from strategy and thinking through direction, creation, and production. Brand, design, and ideas worth committing to.</p>
-          <span class="scrollcue">Scroll <span>↓</span></span>
         </div>
-        <div class="framework" aria-label="How CCC works">
-          <div class="step"><span class="n">01</span><span class="t">Think</span></div>
-          <div class="step"><span class="n">02</span><span class="t">Direct</span></div>
-          <div class="step"><span class="n">03</span><span class="t">Create</span></div>
-          <div class="step"><span class="n">04</span><span class="t">Produce</span></div>
+      </div>
+      <div class="band" aria-hidden="true"></div>
+    </section>
+
+    <section class="sec">
+      <div class="wrap intro">
+        <div>
+          <p class="eyebrow reveal" style="margin-bottom:clamp(20px,2.4vw,32px)">CCC</p>
+          <p class="statement reveal">We are a creative company, not a template. <em>We think before we make, and we make things worth committing to.</em></p>
+          <div class="actions reveal"><a class="btn ghost" href="ccc.html">About CCC <span>→</span></a></div>
         </div>
+        <div class="intro-mark reveal"><img class="stone" src="stone.png" alt="The Creative Club Cult mark carved in stone" width="714" height="509" loading="lazy" /></div>
       </div>
     </section>
 
-    <!-- INTRO -->
-    <section class="sec intro">
-      <div class="wrap">
-        <div class="sec-head reveal"><span class="idx">01 — CCC</span></div>
-        <p class="reveal">We are a creative company, not a template. <em>We think before we make, and we make things worth committing to.</em></p>
-        <div class="cta reveal"><a class="link-arrow" href="ccc.html">About CCC <span>→</span></a></div>
-      </div>
-    </section>
-
-    <!-- HOW WE WORK -->
     <section class="sec" id="how">
       <div class="wrap">
         <div class="sec-head reveal">
-          <h2>How we work</h2>
-          <span class="idx">02 — Approach</span>
+          <div>
+            <p class="eyebrow">Approach</p>
+            <h2 class="heading">How we work</h2>
+          </div>
         </div>
-        <div class="work-steps reveal">
-          <div class="wstep" tabindex="0">
-            <div class="row"><span class="n">01</span><span class="name">Think</span><span class="kw">Strategy · Insight · Positioning</span></div>
-            <p class="desc">Every project starts with thinking. We interrogate the problem, find the angle, and build the strategic foundation before a single pixel moves.</p>
-          </div>
-          <div class="wstep" tabindex="0">
-            <div class="row"><span class="n">02</span><span class="name">Direct</span><span class="kw">Concept · Art Direction · Narrative</span></div>
-            <p class="desc">We set the creative direction — the concept, the tone, the story. A clear point of view that holds every decision together.</p>
-          </div>
-          <div class="wstep" tabindex="0">
-            <div class="row"><span class="n">03</span><span class="name">Create</span><span class="kw">Design · Craft · Systems</span></div>
-            <p class="desc">We make the work. Brand systems, design, motion, and content — crafted with taste and obsessive attention to detail.</p>
-          </div>
-          <div class="wstep" tabindex="0">
-            <div class="row"><span class="n">04</span><span class="name">Produce</span><span class="kw">Production · Delivery · Execution</span></div>
-            <p class="desc">We bring it to life and out into the world — production, delivery, and execution at the standard the idea deserves.</p>
-          </div>
+        <div class="steps reveal">
+          <div class="step"><h3 class="name">Think</h3><div class="body"><p class="kw">Strategy · Insight · Positioning</p><p class="desc">Every project starts with thinking. We interrogate the problem, find the angle, and build the strategic foundation before a single pixel moves.</p></div></div>
+          <div class="step"><h3 class="name">Direct</h3><div class="body"><p class="kw">Concept · Art Direction · Narrative</p><p class="desc">We set the creative direction — the concept, the tone, the story. A clear point of view that holds every decision together.</p></div></div>
+          <div class="step"><h3 class="name">Create</h3><div class="body"><p class="kw">Design · Craft · Systems</p><p class="desc">We make the work. Brand systems, design, motion, and content — crafted with taste and obsessive attention to detail.</p></div></div>
+          <div class="step"><h3 class="name">Produce</h3><div class="body"><p class="kw">Production · Delivery · Execution</p><p class="desc">We bring it to life and out into the world — production, delivery, and execution at the standard the idea deserves.</p></div></div>
         </div>
       </div>
     </section>
 
-    <!-- SELECTED WORK -->
     <section class="sec" id="work">
       <div class="wrap">
         <div class="sec-head reveal">
-          <h2>Selected work</h2>
-          <span class="idx">03 — Portfolio</span>
+          <div>
+            <p class="eyebrow">Portfolio</p>
+            <h2 class="heading">Selected work</h2>
+          </div>
+          <div class="arrows">
+            <button class="arrow" type="button" data-rail="rail-work" data-dir="-1" aria-label="Previous"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+            <button class="arrow" type="button" data-rail="rail-work" data-dir="1" aria-label="Next"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+          </div>
         </div>
-        <div class="work-grid">
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>01</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Branding · Identity</div></a>
-          <a class="card tall reveal" href="project.html"><div class="media"><div class="ph"><span>02</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Campaign · Film</div></a>
-          <a class="card tall reveal" href="project.html"><div class="media"><div class="ph"><span>03</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Experience · Digital</div></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>04</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Production</div></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>05</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Experimental</div></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>06</span></div></div><div class="meta"><span class="t">Untitled Project</span><span class="y">2026</span></div><div class="tags">Branding · Digital</div></a>
+        <div class="rail rail-lg" id="rail-work">
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>01</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Identity</p></a>
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>02</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Campaign · Film</p></a>
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>03</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experience · Digital</p></a>
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>04</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Production</p></a>
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>05</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experimental</p></a>
+          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>06</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Digital</p></a>
+          <a class="card accent reveal" href="work.html"><p class="eyebrow">Work — Archive</p><p class="heading-sm">View all work.</p><span class="go">Open the archive <span>→</span></span></a>
         </div>
-        <div class="cta reveal"><a class="link-arrow" href="work.html">View all work <span>→</span></a></div>
       </div>
     </section>
 
-    <!-- MARQUEE -->
-    <div class="marquee" aria-label="Think · Direct · Create · Produce">
-      <div class="marquee-track">
-        <div class="mgroup">
-          <span>Think</span><i>·</i><span>Direct</span><i>·</i><span>Create</span><i>·</i><span>Produce</span><i>·</i>
-          <span>Think</span><i>·</i><span>Direct</span><i>·</i><span>Create</span><i>·</i><span>Produce</span><i>·</i>
-        </div>
-        <div class="mgroup" aria-hidden="true">
-          <span>Think</span><i>·</i><span>Direct</span><i>·</i><span>Create</span><i>·</i><span>Produce</span><i>·</i>
-          <span>Think</span><i>·</i><span>Direct</span><i>·</i><span>Create</span><i>·</i><span>Produce</span><i>·</i>
-        </div>
-      </div>
-    </div>
-
-    <!-- JOURNAL / OTHER SIDE -->
     <section class="sec" id="journal">
       <div class="wrap">
         <div class="sec-head reveal">
-          <h2>The other side of CCC</h2>
-          <span class="idx">04 — Journal</span>
+          <div>
+            <p class="eyebrow">Journal</p>
+            <h2 class="heading-sm">The other side of CCC</h2>
+          </div>
+          <a class="btn ghost" href="journal.html">Read the journal <span>→</span></a>
         </div>
-        <p class="reveal" style="max-width:44ch;color:var(--muted);font-size:clamp(15px,1.5vw,19px);line-height:1.55">
-          Notes, experiments, behind-the-scenes, and perspectives. A growing archive of how we think and what we're into.
-        </p>
-        <div class="cta reveal"><a class="link-arrow" href="journal.html">Read the journal <span>→</span></a></div>
+        <div class="entries reveal">
+          <span class="entries-hl" aria-hidden="true"></span>
+          <a class="entry" href="article.html"><span class="t">The cult is forming.</span><span class="c">News — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+          <a class="entry" href="article.html"><span class="t">Taste is a discipline.</span><span class="c">Thoughts — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+          <a class="entry" href="article.html"><span class="t">Notes on making things worth committing to.</span><span class="c">Notes — Jul 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+        </div>
       </div>
     </section>
 
-    <!-- CONTACT CTA -->
-    <section class="sec cta-sec">
+    <section class="sec">
       <div class="wrap">
-        <p class="eyebrow reveal" style="margin-bottom:24px">05 — Contact</p>
-        <h2 class="reveal">Have something<br />worth building?</h2>
-        <a class="big-mail reveal" href="contact.html">Start a conversation →</a>
-        <div class="pills reveal">
-          <span>I have a project</span>
-          <span>Let's collaborate</span>
-          <span>Just saying hi</span>
+        <p class="eyebrow reveal" style="margin-bottom:clamp(20px,2.4vw,32px)">Contact</p>
+        <h2 class="display reveal">Have something<br />worth building?</h2>
+        <div class="actions reveal">
+          <a class="btn" href="contact.html">Start a conversation <span>→</span></a>
+          <a class="tag" href="contact.html">I have a project</a>
+          <a class="tag" href="contact.html">Let's collaborate</a>
+          <a class="tag" href="contact.html">Just saying hi</a>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="site wrap">
+  <footer class="site-footer">
     <div class="col brandcol">
       <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="big">Creative Club Cult</div>
+      <div class="heading-sm">Creative Club Cult</div>
     </div>
     <div class="col">
       <h4>Menu</h4>
@@ -168,12 +154,21 @@
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
     </div>
+    <div class="col">
+      <h4>Studio</h4>
+      <span>Bandung, Indonesia</span>
+      <span>Est. 2026</span>
+    </div>
+    <div class="footbar">
+      <span>© 2026 Creative Club Cult. All rights reserved.</span>
+      <span>Think → Direct → Create → Produce</span>
+    </div>
   </footer>
-  <div class="footbar wrap">
-    <span>© 2026 Creative Club Cult. All rights reserved.</span>
-    <span>Think → Direct → Create → Produce</span>
-  </div>
+  </div></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

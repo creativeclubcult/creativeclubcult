@@ -11,106 +11,112 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="tide" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
+      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
+      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
+  </header>
 
-  <header class="nav">
-    <a class="brand" href="index.html"><img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" /></a>
-    <button class="menu-btn" aria-label="Menu" aria-expanded="false"><span class="bars" aria-hidden="true"><i></i><i></i></span></button>
-    <nav class="links" id="menu">
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-links" aria-label="Main">
       <a href="work.html">Work</a>
       <a href="ccc.html">CCC</a>
       <a href="journal.html">Journal</a>
-      <a href="contact.html" class="active">Contact</a>
+      <a href="contact.html" aria-current="page">Contact</a>
     </nav>
-  </header>
+    <div class="menu-foot">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+      <span>Bandung, Indonesia</span>
+    </div>
+  </div>
 
+  <div id="smooth-wrapper"><div id="smooth-content">
   <main>
-    <section class="page-hero" style="padding-bottom:clamp(20px,3vh,40px)">
+    <section class="page-hero">
       <div class="wrap">
-        <p class="eyebrow" style="margin-bottom:22px">Contact</p>
-        <h1>Let's talk.</h1>
+        <p class="eyebrow">Contact</p>
+        <h1 class="display">Let's talk.</h1>
       </div>
     </section>
 
-    <section class="sec" style="padding-top:clamp(20px,4vh,50px)">
-      <div class="wrap">
-        <div class="contact-grid">
-          <!-- Left: info -->
-          <div class="contact-info reveal">
-            <h3>Have something worth building? Tell us what you're thinking.</h3>
-            <a class="big-mail" href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
-            <div class="detail">
-              Creative Club Cult<br />
-              Bandung, Indonesia<br />
-              Est. 2026<br /><br />
-              <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener" style="color:var(--ink);border-bottom:1px solid var(--line-strong);padding-bottom:2px">Instagram ↗</a>
+    <section class="sec">
+      <div class="wrap contact-grid">
+        <div class="contact-info reveal">
+          <h2 class="heading-sm">Have something worth building? <span class="dim">Tell us what you're thinking.</span></h2>
+          <a class="mail" href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+          <p class="detail">
+            Creative Club Cult<br />
+            Bandung, Indonesia<br />
+            Est. 2026<br /><br />
+            <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+          </p>
+        </div>
+
+        <form class="inquiry reveal" novalidate>
+          <div class="field">
+            <span class="label" id="type-label">What's this about?</span>
+            <div class="tags type-row" role="group" aria-labelledby="type-label">
+              <button class="tag" type="button" aria-pressed="true">I have a project</button>
+              <button class="tag" type="button" aria-pressed="false">Let's collaborate</button>
+              <button class="tag" type="button" aria-pressed="false">Just saying hi</button>
+            </div>
+            <input type="hidden" name="inquiryType" value="I have a project" />
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label for="f-name">Name <span class="req">*</span></label><input id="f-name" type="text" name="name" placeholder="Your name" autocomplete="name" required /></div>
+            <div class="field"><label for="f-company">Company / Brand</label><input id="f-company" type="text" name="company" placeholder="Optional" autocomplete="organization" /></div>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label for="f-email">Email <span class="req">*</span></label><input id="f-email" type="email" name="email" placeholder="you@email.com" autocomplete="email" required /></div>
+            <div class="field"><label for="f-preferred">Preferred contact</label>
+              <select id="f-preferred" name="preferred">
+                <option value="Email">Email</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Instagram DM">Instagram DM</option>
+              </select>
             </div>
           </div>
 
-          <!-- Right: form -->
-          <form class="inquiry reveal" novalidate>
-            <div class="field">
-              <label>What's this about?</label>
-              <div class="type-row">
-                <button type="button" class="active">I have a project</button>
-                <button type="button">Let's collaborate</button>
-                <button type="button">Just saying hi</button>
-              </div>
-              <input type="hidden" name="inquiryType" value="I have a project" />
+          <div class="field"><label for="f-desc">Project description <span class="req">*</span></label><textarea id="f-desc" name="description" placeholder="Tell us what you're thinking..." required></textarea></div>
+
+          <div class="field-row">
+            <div class="field"><label for="f-timeline">Timeline</label>
+              <select id="f-timeline" name="timeline">
+                <option value="">Select</option>
+                <option>ASAP</option>
+                <option>1–3 months</option>
+                <option>3–6 months</option>
+                <option>Just exploring</option>
+              </select>
             </div>
-
-            <div class="field two">
-              <div class="field"><label>Name <span class="req">*</span></label><input type="text" name="name" placeholder="Your name" autocomplete="name" required /></div>
-              <div class="field"><label>Company / Brand</label><input type="text" name="company" placeholder="Optional" autocomplete="organization" /></div>
+            <div class="field"><label for="f-budget">Budget range</label>
+              <select id="f-budget" name="budget">
+                <option value="">Select</option>
+                <option>Under 50M IDR</option>
+                <option>50–150M IDR</option>
+                <option>150–500M IDR</option>
+                <option>500M+ IDR</option>
+                <option>Not sure yet</option>
+              </select>
             </div>
+          </div>
 
-            <div class="field two">
-              <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" placeholder="you@email.com" autocomplete="email" required /></div>
-              <div class="field"><label>Preferred contact</label>
-                <select name="preferred">
-                  <option value="Email">Email</option>
-                  <option value="WhatsApp">WhatsApp</option>
-                  <option value="Instagram DM">Instagram DM</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field"><label>Project description <span class="req">*</span></label><textarea name="description" placeholder="Tell us what you're thinking..." required></textarea></div>
-
-            <div class="field two">
-              <div class="field"><label>Timeline</label>
-                <select name="timeline">
-                  <option value="">Select</option>
-                  <option>ASAP</option>
-                  <option>1–3 months</option>
-                  <option>3–6 months</option>
-                  <option>Just exploring</option>
-                </select>
-              </div>
-              <div class="field"><label>Budget range</label>
-                <select name="budget">
-                  <option value="">Select</option>
-                  <option>Under 50M IDR</option>
-                  <option>50–150M IDR</option>
-                  <option>150–500M IDR</option>
-                  <option>500M+ IDR</option>
-                  <option>Not sure yet</option>
-                </select>
-              </div>
-            </div>
-
-            <button type="submit" class="submit-btn">Send inquiry →</button>
-            <p class="form-status" role="status" aria-live="polite"></p>
-          </form>
-        </div>
+          <div class="actions" style="margin-top:0"><button type="submit" class="btn submit-btn">Send inquiry <span>→</span></button></div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
     </section>
   </main>
 
-  <footer class="site wrap">
+  <footer class="site-footer">
     <div class="col brandcol">
       <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="big">Creative Club Cult</div>
+      <div class="heading-sm">Creative Club Cult</div>
     </div>
     <div class="col">
       <h4>Menu</h4>
@@ -124,12 +130,21 @@
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
     </div>
+    <div class="col">
+      <h4>Studio</h4>
+      <span>Bandung, Indonesia</span>
+      <span>Est. 2026</span>
+    </div>
+    <div class="footbar">
+      <span>© 2026 Creative Club Cult. All rights reserved.</span>
+      <span>Think → Direct → Create → Produce</span>
+    </div>
   </footer>
-  <div class="footbar wrap">
-    <span>© 2026 Creative Club Cult. All rights reserved.</span>
-    <span>Think → Direct → Create → Produce</span>
-  </div>
+  </div></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

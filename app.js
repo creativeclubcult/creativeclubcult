@@ -2,24 +2,38 @@
 (function () {
   'use strict';
 
-  // ---- Mobile menu ----
+  // ---- Smooth scroll (GSAP ScrollSmoother; skipped for reduced motion, native on touch) ----
+  var smoother = null;
+  if (window.gsap && window.ScrollTrigger && window.ScrollSmoother &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+    smoother = ScrollSmoother.create({
+      wrapper: '#smooth-wrapper',
+      content: '#smooth-content',
+      smooth: 1.1,
+      effects: true,
+      smoothTouch: false
+    });
+  }
+
+  // ---- Menu overlay ----
   var btn = document.querySelector('.menu-btn');
   var menu = document.getElementById('menu');
-  var navEl = document.querySelector('header.nav');
   if (btn && menu) {
-    btn.addEventListener('click', function () {
-      var open = menu.classList.toggle('open');
-      if (navEl) navEl.classList.toggle('menu-open', open);
+    var setMenu = function (open) {
+      menu.classList.toggle('open', open);
+      menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.documentElement.classList.toggle('menu-open', open);
+      if (smoother) smoother.paused(open);
       btn.setAttribute('aria-expanded', open);
-      btn.setAttribute('aria-label', open ? 'Close menu' : 'Menu');
-    });
-    menu.addEventListener('click', function (e) {
-      if (e.target.tagName === 'A') {
-        menu.classList.remove('open');
-        if (navEl) navEl.classList.remove('menu-open');
-        btn.setAttribute('aria-expanded', 'false');
-        btn.setAttribute('aria-label', 'Menu');
-      }
+      btn.textContent = open ? 'Close' : 'Menu';
+      // Wait a frame: the overlay is visibility:hidden until the class lands.
+      if (open) requestAnimationFrame(function () { var first = menu.querySelector('a'); if (first) first.focus({ preventScroll: true }); });
+    };
+    btn.addEventListener('click', function () { setMenu(!menu.classList.contains('open')); });
+    menu.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && menu.classList.contains('open')) { setMenu(false); btn.focus(); }
     });
   }
 
@@ -47,18 +61,18 @@
 
   if (!reduce) {
     // Word-mask the big entry headings
-    document.querySelectorAll('.hero h1, .page-hero h1, .proj-hero h1').forEach(function (h) {
+    document.querySelectorAll('.hero h1, .page-hero h1').forEach(function (h) {
       h.classList.add('anim-text');
       var inners = []; wrapWords(h, inners);
       inners.forEach(function (wi, i) { wi.style.transitionDelay = (0.045 * i) + 's'; });
     });
 
     // Hero / page-hero entrance fade-ups (staggered)
-    var fades = document.querySelectorAll('.hero .eyebrow, .hero .sub, .hero .framework, .page-hero .eyebrow, .page-hero .lead');
+    var fades = document.querySelectorAll('.hero .hero-meta, .hero .band, .page-hero .eyebrow, .page-hero .lead, .page-hero .facts');
     fades.forEach(function (e, i) { e.classList.add('reveal'); e.style.transitionDelay = (0.12 + 0.08 * i) + 's'; });
 
     // Stagger grid children
-    ['.work-grid', '.capabilities', '.journal-list'].forEach(function (sel) {
+    ['.cards', '.rail'].forEach(function (sel) {
       document.querySelectorAll(sel).forEach(function (group) {
         var n = 0;
         Array.prototype.slice.call(group.children).forEach(function (k) {
@@ -80,20 +94,66 @@
     revealEls.forEach(function (e) { io.observe(e); });
   }
 
-  // ---- Work archive filters ----
+  // ---- Archive filters ----
   var filterBar = document.querySelector('.filters');
   if (filterBar) {
     var items = document.querySelectorAll('[data-cat]');
     filterBar.addEventListener('click', function (e) {
       var b = e.target.closest('button');
       if (!b) return;
-      filterBar.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
-      b.classList.add('active');
+      filterBar.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
       var cat = b.getAttribute('data-filter');
       items.forEach(function (it) {
         var show = cat === 'all' || (it.getAttribute('data-cat') || '').split(' ').indexOf(cat) > -1;
         it.style.display = show ? '' : 'none';
       });
+    });
+  }
+
+  // ---- Card rails: arrow controls ----
+  document.querySelectorAll('.arrow[data-rail]').forEach(function (a) {
+    var rail = document.getElementById(a.getAttribute('data-rail'));
+    if (!rail) return;
+    var dir = +a.getAttribute('data-dir');
+    a.addEventListener('click', function () {
+      var card = rail.firstElementChild;
+      var step = card ? card.getBoundingClientRect().width + parseFloat(getComputedStyle(rail).columnGap || 0) : rail.clientWidth;
+      rail.scrollBy({ left: dir * step, behavior: 'smooth' });
+    });
+    var sync = function () {
+      var max = rail.scrollWidth - rail.clientWidth - 2;
+      a.disabled = dir < 0 ? rail.scrollLeft <= 2 : rail.scrollLeft >= max;
+    };
+    rail.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    sync();
+  });
+
+  // ---- Journal entries: highlight panel glides to the hovered row ----
+  if (window.matchMedia('(hover: hover)').matches) {
+    document.querySelectorAll('.entries').forEach(function (list) {
+      var hl = list.querySelector('.entries-hl');
+      if (!hl) return;
+      var active = null;
+      list.addEventListener('mouseover', function (e) {
+        var row = e.target.closest('.entry');
+        if (!row || row === active) return;
+        if (active) active.classList.remove('is-active');
+        active = row;
+        row.classList.add('is-active');
+        hl.style.transform = 'translateY(' + row.offsetTop + 'px)';
+        hl.style.height = row.offsetHeight + 'px';
+        list.classList.add('is-hover');
+      });
+      var reset = function () {
+        list.classList.remove('is-hover');
+        if (active) active.classList.remove('is-active');
+        active = null;
+      };
+      list.addEventListener('mouseleave', reset);
+      // Row positions change on resize and filtering; drop stale highlight state.
+      window.addEventListener('resize', reset);
+      document.addEventListener('click', function (e) { if (e.target.closest('.filters')) reset(); });
     });
   }
 
@@ -121,7 +181,7 @@
       requestAnimationFrame(loop);
     })();
 
-    var sel = 'a, button, input, textarea, select, .card, .wstep, .jitem, [data-cursor]';
+    var sel = 'a, button, input, textarea, select, [data-cursor]';
     document.addEventListener('mouseover', function (e) {
       if (e.target.closest && e.target.closest(sel)) cur.classList.add('hover');
     });
@@ -165,8 +225,7 @@
         var b = e.target.closest('button');
         if (!b) return;
         e.preventDefault();
-        typeRow.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active');
+        typeRow.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
         var hidden = form.querySelector('input[name="inquiryType"]');
         if (hidden) hidden.value = b.textContent.trim();
       });
@@ -187,8 +246,7 @@
       submit.disabled = true;
       status.textContent = "Thanks — we've received your note and will be in touch soon.";
       form.reset();
-      var active = typeRow && typeRow.querySelector('button.active');
-      if (typeRow) { typeRow.querySelectorAll('button').forEach(function (x, i) { x.classList.toggle('active', i === 0); }); }
+      if (typeRow) { typeRow.querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); }
     });
   }
 })();
