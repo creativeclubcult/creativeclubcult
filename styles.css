@@ -113,29 +113,22 @@ a.tag:hover, button.tag:hover { border-color: var(--ink); }
 span.tag { cursor: default; }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* ---------- Header ---------- */
+/* ---------- Header: plain text, inverts over whatever is behind it ---------- */
 .site-header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  padding: 14px var(--pad);
-  background: rgba(5, 7, 12, 0.5);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
-  border-bottom: 1px solid var(--line);
-  transition: background .3s, border-color .3s;
+  display: flex; align-items: baseline; gap: clamp(12px, 1.2vw, 18px);
+  padding: 16px var(--pad);
+  color: #fff; mix-blend-mode: difference;
+  font-size: var(--t-body); line-height: 1.2; letter-spacing: -0.01em;
+  pointer-events: none;
 }
-/* Over the open menu the glass is redundant */
-html.menu-open .site-header { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom-color: transparent; }
-.lockup { display: flex; align-items: center; gap: 18px; color: var(--ink); }
-.lockup .brand-logo { height: 28px; width: auto; }
-.lockup .tagline { font-size: var(--t-caption); line-height: 1.3; text-transform: uppercase; letter-spacing: 0.02em; }
-.menu-btn {
-  padding: 12px 24px; border-radius: var(--pill); border: 0;
-  background: var(--ink); color: var(--bg);
-  font-size: var(--t-body); line-height: 1.25; cursor: pointer;
-  transition: opacity .2s;
-}
-.menu-btn:hover { opacity: 0.86; }
+.site-header > * { pointer-events: auto; }
+.site-header a { transition: opacity .2s; }
+.site-header a:hover, .site-header a[aria-current="page"] { opacity: 0.5; }
+.brand { margin-right: auto; white-space: nowrap; }
+.brand sup { font-size: 0.5em; vertical-align: 0.9em; margin-left: 1px; }
+.nav-links { display: flex; gap: inherit; }
+.menu-btn { display: none; background: none; border: 0; padding: 0; color: inherit; font-size: inherit; cursor: pointer; }
 
 /* ---------- Menu overlay ---------- */
 .menu {
@@ -180,49 +173,271 @@ html.menu-open .site-header { background: transparent; -webkit-backdrop-filter: 
 .statement { font-size: var(--t-heading); line-height: 1.08; letter-spacing: -0.023em; max-width: 24ch; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: clamp(28px, 3vw, 40px); }
 
-/* ---------- Home hero ---------- */
-/* Hero fills exactly one viewport on desktop: the band takes whatever height is left. */
-.hero {
-  height: 100svh; min-height: 620px;
-  display: flex; flex-direction: column;
-  padding-top: clamp(96px, 14vh, 170px);
-}
-.hero h1 { max-width: 20ch; }
-.hero-meta {
-  display: flex; justify-content: space-between; align-items: flex-end; gap: 24px;
-  margin-top: clamp(24px, 3vw, 40px); padding-bottom: clamp(24px, 3vw, 40px);
-}
-.hero-meta p { max-width: 46ch; color: var(--graphite); }
+/* ===========================================================
+   HOME — landing. Opening loader, hero that sinks under the next
+   section, pinned intro whose plus grows into a white screen,
+   giant titles with falling letters, accordion project slider.
+   =========================================================== */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* Full-bleed band: the hero "image" (tide until the showreel lands) */
-.band {
-  position: relative; overflow: hidden;
-  width: 100%; flex: 1 1 auto; min-height: 260px;
-  background: linear-gradient(180deg, #070b12 0%, #05070C 100%);
+/* Placeholder box: marks where a photo still needs to go */
+.slot {
+  position: relative; display: grid; place-items: center; padding: 16px;
+  background: var(--bg-soft); border: 1px dashed var(--ash);
+  color: var(--graphite); font-size: var(--t-caption); line-height: 1.4;
+  text-transform: uppercase; letter-spacing: 0.02em; text-align: center;
 }
-.band::before {
-  content: ""; position: absolute; left: -12%; right: -12%; bottom: -10%; height: 85%;
-  background: radial-gradient(120% 100% at 50% 100%, #8CAFCE 0%, #6E97BA 16%, #46748F 32%, #294A61 46%, #14293700 68%);
-  transform-origin: 50% 100%;
-  animation: tide 14s ease-in-out infinite;
+.slot-fill { position: absolute; inset: 0; place-items: start; padding: clamp(16px, 2vw, 28px); padding-top: 80px; }
+
+.fit { white-space: nowrap; }
+.ulink {
+  display: inline-block; margin-top: 18px; padding-bottom: 3px;
+  font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em;
+  /* the underline is a drawn line (not a border) so it can move: on hover it runs out to the right
+     and draws itself back in from the left */
+  background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 100% 1px;
 }
-@keyframes tide {
-  0%, 100% { transform: scaleY(0.6); opacity: 0.45; }
-  50%      { transform: scaleY(1); opacity: 0.75; }
+.ulink:hover, .ulink:focus-visible { animation: ulink-redraw .8s cubic-bezier(.65, 0, .35, 1) both; }
+@keyframes ulink-redraw {
+  0% { background-size: 100% 1px; background-position: 100% 100%; }
+  45% { background-size: 0% 1px; background-position: 100% 100%; }
+  46% { background-size: 0% 1px; background-position: 0% 100%; }
+  100% { background-size: 100% 1px; background-position: 0% 100%; }
 }
-/* Intro: statement left, stone mark right */
-.intro { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--gap); align-items: center; }
-.intro-mark { display: grid; place-items: center; }
-.intro-mark .stone {
-  width: min(100%, 460px); height: auto;
-  filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
-  animation: float 7s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) { .ulink:hover, .ulink:focus-visible { animation: none; } }
+
+/* Opening loader: the logotype on light, a window opening between its words (app.js) */
+.h-loader { position: fixed; inset: 0; z-index: 200; display: none; place-items: center; overflow: hidden; pointer-events: none; background: #EAEDF1; color: #020202; }
+html.is-loading .h-loader { display: grid; }
+html.is-loading .site-header > * { opacity: 0; }
+.h-load-word { display: flex; align-items: center; justify-content: center; gap: 0.12em; width: 100vw; font-size: clamp(34px, 6.6vw, 124px); font-weight: 400; line-height: 1; letter-spacing: -0.04em; white-space: nowrap; }
+/* two equal halves keep the window on the centre line, so it can open straight out to the screen's edges */
+.h-load-half { flex: 1 1 0; min-width: 0; display: flex; }
+.h-load-half.is-l { justify-content: flex-end; }
+.h-load-text { display: block; overflow: hidden; padding-bottom: 0.04em; }
+.h-load-text .ch { display: inline-block; }
+.h-load-box { position: relative; flex: none; width: 0; height: 0.74em; overflow: hidden; background: #020202; }
+.h-load-box img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; visibility: hidden; }
+/* the hero's own veil, drawn in as the window becomes the hero */
+.h-load-box::after { content: ""; position: absolute; inset: 0; background: rgba(5, 7, 12, 0.35); opacity: var(--shade, 0); }
+
+/* Hero: sinks and darkens while the black section slides over it */
+.h-hero { position: relative; z-index: 0; height: 100svh; min-height: 560px; overflow: hidden; background: #000; }
+.h-hero-inner { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; will-change: transform; }
+.h-hero-media { position: absolute; inset: 0; }
+.h-hero-media img { width: 100%; height: 100%; object-fit: cover; }
+.h-hero-media::after { content: ""; position: absolute; inset: 0; background: rgba(5, 7, 12, 0.35); }
+.h-hero-shade { position: absolute; inset: 0; background: #000; opacity: 0; }
+.h-hero-title { position: relative; z-index: 1; padding-inline: var(--pad); font-size: var(--t-display); font-weight: 400; line-height: 1; letter-spacing: -0.04em; }
+.h-hero-sub { position: absolute; z-index: 1; left: 0; right: 0; bottom: clamp(20px, 3vw, 32px); font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; }
+
+/* Black section: how-we-work rows + pinned intro */
+/* z-index 2 and no own background: the work section overlaps the intro's last screen from below */
+.h-black { position: relative; z-index: 2; }
+.h-steps, .h-intro { background: #020202; }
+
+/* How we work — Swiss grid: hairline rules, big word left, keywords and notes right,
+   keywords aligned to the top of the word */
+.h-steps { --fs: clamp(64px, 9.5vw, 168px); padding: clamp(32px, 4vw, 64px) var(--pad) clamp(40px, 5vw, 80px); overflow-x: clip; /* words glide in from the right */ }
+.h-steps-label { padding-bottom: 12px; font-size: var(--t-caption); font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
+.h-step {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gap); align-items: start;
+  padding-block: clamp(16px, 1.6vw, 24px) clamp(28px, 3vw, 44px);
+  border-top: 1px solid var(--line);
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
-  50%      { transform: translateY(-16px) rotate(0.6deg); }
+.h-step:last-child { border-bottom: 1px solid var(--line); }
+.h-step-head { grid-column: 1 / span 7; position: relative; }
+.h-step-word {
+  position: relative; z-index: 1; /* letters paint over the icon as they slide off it */
+  white-space: nowrap; overflow: hidden;
+  font-size: var(--fs); font-weight: 500; line-height: 0.82; letter-spacing: -0.05em; padding-bottom: 0.06em;
+}
+.h-step-word .ch { display: inline-block; will-change: transform; }
+/* keywords sit on the word's cap line, the note drops to its baseline */
+.h-step-side {
+  grid-column: 8 / span 5; align-self: stretch;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  padding-top: calc(var(--fs) * 0.07);
 }
 
+/* Hover (pointer devices), anywhere on a row: its word eases right, an icon appears in the gap,
+   the other rows fade to grey. Only rows trigger it — not the label or the section's padding.
+   (translate, not padding: no relayout per frame) */
+.h-step-icon {
+  position: absolute; z-index: 0; left: 0; top: calc(var(--fs) * 0.227); /* centred on the cap height */
+  width: calc(var(--fs) * 0.48); height: calc(var(--fs) * 0.48);
+  color: var(--ink); opacity: 0; transition: opacity .35s ease-in-out;
+}
+.h-step-icon svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.h-step-word { translate: 0 0; transition: translate .7s cubic-bezier(.65, 0, .35, 1), color .45s ease-in-out, opacity .45s ease-in-out; }
+.h-step-side p { transition: color .45s ease-in-out; }
+@media (hover: hover) {
+  .h-step:hover .h-step-word { translate: calc(var(--fs) * 0.66) 0; }
+  .h-step:hover .h-step-icon { opacity: 1; }
+  .h-steps:has(.h-step:hover) .h-step:not(:hover) .h-step-word { color: var(--graphite); opacity: 0.45; }
+  /* colour, not opacity: GSAP owns their opacity */
+  .h-steps:has(.h-step:hover) .h-step:not(:hover) .h-step-side p { color: rgba(234, 237, 241, 0.28); }
+}
+
+.h-intro { position: relative; height: 100svh; min-height: 600px; overflow: hidden; }
+.h-intro-top { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gap); padding-top: clamp(80px, 10vh, 120px); }
+.h-intro-label { grid-column: 1 / span 3; font-size: var(--t-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.h-intro-text { grid-column: 7 / span 6; }
+.h-intro-text p { font-size: var(--t-heading-sm); line-height: 1.15; letter-spacing: -0.02em; }
+.h-plus { position: absolute; z-index: 3; left: 50%; top: 50%; width: clamp(80px, 8vw, 118px); height: clamp(80px, 8vw, 118px); margin: calc(clamp(80px, 8vw, 118px) / -2) 0 0 calc(clamp(80px, 8vw, 118px) / -2); }
+.h-plus i { position: absolute; left: 50%; top: 50%; width: 20%; height: 20%; background: var(--ink); transform: translate(-50%, -50%) scale(5, 1); }
+.h-plus i.v { transform: translate(-50%, -50%) scale(1, 5); }
+/* the square that grows to fill the screen in the hand-over: a piece of its own, so the plus's journey
+   and the hand-over never pull at the same bar (app.js) */
+.h-plus i.sq { transform: translate(-50%, -50%); visibility: hidden; }
+.h-strip { position: absolute; z-index: 1; left: 0; right: 0; bottom: clamp(16px, 2vw, 24px); overflow: hidden; }
+/* one width, landscape and portrait mixed, sitting on a common baseline */
+.h-strip-track { display: flex; align-items: flex-end; gap: 12px; width: max-content; padding-inline: var(--pad); will-change: transform; }
+.h-strip-item { flex: none; width: clamp(140px, 12vw, 220px); }
+.h-strip .slot { width: 100%; aspect-ratio: 4 / 3; }
+.h-strip-item.tall .slot { aspect-ratio: 3 / 4; }
+
+/* Light sections (turn dark when Contact arrives) */
+.on-light { position: relative; z-index: 1; background: var(--ink); color: #020202; }
+.on-light .eyebrow { color: rgba(2, 2, 2, 0.55); }
+
+/* Giant titles; letters fall in (app.js) — the wrap clips their trailing copies */
+.h-title { overflow: hidden; padding-top: clamp(8px, 1vw, 16px); }
+/* Journal: letters right up to the section's top edge — pull the word up by the font's own space above
+   its tallest letters (~0.07em), leaving a small gap (the wrapper's clip stays at the section edge) */
+.h-journal .h-title { padding-top: 0; }
+.h-journal .h-display { margin-top: calc(clamp(8px, 1.1vw, 16px) - 0.07em); }
+/* Work title screen: title just under the header, label centred below it; it's a screen less the top of
+   the slider's counter, which peeks in at the foot. --cnt is that counter's size. */
+.h-work { z-index: 3; --cnt: clamp(56px, 7.4vw, 128px); } /* z: opens over the intro (app.js clips it to the plus square first) */
+.h-work-intro { position: relative; height: calc(100svh - var(--cnt) * 0.7); min-height: 480px; display: flex; flex-direction: column; }
+.h-work-intro .h-title { padding-top: clamp(48px, 4.5vw, 72px); }
+/* centred in the space between the title and the counter */
+.h-work-label {
+  flex: 1; display: grid; place-items: center;
+  font-size: var(--t-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+}
+.h-display { font-size: 18vw; font-weight: 700; line-height: 0.78; letter-spacing: -0.05em; text-align: center; padding-bottom: 0.04em; }
+.h-display .ch { display: inline-block; will-change: transform; }
+
+/* Project slider, accordion.net.au-style. One box holds the counter and the slides: it starts narrow
+   and opens to full width as it comes into view (app.js). The chosen slide opens wide; the rest are
+   thin greyscale strips with their number. The counter's left figure rolls to the chosen slide. */
+.h-slider { padding: 0 6px 6px; }
+.h-slider-box { width: clamp(260px, 24vw, 400px); margin-inline: auto; transition: width .8s cubic-bezier(0.47, 0, 0, 1); }
+.h-slider-box.is-open { width: 100%; }
+.h-count {
+  display: flex; justify-content: space-between; overflow: hidden; margin-bottom: 8px;
+  font-size: var(--cnt); font-weight: 700; line-height: 0.86; letter-spacing: -0.04em;
+}
+.h-count > span { display: block; }
+.h-count-roll { height: 0.86em; overflow: hidden; }
+.h-count-col { display: block; transition: transform .8s cubic-bezier(0.47, 0, 0, 1); }
+.h-count-col > span { display: block; height: 0.86em; }
+.h-slides {
+  --strip: clamp(24px, 3vw, 48px);
+  container-type: inline-size; /* so a slide's photo can be sized off the whole row (cqw) */
+  display: flex; justify-content: center; gap: 6px;
+  height: calc(100svh - var(--cnt) * 0.86 - 20px); min-height: 420px;
+}
+.h-slide {
+  position: relative; display: block; flex: 0 0 var(--strip); overflow: hidden; background: #020202; color: var(--ink);
+  transition: flex-basis .8s cubic-bezier(0.47, 0, 0, 1);
+}
+.h-slide.is-active { flex-basis: calc(100% - (var(--n) - 1) * (var(--strip) + 6px)); }
+/* Every photo is always the size of an open slide, centred: opening or closing a slide only widens
+   or narrows the window onto it — the picture never re-crops or zooms as the width changes. */
+.h-slide-bg {
+  position: absolute; top: 0; left: 50%; height: 100%; max-width: none; translate: -50% 0;
+  width: calc(100cqw - (var(--n) - 1) * (var(--strip) + 6px));
+  object-fit: cover; filter: grayscale(1); transition: filter .8s;
+}
+.h-slide.is-active .h-slide-bg { filter: none; }
+.h-slide::after { content: ""; position: absolute; inset: 0; background: rgba(2, 2, 2, 0.15); pointer-events: none; transition: background .8s; }
+.h-slide.is-active::after { background: rgba(2, 2, 2, 0.42); }
+/* a little more dark at the foot, under the credits */
+.h-slide::before { content: ""; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 32%; background: linear-gradient(180deg, rgba(2,2,2,0), rgba(2,2,2,.55)); opacity: 0; transition: opacity .8s; pointer-events: none; }
+.h-slide.is-active::before { opacity: 1; }
+.h-slide-nr {
+  position: absolute; z-index: 2; left: 0; right: 0; bottom: 12px; text-align: center;
+  font-size: 10px; letter-spacing: 0.04em; transition: opacity .4s;
+}
+.h-slide.is-active .h-slide-nr { opacity: 0; }
+/* fixed widths, centred on the slide, so nothing re-wraps while it opens. On opening, the title
+   settles from large to its size as it fades in, and the credits rise as they fade in; on closing
+   both just fade, quickly. */
+.h-slide-body, .h-slide-credits {
+  position: absolute; z-index: 2; left: 50%; text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity .3s, scale .3s, translate .3s;
+}
+.h-slide-body { top: 50%; width: min(80vw, 900px); translate: -50% -50%; scale: 1.18; }
+.h-slide.is-active .h-slide-body {
+  opacity: 1; scale: 1;
+  transition: opacity .7s ease .35s, scale 1.2s cubic-bezier(0.22, 1, 0.36, 1) .35s;
+}
+.h-slide.is-active .h-slide-credits {
+  opacity: 1; translate: -50% 0;
+  transition: opacity .7s ease .55s, translate 1s cubic-bezier(0.22, 1, 0.36, 1) .55s;
+}
+.h-slide-client { margin-bottom: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.h-slide-title { font-size: clamp(40px, 4.4vw, 76px); font-weight: 500; line-height: 0.95; letter-spacing: -0.035em; }
+/* the open slide's title is a target of its own (app.js rolls its letters on hover) */
+.h-slide.is-active .h-slide-body { pointer-events: auto; }
+/* lines a little taller than the title's own, so nothing of a letter is clipped (pulled back in by the margin) */
+.h-roll { position: relative; display: inline-block; overflow: hidden; vertical-align: top; margin-block: -0.2em; }
+.h-roll-a, .h-roll-b { display: block; line-height: 1.35; }
+.h-roll-b { position: absolute; left: 0; right: 0; top: 100%; }
+.h-roll .ch { display: inline-block; }
+.h-slide-credits { bottom: clamp(16px, 2.2vw, 30px); width: min(70vw, 760px); translate: -50% 28px; font-size: 11px; line-height: 1.5; text-transform: uppercase; letter-spacing: 0.02em; }
+.h-slide-credits .r { font-size: 9px; color: rgba(234, 237, 241, 0.6); }
+.h-slide-credits .n { margin-right: 8px; }
+.h-slide-credits .scope { margin-top: 4px; font-size: 9px; color: rgba(234, 237, 241, 0.6); }
+/* Opening a project: the open slide's photo grows to fill the screen exactly as the project page's
+   hero shows it (full width, 118% tall from the top, its gradient over it), then the page changes. */
+.h-zoom { position: fixed; z-index: 90; overflow: hidden; pointer-events: none; background: #020202; }
+.h-zoom-img { position: absolute; max-width: none; object-fit: cover; }
+.h-zoom-dim, .h-zoom-shade { position: absolute; inset: 0; }
+.h-zoom-dim { background: linear-gradient(180deg, rgba(2, 2, 2, 0.42) 68%, rgba(2, 2, 2, 0.62) 100%); }
+.h-zoom-shade { opacity: 0; background: linear-gradient(180deg, rgba(5,7,12,.35) 0%, rgba(5,7,12,.5) 55%, rgba(5,7,12,.72) 100%); }
+
+/* Typographic CTA with corner pluses */
+.h-cta-sec { min-height: 60svh; display: grid; place-items: center; overflow: hidden; }
+.h-cta { position: relative; display: block; overflow: hidden; padding-block: 6px; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }
+.h-cta-t { display: block; font-size: clamp(32px, 3.6vw, 52px); font-weight: 700; line-height: 1; letter-spacing: -0.05em; text-transform: uppercase; white-space: nowrap; }
+.h-cta-t.dup { position: absolute; left: 0; right: 0; top: 6px; }
+.h-cta-t .ch { display: inline-block; }
+.h-cta-t.dup .ch { transform: translateY(-1.5em); }
+.corner { position: absolute; width: 22px; height: 22px; }
+.corner::before, .corner::after { content: ""; position: absolute; left: 50%; top: 50%; background: currentColor; transform: translate(-50%, -50%); }
+.corner::before { width: 100%; height: 2px; }
+.corner::after { width: 2px; height: 100%; }
+.corner.tl { left: var(--pad); top: var(--pad); } .corner.tr { right: var(--pad); top: var(--pad); }
+.corner.bl { left: var(--pad); bottom: var(--pad); } .corner.br { right: var(--pad); bottom: var(--pad); }
+.h-cta-sec { position: relative; }
+
+/* Full-bleed photo with parallax and a centred statement */
+.h-full { position: relative; z-index: 1; height: 110svh; display: grid; place-items: center; overflow: hidden; background: #020202; text-align: center; }
+.h-full-bg { position: absolute; inset: -8% 0; will-change: transform; }
+.h-full-copy { position: relative; z-index: 1; padding-inline: var(--pad); }
+.h-full-copy p { max-width: 24ch; margin-inline: auto; font-size: var(--t-heading-sm); line-height: 1.15; letter-spacing: -0.02em; }
+
+/* Journal on light ground */
+.h-journal-label { margin: clamp(40px, 5vw, 72px) 0 16px; }
+.on-light .entries { border-top-color: rgba(2, 2, 2, 0.14); }
+.on-light .entry { border-bottom-color: rgba(2, 2, 2, 0.14); }
+.on-light .entry .c { color: rgba(2, 2, 2, 0.55); }
+.on-light .entries-hl { background: #020202; }
+.on-light .entries.is-hover .entry.is-active, .on-light .entry:focus-visible { color: var(--ink); }
+.on-light .entries.is-hover .entry.is-active .c { color: var(--graphite); }
+
+/* Contact: everything turns dark as it arrives */
+.h-contact { position: relative; z-index: 1; padding-top: var(--section); }
+/* Home end panel: Contact and the footer fill one screen, the call at the top, the wordmark at the
+   foot. It sits beneath the sections above (they're z-index 1), which slide up off it (app.js). */
+.h-end { position: relative; z-index: 0; } /* stays put: it's what the scroll is measured against */
+.h-end-in { position: relative; min-height: 100svh; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg); }
+.h-end .h-contact { padding-top: clamp(64px, 9vh, 96px); }
+.h-end-veil { position: absolute; inset: 0; z-index: 2; background: #000; opacity: 0; pointer-events: none; } /* app.js fades it out as the panel is uncovered */
 
 /* ---------- Steps (How we work) ---------- */
 .steps { border-top: 1px solid var(--line); }
@@ -252,6 +467,12 @@ html.menu-open .site-header { background: transparent; -webkit-backdrop-filter: 
 }
 .card .media .ph span { font-size: clamp(40px, 6vw, 96px); font-weight: 600; color: rgba(159, 178, 201, 0.16); letter-spacing: -0.03em; }
 a.card:hover .media .ph { transform: scale(1.04); }
+.card .media img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 42%;
+  transition: transform .7s cubic-bezier(.2,.7,.2,1);
+}
+a.card:hover .media img { transform: scale(1.04); }
 .card .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-top: 16px; }
 .card h3 { font-size: var(--t-sub); font-weight: 400; line-height: 1.3; letter-spacing: -0.018em; transition: color .25s; }
 a.card:hover h3 { color: var(--steel); }
@@ -342,6 +563,160 @@ a.card:hover h3 { color: var(--steel); }
 
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: clamp(32px, 4vw, 56px); }
 
+/* Light pages (the Journal, after accordion.net.au's work index): the page's own colours flip to the light
+   CCC surface; the header and cursor follow by blend. The menu overlay is left as it is. */
+body.is-light { background: #EAEDF1; color: #020202; }
+body.is-light main, body.is-light .site-footer {
+  --bg: #EAEDF1; --bg-soft: #DDE1E6; --ink: #020202;
+  --graphite: rgba(2, 2, 2, 0.6); --ash: rgba(2, 2, 2, 0.36); --line: rgba(2, 2, 2, 0.14);
+  color: var(--ink);
+}
+/* entry cards, grid pictures and thumbs stand in for photos: they stay dark, their text light */
+body.is-light .jl-item, body.is-light .jl-tile-media { --ink: #EAEDF1; color: #EAEDF1; }
+body.is-light .jl-item .slot, body.is-light .jl-tile-media .slot {
+  background: var(--media); border-color: rgba(234, 237, 241, 0.16); color: rgba(234, 237, 241, 0.5);
+}
+
+/* Journal index (accordion.net.au/work-style): filters + List/Grid switch held at the left, tall entry
+   cards down the centre, a travelling strip of thumbnails at the right. Grid view: square tiles. */
+.jl {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) min(50vw, 840px) minmax(0, 1fr);
+  column-gap: var(--gap); padding-inline: var(--pad);
+}
+.jl-side, .jl-rail { grid-row: 1; height: 100vh; position: sticky; top: 0; } /* app.js pins them instead under the smoother */
+html.has-smoother .jl-side, html.has-smoother .jl-rail { position: relative; }
+.jl-side { grid-column: 1; display: flex; flex-direction: column; justify-content: center; }
+.jl-filters { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.jl-views { position: absolute; left: 0; bottom: clamp(16px, 2vw, 24px); display: flex; gap: 14px; }
+.jl-filters button, .jl-views button {
+  display: inline-flex; align-items: center; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: var(--t-caption); font-weight: 600; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.02em;
+  color: var(--ash); transition: color .25s;
+}
+.jl-filters button:hover, .jl-views button:hover,
+.jl-filters button[aria-pressed="true"], .jl-views button[aria-pressed="true"] { color: var(--ink); }
+/* the square: on the chosen filter only (it pushes the word over); always on the view switches */
+.jl-filters button::before, .jl-views button::before {
+  content: ""; flex: none; width: 0; height: 7px; margin-right: 0; background: currentColor;
+  transition: width .3s, margin .3s;
+}
+.jl-filters button[aria-pressed="true"]::before, .jl-views button::before { width: 7px; margin-right: 6px; }
+.jl-filters sup { margin-left: 2px; font-size: 8px; font-weight: 500; vertical-align: super; color: var(--ash); }
+
+.jl-list { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; gap: 6px; padding-block: clamp(64px, 8vh, 88px) 12vh; }
+.jl-item { position: relative; display: block; aspect-ratio: 5 / 6; color: var(--ink); }
+/* the card's visible layer: the arrival slides this, never the card box itself, which the scroll
+   effects are measured against (moving it would make the picture jump once they re-measure) */
+.jl-in { position: absolute; inset: 0; overflow: hidden; background: var(--bg-soft); }
+.jl-media { position: absolute; inset: -5% 0; transition: filter .6s; will-change: transform; }
+.jl-media .slot { position: absolute; inset: 0; padding-top: 14%; }
+.jl-tile-media img, .jl-thumb-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* An entry picture is the same size wherever it shows (card, opening, entry-page hero): tall enough for
+   the card with its drift and for the hero, at least full width, centred. Only the window onto it
+   changes, so opening an entry widens the frame without zooming the photo. */
+.jl-media img, .ar-hero img, .jl-zoom img {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%; max-width: none; object-fit: cover;
+  width: auto; min-width: 100vw; height: max(var(--ar-h), calc(min(50vw, 840px) * 1.32));
+}
+.jl-thumb-media { position: relative; }
+.jl-in::after { content: ""; position: absolute; inset: 0; background: rgba(2, 2, 2, 0.3); pointer-events: none; transition: opacity .5s ease; }
+/* opening an entry (app.js): the veil, the hover blur and the words clear off the picture */
+.jl-item.is-opening .jl-in::after { opacity: 0; }
+.jl-zoom { position: fixed; z-index: 90; overflow: hidden; pointer-events: none; background: var(--media); }
+.jl-zoom > * { position: absolute; max-width: none; }
+.jl-zoom img { object-fit: cover; }
+.jl-zoom .slot { background: var(--media); border-color: rgba(234, 237, 241, 0.16); color: rgba(234, 237, 241, 0.5); padding-top: 14%; }
+.jl-item.is-opening .jl-media { filter: none !important; }
+.jl-item.is-opening .jl-title, .jl-item.is-opening .jl-details { opacity: 0 !important; transition: opacity .35s ease; }
+.jl-item:hover .jl-media { filter: saturate(0) blur(10px); }
+.jl-title { position: absolute; z-index: 2; left: 50%; top: 50%; width: 88%; translate: -50% -50%; text-align: center; pointer-events: none; }
+.jl-eyebrow { margin-bottom: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.jl-title h2 { font-size: clamp(32px, 3.6vw, 60px); font-weight: 500; line-height: 1; letter-spacing: -0.03em; }
+.jl-title .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.2em; margin-bottom: -0.2em; } /* room for descenders */
+.jl-title .wi, .jl-eyebrow .wi { display: inline-block; }
+.jl-eyebrow { overflow: hidden; }
+.jl-details {
+  position: absolute; z-index: 2; left: 50%; bottom: clamp(16px, 2vw, 28px); width: 72%; translate: -50% 0;
+  text-align: center; font-size: 13px; line-height: 1.45; opacity: 0; pointer-events: none;
+}
+
+.jl-rail { grid-column: 3; justify-self: end; width: 4.5rem; }
+.jl-thumbs { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; gap: 6px; translate: -50% 0; }
+.jl-thumb { display: block; width: 2.75rem; height: 3.25rem; padding: 0; border: 0; overflow: hidden; cursor: pointer; opacity: 0.45; }
+.jl-thumb-media { display: block; width: 100%; height: 100%; background: var(--media); }
+/* the two pluses flank whichever thumb sits at the strip's centre line */
+.jl-plus { position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; }
+.jl-plus::before, .jl-plus::after { content: ""; position: absolute; left: 50%; top: 50%; background: var(--ink); translate: -50% -50%; }
+.jl-plus::before { width: 9px; height: 1px; }
+.jl-plus::after { width: 1px; height: 9px; }
+.jl-plus.l { right: calc(50% + 1.75rem + 8px); }
+.jl-plus.r { left: calc(50% + 1.75rem + 8px); }
+
+.jl-grid { grid-column: 2 / 4; grid-row: 1; display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; align-content: start; padding-block: clamp(64px, 8vh, 88px) 12vh; }
+.jl.is-grid .jl-grid { display: grid; }
+.jl-tile { position: relative; display: block; aspect-ratio: 1; overflow: hidden; color: var(--ink); }
+.jl-tile-media { position: absolute; inset: 0 0 0 0; z-index: 1; overflow: hidden; transition: bottom .5s cubic-bezier(0.22, 1, 0.36, 1), filter .5s; }
+.jl-tile-media .slot { position: absolute; inset: 0; padding: 0; border-style: solid; }
+.jl-grid:has(.jl-tile:hover) .jl-tile:not(:hover) .jl-tile-media { filter: saturate(0) brightness(0.7); } /* only while a square itself is under the cursor, not the gaps or the empty cells */
+.jl-tile:hover .jl-tile-media { bottom: 17%; }
+.jl-tile-cap { position: absolute; left: 0; right: 0; bottom: 0; height: 17%; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.jl-tile-cap h3 { font-size: clamp(14px, 1.2vw, 18px); font-weight: 500; line-height: 1.1; letter-spacing: -0.01em; }
+.jl-tile-cap p { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--graphite); }
+@media (max-width: 760px) {
+  .jl { grid-template-columns: minmax(0, 1fr); }
+  .jl-side, html.has-smoother .jl-side { position: relative; height: auto; padding-top: 88px; flex-direction: row; justify-content: space-between; align-items: flex-end; }
+  .jl-views { position: static; }
+  .jl-list, .jl-grid { grid-column: 1; grid-row: 2; padding-top: 20px; }
+  .jl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jl-rail { display: none; }
+}
+
+/* Work index head (accordion.net.au-style): title left; Service and Industry as tight plain lists,
+   grey until hovered or chosen. A hovered entry shows one of its projects just left of its list. */
+.work-head {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gap); align-items: start;
+  padding-top: clamp(64px, 8vw, 128px); padding-bottom: clamp(48px, 6vw, 96px); /* under the page hero */
+}
+.work-title { grid-column: 1 / span 4; font-size: var(--t-heading-sm); font-weight: 500; line-height: 1; letter-spacing: -0.03em; }
+.wf-group { position: relative; display: flex; gap: clamp(10px, 1vw, 16px); }
+.wf-list { margin: 0; padding: 0; list-style: none; }
+.wf-service { grid-column: 6 / span 4; }
+.wf-industry { grid-column: 10 / span 3; }
+.wf-label, .wf-list button {
+  font-size: clamp(15px, 1.25vw, 20px); font-weight: 500; line-height: 1.02; letter-spacing: -0.02em;
+}
+.wf-list button {
+  display: block; padding: 0; border: 0; background: none; text-align: left; cursor: pointer;
+  color: rgba(234, 237, 241, 0.4); transition: color .2s;
+}
+.wf-list button:hover, .wf-list button:focus-visible, .wf-list button[aria-pressed="true"] { color: var(--ink); }
+.wf-thumb {
+  position: absolute; top: 0; right: calc(100% + clamp(16px, 2vw, 32px));
+  width: clamp(72px, 5.6vw, 112px); aspect-ratio: 4 / 5; overflow: hidden; border-radius: 3px;
+  opacity: 0; scale: 0.96; transition: opacity .25s ease, scale .35s cubic-bezier(0.22, 1, 0.36, 1); pointer-events: none;
+}
+.wf-thumb.is-on { opacity: 1; scale: 1; }
+.wf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.work-grid { padding-top: 0; }
+/* archive cards stand upright (3:4, like the project thumbnails), three to a row; the disciplines
+   line sits small and close under the name */
+.work-grid .card .media { aspect-ratio: 3 / 4; }
+.work-grid .card .meta { margin-top: 12px; }
+.work-grid .card .eyebrow { margin-top: 2px; font-size: 10px; }
+/* the active filter, just above the grid; clicking it clears */
+.wf-chip { margin-bottom: 16px; }
+.wf-chip button {
+  padding: 0; border: 0; background: none; color: var(--graphite); cursor: pointer;
+  font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; transition: color .2s;
+}
+.wf-chip button:hover { color: var(--ink); }
+@media (max-width: 760px) {
+  .work-title { grid-column: 1 / -1; margin-bottom: 24px; }
+  .wf-service, .wf-industry { grid-column: 1 / -1; margin-bottom: 16px; }
+  .wf-label { min-width: 5.5em; }
+  .wf-thumb { display: none; }
+}
+
 /* ---------- Project detail ---------- */
 .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin-top: clamp(32px, 4vw, 56px); padding-top: 20px; border-top: 1px solid var(--line); }
 .facts dt { font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); margin-bottom: 6px; }
@@ -359,6 +734,86 @@ a.card:hover h3 { color: var(--steel); }
 .credits dt { font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); margin-bottom: 8px; }
 .credits dd { font-size: var(--t-body-sm); line-height: 1.7; }
 
+/* ---------- Project story: pinned photo, title + description scroll over it ---------- */
+.pstory { position: relative; }
+.pstory-bg {
+  position: sticky; top: 0; z-index: 0;
+  height: 100svh; margin-bottom: -100svh; overflow: hidden;
+}
+html.has-smoother .pstory-bg { position: relative; } /* pinned by ScrollTrigger instead */
+.pstory-bg img { width: 100%; height: 118%; object-fit: cover; object-position: 50% 50%; } /* room for the parallax drift */
+html.has-smoother .pstory-bg img { will-change: transform; }
+.pstory-shade { position: absolute; inset: 0; z-index: 1; background: #000; opacity: 0; pointer-events: none; }
+.pstory-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(5,7,12,.35) 0%, rgba(5,7,12,.5) 55%, rgba(5,7,12,.72) 100%);
+}
+.pstory-hero {
+  position: relative; z-index: 1;
+  min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end;
+  padding-bottom: clamp(20px, 3vw, 32px);
+}
+.ptitle { white-space: nowrap; font-size: clamp(40px, 14vw, 240px); font-weight: 400; line-height: .86; letter-spacing: -0.045em; text-transform: uppercase; }
+.pmeta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap);
+  margin-top: clamp(20px, 2.4vw, 32px);
+  font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.pstory-body {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap);
+  padding-block: clamp(64px, 10vw, 160px) clamp(80px, 12vw, 180px);
+}
+.pdesc { grid-column: 2; max-width: 50ch; }
+.pdesc p { font-size: var(--t-body); line-height: 1.5; margin-bottom: 1em; }
+.pfacts { display: grid; grid-template-columns: 1fr 1fr; gap: 32px var(--gap); margin-top: clamp(40px, 4vw, 56px); }
+.pfacts dt { font-size: var(--t-body-sm); color: var(--graphite); margin-bottom: 8px; }
+.pfacts dd { font-size: var(--t-caption); line-height: 1.6; text-transform: uppercase; letter-spacing: 0.02em; }
+.pfacts .credits-row { grid-column: 1 / -1; }
+.pfacts .credits-row dd { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--gap); }
+.pfacts .credits-row dd span:nth-child(odd) { color: var(--graphite); }
+/* Slides up over the held project photo */
+.pgallery { position: relative; z-index: 2; background: var(--bg); display: flex; flex-direction: column; gap: var(--gap); padding-top: var(--gap); }
+.pgallery + .sec { position: relative; z-index: 2; background: var(--bg); }
+.pgallery img { width: 100%; height: auto; display: block; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+
+/* ---------- Project end: prev/next + giant wordmark ---------- */
+.pnav { display: flex; justify-content: space-between; gap: var(--gap); padding-top: var(--section); }
+.pnav a {
+  display: flex; flex-direction: column;
+  font-size: var(--t-heading-sm); line-height: 1.05; letter-spacing: -0.02em;
+  color: var(--graphite); transition: color .25s;
+}
+.pnav a u { text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.pnav a:hover { color: var(--ink); }
+.pnav-next { align-items: flex-end; text-align: right; }
+.bigfoot { padding-top: clamp(32px, 4vw, 56px); padding-bottom: 20px; }
+main + .bigfoot { margin-top: var(--section); } /* home: no prev/next row above it */
+/* Sized so the wordmark spans the content width (ratio measured for Heros) */
+.bigmark {
+  font-size: calc((100vw - 2 * var(--pad)) * 0.135); line-height: 0.8;
+  letter-spacing: -0.05em; white-space: nowrap;
+}
+.bigmark sup { font-size: 0.22em; vertical-align: 2.6em; margin-left: 0.02em; letter-spacing: 0; }
+.bigfoot-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--gap);
+  margin-top: clamp(16px, 2vw, 28px);
+  font-size: var(--t-caption); line-height: 1.5;
+}
+.bigfoot-row a:hover { color: var(--graphite); }
+
+.pnav-preview {
+  position: fixed; top: 0; left: 0; z-index: 90; pointer-events: none;
+  width: clamp(180px, 15vw, 240px); aspect-ratio: 3 / 4; overflow: hidden;
+  background: var(--media);
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path .45s cubic-bezier(.65,0,.25,1);
+}
+.pnav-preview.is-on { clip-path: inset(0 0 0 0); }
+.pnav-preview img { width: 100%; height: 100%; object-fit: cover; }
+.pnav-preview.is-empty img { display: none; }
+
 /* ---------- CCC page ---------- */
 .caps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .cap { display: flex; flex-direction: column; padding: 20px 0 0; border-top: 1px solid var(--line); }
@@ -368,6 +823,17 @@ a.card:hover h3 { color: var(--steel); }
 
 /* ---------- Article ---------- */
 .article-head h1 { max-width: 18ch; }
+/* Journal entry page (accordion.net.au project-page opening): the picture full width under the header,
+   title left and meta right beneath it, "( All entries )" centred. --ar-top / --ar-h are shared with the
+   journal index, whose card grows into exactly this box. */
+:root { --ar-top: clamp(56px, 7vh, 72px); --ar-h: 78vh; }
+.ar-hero { position: relative; margin-top: var(--ar-top); height: var(--ar-h); overflow: hidden; background: var(--media); }
+.ar-hero .slot { position: absolute; inset: 0; background: var(--media); border-color: rgba(234, 237, 241, 0.16); color: rgba(234, 237, 241, 0.5); }
+.ar-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--gap); padding-top: 12px; }
+.ar-title { font-size: clamp(28px, 3vw, 48px); font-weight: 500; line-height: 1.05; letter-spacing: -0.03em; }
+.ar-meta { flex: none; font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); }
+.ar-back { margin: clamp(12px, 1.4vw, 20px) 0 clamp(48px, 6vw, 96px); text-align: center; font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; }
+.ar-back a:hover { color: var(--graphite); }
 .article-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--gap); margin-top: clamp(40px, 5vw, 72px); padding-top: 20px; border-top: 1px solid var(--line); }
 .article-aside { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; font-size: var(--t-body-sm); color: var(--graphite); }
 .article-body { max-width: 680px; }
@@ -408,7 +874,10 @@ form.inquiry { display: flex; flex-direction: column; gap: 28px; }
   border-top: 1px solid var(--line);
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px var(--gap);
 }
-.site-footer .foot-logo { height: 40px; width: auto; margin-bottom: 20px; }
+.site-footer > .col:first-child, .site-footer .brandcol + .col { grid-column: 2; } /* the columns keep their places on the right */
+.site-footer .brandcol { display: none; } /* (a page still cached from before the footer change) */
+/* the giant wordmark under the columns, as on the home and project pages */
+.site-footer .bigmark { grid-column: 1 / -1; margin-top: clamp(40px, 6vw, 96px); }
 .site-footer h4 { font-size: var(--t-caption); font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); margin-bottom: 16px; }
 .site-footer .col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-size: var(--t-body-sm); }
 .site-footer .col a:hover { color: var(--graphite); }
@@ -416,7 +885,7 @@ form.inquiry { display: flex; flex-direction: column; gap: 28px; }
 .footbar {
   grid-column: 1 / -1;
   display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-  padding-top: clamp(32px, 4vw, 56px);
+  padding-top: clamp(16px, 2vw, 28px);
   font-size: var(--t-caption); color: var(--graphite);
 }
 
@@ -438,15 +907,17 @@ body.has-cursor, body.has-cursor * { cursor: none !important; }
 @view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: pt-out .34s ease both; }
 ::view-transition-new(root) { animation: pt-in .46s cubic-bezier(.2,.8,.2,1) both; }
+/* from the home slider's photo zoom: the screen already shows this page's hero — no fade, no nudge */
+html.from-zoom::view-transition-old(root), html.from-zoom::view-transition-new(root) { animation: none; }
 @keyframes pt-out { to { opacity: 0; transform: translateY(-6px); } }
 @keyframes pt-in { from { opacity: 0; transform: translateY(14px); } }
 html.pt-fallback body { opacity: 0; transition: opacity .34s ease; }
 html.pt-fallback body.pt-in { opacity: 1; }
 html.pt-fallback body.pt-out { opacity: 0; }
+html.pt-fallback.from-zoom body { opacity: 1; transition: none; }
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .band::before, .intro-mark .stone { animation: none; }
   .reveal { opacity: 1; transform: none; }
   .anim-text .word .wi { transform: none; transition: none; }
   .menu.open .menu-links a { animation: none; }
@@ -457,31 +928,142 @@ html.pt-fallback body.pt-out { opacity: 0; }
 /* ===========================================================
    RESPONSIVE
    =========================================================== */
-@media (max-width: 960px) {
+@media (max-width: 760px) { /* (760, not 960: zoomed in, desktop keeps its layout) */
   .cards, .caps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rail, .rail-lg { grid-auto-columns: calc((100% - var(--gap)) / 2); }
   .entry { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 48px; }
   .entry .thumbs { display: none; }
   .site-footer { grid-template-columns: 1fr 1fr; }
-  .site-footer .brandcol { grid-column: 1 / -1; }
+  .site-footer > .col:first-child, .site-footer .brandcol + .col { grid-column: auto; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split, .article-grid, .contact-grid { grid-template-columns: 1fr; }
   .step { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .lockup .tagline { display: none; }
+  .nav-links, .nav-contact { display: none; }
+  .menu-btn { display: block; }
 }
 @media (max-width: 600px) {
-  .cards, .caps, .duo, .credits { grid-template-columns: 1fr; }
+  .cards, .caps, .duo, .trio, .credits { grid-template-columns: 1fr; }
+  .pstory-body { grid-template-columns: 1fr; }
+  .bigfoot-row { grid-template-columns: 1fr 1fr; }
+  .bigfoot-row span:first-child { grid-column: 1 / -1; }
+  .pnav a { font-size: var(--t-sub); }
+  .pdesc { grid-column: 1; }
   .rail, .rail-lg { grid-auto-columns: 84%; }
   .entry { grid-template-columns: 1fr; gap: 8px; min-height: 0; }
   .entries-hl { display: none; }
   .entry .thumbs, .entry .go { display: none; }
-  .hero-meta { flex-direction: column; align-items: flex-start; }
-  .hero { height: auto; min-height: 0; }
-  .band { flex: none; aspect-ratio: 4 / 5; min-height: 0; }
-  .intro { grid-template-columns: 1fr; }
-  .intro-mark .stone { width: 72%; }
+  .h-intro-label, .h-intro-text { grid-column: 1 / -1; }
+  .h-step { grid-template-columns: 1fr; gap: 16px; }
+  .h-step-head, .h-step-side { grid-column: 1 / -1; }
+  .h-step-side { display: block; padding-top: 0; }
+  .h-slides { --strip: 20px; }
+  .h-slide-title { font-size: 10vw; }
+  .h-slide-credits .scope { display: none; }
   .cover { aspect-ratio: 4 / 5; min-height: 0; }
   .field-row { grid-template-columns: 1fr; }
+}
+
+/* ===========================================================
+   ZOOM LOCK (desktop). Boxes, pictures and the spaces between them are sized off the screen's
+   width only (vw / vh, worked out from how they measure on a 1440px-wide screen), with no px
+   floors or ceilings, so browser zoom leaves the layout exactly where it is and only the text
+   grows or shrinks (as on accordion.net.au). Phones keep the px-based values above.
+   =========================================================== */
+@media (min-width: 761px) {
+  :root { --pad: 2.6vw; --gap: 1.8vw; --section: 8vw; --ar-top: 7vh; }
+  /* big type is part of the layout (it sizes cards, rows, screens): it's locked too. Small type
+     (captions, body, the header and the filters) stays in px and follows the zoom. */
+  :root { --t-heading-sm: 2.361vw; --t-heading: 3.75vw; --t-display: 5.833vw; }
+  .h-load-word { font-size: 6.6vw; }
+  .h-steps { --fs: 9.5vw; }
+  .h-work { --cnt: 7.4vw; }
+  .h-slides { height: calc(100svh - var(--cnt) * 0.86 - 1.389vw); }
+  .h-slide-title { font-size: 4.4vw; }
+  .h-cta-t { font-size: 3.6vw; }
+  .card .media .ph span { font-size: 6vw; }
+  .jl-title h2 { font-size: 3.6vw; }
+  .ptitle { font-size: 14vw; }
+  .cover .ph { font-size: 12vw; }
+  .figure .ph { font-size: 8vw; }
+  .ar-title { font-size: 3vw; }
+
+  .slot-fill { padding: 5.556vw 1.944vw 1.944vw; }
+  .sec-head { margin-bottom: 3.889vw; }
+  .sec-head .eyebrow, .page-hero .eyebrow { margin-bottom: 2.222vw; }
+  .actions { margin-top: 2.778vw; }
+
+  /* home */
+  .h-hero-sub { bottom: 2.222vw; }
+  .h-steps { padding: 4vw var(--pad) 5vw; }
+  .h-step { padding-block: 1.6vw 3vw; }
+  .h-intro-top { padding-top: 10vh; }
+  .h-plus { width: 8vw; height: 8vw; margin: -4vw 0 0 -4vw; }
+  .h-strip { bottom: 1.667vw; }
+  .h-strip-track { gap: 0.833vw; }
+  .h-strip-item { width: 12vw; }
+  .h-title { padding-top: 1vw; }
+  .h-journal .h-title { padding-top: 0; }
+  .h-journal .h-display { margin-top: calc(1.1vw - 0.07em); }
+  .h-work-intro .h-title { padding-top: 4.5vw; }
+  .h-slider { padding: 0 0.417vw 0.417vw; }
+  .h-slider-box { width: 24vw; }
+  .h-slides { --strip: 3vw; gap: 0.417vw; }
+  .h-slide.is-active { flex-basis: calc(100% - (var(--n) - 1) * (var(--strip) + 0.417vw)); }
+  .h-slide-bg { width: calc(100cqw - (var(--n) - 1) * (var(--strip) + 0.417vw)); }
+  .h-slide-credits { bottom: 2.083vw; }
+  .corner { width: 1.528vw; height: 1.528vw; }
+  .h-journal-label { margin-top: 5vw; }
+  .h-end .h-contact { padding-top: 9vh; }
+
+  /* lists, cards */
+  .step { padding-block: 1.667vw; }
+  .cards { gap: 3.333vw var(--gap); }
+  .entry { min-height: 9vw; }
+  .entry .thumbs i { width: 6.4vw; }
+
+  /* inner pages */
+  .page-hero { padding-top: 17vh; }
+  .page-hero .lead { margin-top: 2.222vw; }
+  .filters { margin-bottom: 3.889vw; }
+
+  /* journal index */
+  .jl { grid-template-columns: minmax(0, 1fr) 50vw minmax(0, 1fr); }
+  .jl-views { bottom: 1.667vw; }
+  .jl-list { gap: 0.417vw; padding-block: 8vh 12vh; }
+  .jl-media img, .ar-hero img, .jl-zoom img { height: max(var(--ar-h), 66vw); }
+  .jl-details { bottom: 1.944vw; }
+  .jl-rail { width: 5vw; }
+  .jl-thumbs { gap: 0.417vw; }
+  .jl-thumb { width: 3.056vw; height: 3.611vw; } /* app.js widens the current one to 3.889vw */
+  .jl-plus { width: 0.625vw; height: 0.625vw; margin-top: -0.3125vw; }
+  .jl-plus::before { width: 0.625vw; }
+  .jl-plus::after { height: 0.625vw; }
+  .jl-plus.l { right: calc(50% + 2.5vw); }
+  .jl-plus.r { left: calc(50% + 2.5vw); }
+  .jl-grid { gap: 0.278vw; padding-block: 8vh 12vh; }
+
+  /* work index */
+  .work-head { padding-top: 8vw; padding-bottom: 6vw; }
+  .wf-thumb { right: calc(100% + 2vw); width: 5.6vw; }
+
+  /* project */
+  .facts { margin-top: 3.889vw; }
+  .cover { margin-top: 5vw; }
+  .pstory-hero { padding-bottom: 2.222vw; }
+  .pmeta { margin-top: 2.222vw; }
+  .pstory-body { padding-block: 10vw 12vw; }
+  .pfacts { margin-top: 3.889vw; gap: 2.222vw var(--gap); }
+  .bigfoot { padding-top: 3.889vw; }
+  .bigfoot-row { margin-top: 1.944vw; }
+  .pnav-preview { width: 15vw; }
+
+  /* journal entry, contact, footer */
+  .ar-back { margin: 1.389vw 0 6vw; }
+  .article-grid { margin-top: 5vw; }
+  .contact-grid { gap: 6vw; }
+  .site-footer { padding: 4.444vw var(--pad) 1.667vw; gap: 2.778vw var(--gap); }
+  .site-footer .bigmark { margin-top: 6vw; }
+  .footbar { padding-top: 1.944vw; }
 }

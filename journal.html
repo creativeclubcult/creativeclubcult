@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Journal — Creative Club Cult</title>
-  <meta name="description" content="The other side of CCC — thoughts, notes, news, and perspectives. A growing archive of how we think and what we're into." />
+  <title>Journal · Creative Club Cult</title>
+  <meta name="description" content="The other side of CCC: thoughts, notes, news, and perspectives. A growing archive of how we think and what we're into." />
   <meta name="theme-color" content="#05070C" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
+  <script>try{if(sessionStorage.getItem('ccc-zoom')){sessionStorage.removeItem('ccc-zoom');document.documentElement.classList.add('from-zoom')}}catch(e){}</script>
 </head>
-<body>
+<body class="is-light">
   <header class="site-header">
-    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
-      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
-    </a>
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html">Work</a><a href="ccc.html">CCC</a><a href="journal.html" aria-current="page">Journal</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </header>
 
   <div class="menu" id="menu" aria-hidden="true">
-    <nav class="menu-links" aria-label="Main">
+    <nav class="menu-links" aria-label="Menu">
       <a href="work.html">Work</a>
       <a href="ccc.html">CCC</a>
       <a href="journal.html" aria-current="page">Journal</a>
@@ -29,45 +29,89 @@
     <div class="menu-foot">
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
     </div>
   </div>
 
   <div id="smooth-wrapper"><div id="smooth-content">
   <main>
-    <section class="page-hero">
-      <div class="wrap">
-        <p class="eyebrow">Journal — The other side of CCC</p>
-        <h1 class="display">Journal.</h1>
-        <p class="lead">Thoughts, notes, and news. Behind-the-scenes, experiments, and perspectives — a growing archive of how we think and what we're into.</p>
-      </div>
-    </section>
-
-    <section class="sec">
-      <div class="wrap">
-        <div class="filters" aria-label="Filter journal">
-          <button class="tag" type="button" data-filter="all" aria-pressed="true">All</button>
-          <button class="tag" type="button" data-filter="thoughts" aria-pressed="false">Thoughts</button>
-          <button class="tag" type="button" data-filter="notes" aria-pressed="false">Notes</button>
-          <button class="tag" type="button" data-filter="news" aria-pressed="false">News</button>
+    <h1 class="sr-only">Journal</h1>
+    <section class="jl" aria-label="Journal entries">
+      <div class="jl-side">
+        <div class="jl-filters" aria-label="Filter journal">
+          <button type="button" data-jf="all" aria-pressed="true">All</button>
+          <button type="button" data-jf="thoughts" aria-pressed="false">Thoughts<sup>(2)</sup></button>
+          <button type="button" data-jf="notes" aria-pressed="false">Notes<sup>(1)</sup></button>
+          <button type="button" data-jf="news" aria-pressed="false">News<sup>(2)</sup></button>
         </div>
-        <div class="entries reveal">
-          <span class="entries-hl" aria-hidden="true"></span>
-          <a class="entry" data-cat="news" href="article.html"><span class="t">The cult is forming.</span><span class="c">News — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" data-cat="thoughts" href="article.html"><span class="t">Taste is a discipline.</span><span class="c">Thoughts — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" data-cat="notes" href="article.html"><span class="t">Notes on making things worth committing to.</span><span class="c">Notes — Jul 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" data-cat="thoughts" href="article.html"><span class="t">Think → Direct → Create → Produce.</span><span class="c">Thoughts — Jul 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" data-cat="news" href="article.html"><span class="t">Setting up shop in Bandung.</span><span class="c">News — Jun 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+        <div class="jl-views" aria-label="View">
+          <button type="button" data-jv="list" aria-pressed="true">List</button>
+          <button type="button" data-jv="grid" aria-pressed="false">Grid</button>
+        </div>
+      </div>
+      <div class="jl-list">
+      <a class="jl-item" href="journal/the-cult-is-forming.html" data-cat="news" data-i="0"><div class="jl-in">
+        <div class="jl-media"><img src="images/journal/cult-forming.jpg" alt="" loading="lazy" /></div>
+        <div class="jl-title"><p class="jl-eyebrow">News · Aug 2026</p><h2>The cult is forming.</h2></div>
+        <p class="jl-details">We're opening the doors on Creative Club Cult, a creative company built to think, direct, create, and produce.</p>
+      </div></a>
+      <a class="jl-item" href="journal/taste-is-a-discipline.html" data-cat="thoughts" data-i="1"><div class="jl-in">
+        <div class="jl-media"><div class="slot slot-fill"><span>Foto artikel: Taste is a discipline. (5:6)</span></div></div>
+        <div class="jl-title"><p class="jl-eyebrow">Thoughts · Aug 2026</p><h2>Taste is a discipline.</h2></div>
+        <p class="jl-details">Why strategy and craft aren't opposites, and what "serious intent" actually means in practice.</p>
+      </div></a>
+      <a class="jl-item" href="journal/notes-on-making-things-worth-committing-to.html" data-cat="notes" data-i="2"><div class="jl-in">
+        <div class="jl-media"><div class="slot slot-fill"><span>Foto artikel: Notes on making things worth committing to. (5:6)</span></div></div>
+        <div class="jl-title"><p class="jl-eyebrow">Notes · Jul 2026</p><h2>Notes on making things worth committing to.</h2></div>
+        <p class="jl-details">A short field guide to the standards we hold ourselves to across every project.</p>
+      </div></a>
+      <a class="jl-item" href="journal/think-direct-create-produce.html" data-cat="thoughts" data-i="3"><div class="jl-in">
+        <div class="jl-media"><div class="slot slot-fill"><span>Foto artikel: Think → Direct → Create → Produce. (5:6)</span></div></div>
+        <div class="jl-title"><p class="jl-eyebrow">Thoughts · Jul 2026</p><h2>Think → Direct → Create → Produce.</h2></div>
+        <p class="jl-details">Breaking down the framework behind how CCC approaches a creative challenge, end to end.</p>
+      </div></a>
+      <a class="jl-item" href="journal/setting-up-shop.html" data-cat="news" data-i="4"><div class="jl-in">
+        <div class="jl-media"><div class="slot slot-fill"><span>Foto artikel: Setting up shop. (5:6)</span></div></div>
+        <div class="jl-title"><p class="jl-eyebrow">News · Jun 2026</p><h2>Setting up shop.</h2></div>
+        <p class="jl-details">On building a creative company from Indonesia, and why place still matters.</p>
+      </div></a>
+      </div>
+      <div class="jl-grid">
+      <a class="jl-tile" href="journal/the-cult-is-forming.html" data-cat="news">
+        <div class="jl-tile-media" data-flip-id="jl-0"><img src="images/journal/cult-forming.jpg" alt="" loading="lazy" /></div>
+        <div class="jl-tile-cap"><h3>The cult is forming.</h3><p>News · Aug 2026</p></div>
+      </a>
+      <a class="jl-tile" href="journal/taste-is-a-discipline.html" data-cat="thoughts">
+        <div class="jl-tile-media" data-flip-id="jl-1"><span class="slot"></span></div>
+        <div class="jl-tile-cap"><h3>Taste is a discipline.</h3><p>Thoughts · Aug 2026</p></div>
+      </a>
+      <a class="jl-tile" href="journal/notes-on-making-things-worth-committing-to.html" data-cat="notes">
+        <div class="jl-tile-media" data-flip-id="jl-2"><span class="slot"></span></div>
+        <div class="jl-tile-cap"><h3>Notes on making things worth committing to.</h3><p>Notes · Jul 2026</p></div>
+      </a>
+      <a class="jl-tile" href="journal/think-direct-create-produce.html" data-cat="thoughts">
+        <div class="jl-tile-media" data-flip-id="jl-3"><span class="slot"></span></div>
+        <div class="jl-tile-cap"><h3>Think → Direct → Create → Produce.</h3><p>Thoughts · Jul 2026</p></div>
+      </a>
+      <a class="jl-tile" href="journal/setting-up-shop.html" data-cat="news">
+        <div class="jl-tile-media" data-flip-id="jl-4"><span class="slot"></span></div>
+        <div class="jl-tile-cap"><h3>Setting up shop.</h3><p>News · Jun 2026</p></div>
+      </a>
+      </div>
+      <div class="jl-rail" aria-hidden="true">
+        <span class="jl-plus l"></span><span class="jl-plus r"></span>
+        <div class="jl-thumbs">
+          <button class="jl-thumb" type="button" tabindex="-1" data-i="0"><span class="jl-thumb-media" data-flip-id="jl-0"><img src="images/journal/cult-forming.jpg" alt="" loading="lazy" /></span></button>
+          <button class="jl-thumb" type="button" tabindex="-1" data-i="1"><span class="jl-thumb-media" data-flip-id="jl-1"></span></button>
+          <button class="jl-thumb" type="button" tabindex="-1" data-i="2"><span class="jl-thumb-media" data-flip-id="jl-2"></span></button>
+          <button class="jl-thumb" type="button" tabindex="-1" data-i="3"><span class="jl-thumb-media" data-flip-id="jl-3"></span></button>
+          <button class="jl-thumb" type="button" tabindex="-1" data-i="4"><span class="jl-thumb-media" data-flip-id="jl-4"></span></button>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="col brandcol">
-      <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="heading-sm">Creative Club Cult</div>
-    </div>
     <div class="col">
       <h4>Menu</h4>
       <a href="work.html">Work</a>
@@ -82,9 +126,10 @@
     </div>
     <div class="col">
       <h4>Studio</h4>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
       <span>Est. 2026</span>
     </div>
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
     <div class="footbar">
       <span>© 2026 Creative Club Cult. All rights reserved.</span>
       <span>Think → Direct → Create → Produce</span>
@@ -95,6 +140,8 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

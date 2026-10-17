@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CCC — Creative Club Cult</title>
+  <title>CCC · Creative Club Cult</title>
   <meta name="description" content="CCC is a creative company. What we believe, how we work, what we can build, who we build with, and where we're headed." />
   <meta name="theme-color" content="#05070C" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
+  <script>try{if(sessionStorage.getItem('ccc-zoom')){sessionStorage.removeItem('ccc-zoom');document.documentElement.classList.add('from-zoom')}}catch(e){}</script>
 </head>
 <body>
   <header class="site-header">
-    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
-      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
-    </a>
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html">Work</a><a href="ccc.html" aria-current="page">CCC</a><a href="journal.html">Journal</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </header>
 
   <div class="menu" id="menu" aria-hidden="true">
-    <nav class="menu-links" aria-label="Main">
+    <nav class="menu-links" aria-label="Menu">
       <a href="work.html">Work</a>
       <a href="ccc.html" aria-current="page">CCC</a>
       <a href="journal.html">Journal</a>
@@ -29,7 +29,7 @@
     <div class="menu-foot">
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
     </div>
   </div>
 
@@ -37,16 +37,16 @@
   <main>
     <section class="page-hero">
       <div class="wrap">
-        <p class="eyebrow">CCC — The company</p>
+        <p class="eyebrow">CCC · The company</p>
         <h1 class="display">A creative company,<br /><span class="dim">not an agency.</span></h1>
-        <p class="lead">CCC operates across multiple creative disciplines. We approach creative challenges from strategy and thinking through direction, creation, and production — and we're built to grow into whatever comes next.</p>
+        <p class="lead">CCC operates across multiple creative disciplines. We approach creative challenges from strategy and thinking through direction, creation, and production, and we're built to grow into whatever comes next.</p>
       </div>
     </section>
 
     <section class="sec">
       <div class="wrap">
         <p class="eyebrow reveal" style="margin-bottom:clamp(20px,2.4vw,32px)">Belief</p>
-        <p class="statement reveal">Taste is a discipline. <em>Strategy and craft are not opposites — the best work is thought through and beautifully made, with serious intent behind every decision.</em></p>
+        <p class="statement reveal">Taste is a discipline. <em>Strategy and craft are not opposites. The best work is thought through and beautifully made, with serious intent behind every decision.</em></p>
       </div>
     </section>
 
@@ -60,8 +60,8 @@
         </div>
         <div class="steps reveal">
           <div class="step"><h3 class="name">Think</h3><div class="body"><p class="kw">Strategy · Insight · Positioning</p><p class="desc">We interrogate the problem and build the strategic foundation before a single pixel moves.</p></div></div>
-          <div class="step"><h3 class="name">Direct</h3><div class="body"><p class="kw">Concept · Art Direction · Narrative</p><p class="desc">We set the creative direction — a clear point of view that holds every decision together.</p></div></div>
-          <div class="step"><h3 class="name">Create</h3><div class="body"><p class="kw">Design · Craft · Systems</p><p class="desc">We make the work — brand systems, design, motion, and content, crafted with taste.</p></div></div>
+          <div class="step"><h3 class="name">Direct</h3><div class="body"><p class="kw">Concept · Art Direction · Narrative</p><p class="desc">We set the creative direction: a clear point of view that holds every decision together.</p></div></div>
+          <div class="step"><h3 class="name">Create</h3><div class="body"><p class="kw">Design · Craft · Systems</p><p class="desc">We make the work: brand systems, design, motion, and content, crafted with taste.</p></div></div>
           <div class="step"><h3 class="name">Produce</h3><div class="body"><p class="kw">Production · Delivery · Execution</p><p class="desc">We bring it to life and out into the world at the standard the idea deserves.</p></div></div>
         </div>
       </div>
@@ -91,7 +91,7 @@
         <div class="sec-head reveal">
           <div>
             <p class="eyebrow">Partners</p>
-            <h2 class="heading">Who we build with</h2><p class="lead" style="margin-top:16px">We work with brands, companies, organizations, and individuals — and collaborate with a network of makers, directors, and studios.</p>
+            <h2 class="heading">Who we build with</h2><p class="lead" style="margin-top:16px">We work with brands, companies, organizations, and individuals, and collaborate with a network of makers, directors, and studios.</p>
           </div>
         </div>
         <div class="tags reveal">
@@ -116,10 +116,6 @@
   </main>
 
   <footer class="site-footer">
-    <div class="col brandcol">
-      <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="heading-sm">Creative Club Cult</div>
-    </div>
     <div class="col">
       <h4>Menu</h4>
       <a href="work.html">Work</a>
@@ -134,9 +130,10 @@
     </div>
     <div class="col">
       <h4>Studio</h4>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
       <span>Est. 2026</span>
     </div>
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
     <div class="footbar">
       <span>© 2026 Creative Club Cult. All rights reserved.</span>
       <span>Think → Direct → Create → Produce</span>
@@ -147,6 +144,8 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

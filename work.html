@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Work — Creative Club Cult</title>
-  <meta name="description" content="Selected projects and portfolio from Creative Club Cult — branding, campaign, film, experience, production, and experiments." />
+  <title>Work · Creative Club Cult</title>
+  <meta name="description" content="Selected projects and portfolio from Creative Club Cult: branding, campaign, film, experience, production, and experiments." />
   <meta name="theme-color" content="#05070C" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
+  <script>try{if(sessionStorage.getItem('ccc-zoom')){sessionStorage.removeItem('ccc-zoom');document.documentElement.classList.add('from-zoom')}}catch(e){}</script>
 </head>
 <body>
   <header class="site-header">
-    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
-      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
-    </a>
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html" aria-current="page">Work</a><a href="ccc.html">CCC</a><a href="journal.html">Journal</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </header>
 
   <div class="menu" id="menu" aria-hidden="true">
-    <nav class="menu-links" aria-label="Main">
+    <nav class="menu-links" aria-label="Menu">
       <a href="work.html" aria-current="page">Work</a>
       <a href="ccc.html">CCC</a>
       <a href="journal.html">Journal</a>
@@ -29,7 +29,7 @@
     <div class="menu-foot">
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
     </div>
   </div>
 
@@ -37,43 +37,61 @@
   <main>
     <section class="page-hero">
       <div class="wrap">
-        <p class="eyebrow">Work — Archive</p>
+        <p class="eyebrow">Work · Archive</p>
         <h1 class="display">Selected work.</h1>
-        <p class="lead">A growing archive of projects across disciplines. From brand systems to campaigns, film, and experiments — the work, and the thinking behind it.</p>
+        <p class="lead">A growing archive of projects across disciplines. From brand systems to campaigns, film, and experiments: the work, and the thinking behind it.</p>
       </div>
     </section>
 
-    <section class="sec">
-      <div class="wrap">
-        <div class="filters" aria-label="Filter work">
-          <button class="tag" type="button" data-filter="all" aria-pressed="true">All Work</button>
-          <button class="tag" type="button" data-filter="branding" aria-pressed="false">Branding</button>
-          <button class="tag" type="button" data-filter="campaign" aria-pressed="false">Campaign</button>
-          <button class="tag" type="button" data-filter="film" aria-pressed="false">Film</button>
-          <button class="tag" type="button" data-filter="experience" aria-pressed="false">Experience</button>
-          <button class="tag" type="button" data-filter="production" aria-pressed="false">Production</button>
-          <button class="tag" type="button" data-filter="experimental" aria-pressed="false">Experimental</button>
+    <section class="work-head wrap" aria-label="Filter work">
+      <h2 class="work-title">All Work</h2>
+        <div class="wf-group wf-service">
+          <span class="wf-thumb" aria-hidden="true"><img alt="" /></span>
+          <p class="wf-label">Service</p>
+          <ul class="wf-list">
+            <li><button type="button" data-filter="creative-direction" data-thumb="images/projects/noxon/thumb.jpg" aria-pressed="false">Creative Direction</button></li>
+            <li><button type="button" data-filter="branding" data-thumb="images/projects/whitebeard/tshirt.jpg" aria-pressed="false">Branding</button></li>
+            <li><button type="button" data-filter="visual-identity" data-thumb="images/projects/whitebeard/tshirt.jpg" aria-pressed="false">Visual Identity</button></li>
+            <li><button type="button" data-filter="campaign" data-thumb="images/projects/movana/thumb.jpg" aria-pressed="false">Campaign</button></li>
+            <li><button type="button" data-filter="photography" data-thumb="images/projects/noxon/thumb.jpg" aria-pressed="false">Photography</button></li>
+            <li><button type="button" data-filter="film" data-thumb="images/projects/movana/thumb.jpg" aria-pressed="false">Film</button></li>
+            <li><button type="button" data-filter="motion" data-thumb="images/projects/noxon/thumb.jpg" aria-pressed="false">Motion</button></li>
+            <li><button type="button" data-filter="illustration" data-thumb="images/projects/whitebeard/tshirt.jpg" aria-pressed="false">Illustration</button></li>
+            <li><button type="button" data-filter="experience" aria-pressed="false">Experience</button></li>
+            <li><button type="button" data-filter="production" aria-pressed="false">Production</button></li>
+            <li><button type="button" data-filter="experimental" aria-pressed="false">Experimental</button></li>
+          </ul>
         </div>
+        <div class="wf-group wf-industry">
+          <span class="wf-thumb" aria-hidden="true"><img alt="" /></span>
+          <p class="wf-label">Industry</p>
+          <ul class="wf-list">
+            <li><button type="button" data-filter="fashion" data-thumb="images/projects/noxon/thumb.jpg" aria-pressed="false">Fashion</button></li>
+            <li><button type="button" data-filter="sport" data-thumb="images/projects/movana/thumb.jpg" aria-pressed="false">Sport</button></li>
+            <li><button type="button" data-filter="food-beverage" data-thumb="images/projects/whitebeard/tshirt.jpg" aria-pressed="false">Food &amp; Beverage</button></li>
+          </ul>
+        </div>
+    </section>
+
+    <section class="sec work-grid">
+      <div class="wrap">
+        <p class="wf-chip" hidden><button type="button" aria-label="Clear filter"><span class="t"></span> <span aria-hidden="true">×</span></button></p>
         <div class="cards">
-          <a class="card reveal" data-cat="branding" href="project.html"><div class="media"><div class="ph"><span>01</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Identity</p></a>
-          <a class="card reveal" data-cat="campaign film" href="project.html"><div class="media"><div class="ph"><span>02</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Campaign · Film</p></a>
-          <a class="card reveal" data-cat="experience" href="project.html"><div class="media"><div class="ph"><span>03</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experience · Digital</p></a>
-          <a class="card reveal" data-cat="production" href="project.html"><div class="media"><div class="ph"><span>04</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Production</p></a>
-          <a class="card reveal" data-cat="experimental" href="project.html"><div class="media"><div class="ph"><span>05</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experimental</p></a>
-          <a class="card reveal" data-cat="branding" href="project.html"><div class="media"><div class="ph"><span>06</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Digital</p></a>
-          <a class="card reveal" data-cat="film" href="project.html"><div class="media"><div class="ph"><span>07</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Film · Direction</p></a>
-          <a class="card reveal" data-cat="campaign" href="project.html"><div class="media"><div class="ph"><span>08</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Campaign</p></a>
-          <a class="card reveal" data-cat="experience production" href="project.html"><div class="media"><div class="ph"><span>09</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Experience · Production</p></a>
+          <a class="card reveal" data-tags="creative-direction campaign photography film fashion sport" href="work/movana.html"><div class="media"><img src="images/projects/movana/thumb.jpg" alt="MOVANA campaign billboard: athlete in black compression wear mid-stretch" loading="lazy" width="1050" height="1400" /></div><div class="meta"><h3>MOVANA</h3><span class="y">2026</span></div><p class="eyebrow">Campaign · Photography · Film</p></a>
+          <a class="card reveal" data-tags="branding visual-identity illustration motion food-beverage" href="work/whitebeard.html"><div class="media"><img src="images/projects/whitebeard/tshirt.jpg" alt="A man in a white Whitebeard T-shirt, its back printed with the brand line and illustration, against a graffiti wall" loading="lazy" width="1200" height="1600" /></div><div class="meta"><h3>Whitebeard</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Identity · Illustration</p></a>
+          <a class="card reveal" data-tags="creative-direction campaign photography motion fashion" href="work/noxon.html"><div class="media"><img src="images/projects/noxon/thumb.jpg" alt="Close-up portrait: a model winking and grinning, silver hoops and chain, 'Minimalist Swag ©2026'" loading="lazy" width="782" height="1104" /></div><div class="meta"><h3>NOXON</h3><span class="y">2026</span></div><p class="eyebrow">Campaign · Photography · Motion</p></a>
+          <a class="card reveal" data-tags="production" href="project.html"><div class="media"><div class="ph"><span>04</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Production</p></a>
+          <a class="card reveal" data-tags="experimental" href="project.html"><div class="media"><div class="ph"><span>05</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experimental</p></a>
+          <a class="card reveal" data-tags="branding" href="project.html"><div class="media"><div class="ph"><span>06</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Digital</p></a>
+          <a class="card reveal" data-tags="film creative-direction" href="project.html"><div class="media"><div class="ph"><span>07</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Film · Direction</p></a>
+          <a class="card reveal" data-tags="campaign" href="project.html"><div class="media"><div class="ph"><span>08</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Campaign</p></a>
+          <a class="card reveal" data-tags="experience production" href="project.html"><div class="media"><div class="ph"><span>09</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2025</span></div><p class="eyebrow">Experience · Production</p></a>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="col brandcol">
-      <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="heading-sm">Creative Club Cult</div>
-    </div>
     <div class="col">
       <h4>Menu</h4>
       <a href="work.html">Work</a>
@@ -88,9 +106,10 @@
     </div>
     <div class="col">
       <h4>Studio</h4>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
       <span>Est. 2026</span>
     </div>
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
     <div class="footbar">
       <span>© 2026 Creative Club Cult. All rights reserved.</span>
       <span>Think → Direct → Create → Produce</span>
@@ -101,6 +120,8 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

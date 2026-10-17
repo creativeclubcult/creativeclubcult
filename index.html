@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Creative Club Cult — A creative company</title>
-  <meta name="description" content="CCC is a creative company working across disciplines — from strategy and thinking through direction, creation, and production. Est. 2026, Bandung." />
+  <title>Creative Club Cult · A creative company</title>
+  <meta name="description" content="CCC is a creative company working across disciplines, from strategy and thinking through direction, creation, and production. Est. 2026." />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Creative Club Cult" />
   <meta property="og:description" content="A creative playground with serious intent. Think, direct, create, produce." />
@@ -17,18 +17,25 @@
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    try {
+      if (!sessionStorage.getItem('ccc-loader') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('is-loading');
+        window.cccLoadFallback = setTimeout(function () { document.documentElement.classList.remove('is-loading'); }, 9000);
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <header class="site-header">
-    <a class="lockup" href="index.html" aria-label="Creative Club Cult — home">
-      <img class="brand-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <span class="tagline">A creative company<br />Think · Direct · Create · Produce</span>
-    </a>
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html">Work</a><a href="ccc.html">CCC</a><a href="journal.html">Journal</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
   </header>
 
   <div class="menu" id="menu" aria-hidden="true">
-    <nav class="menu-links" aria-label="Main">
+    <nav class="menu-links" aria-label="Menu">
       <a href="work.html">Work</a>
       <a href="ccc.html">CCC</a>
       <a href="journal.html">Journal</a>
@@ -37,97 +44,201 @@
     <div class="menu-foot">
       <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
       <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
-      <span>Bandung, Indonesia</span>
+      <span>Indonesia</span>
     </div>
   </div>
 
+    <div class="h-loader" aria-hidden="true">
+      <div class="h-load-word">
+        <span class="h-load-half is-l"><span class="h-load-text">Creative</span></span>
+        <span class="h-load-box">
+          <img src="images/loader/01.jpg" alt="" />
+          <img src="images/loader/02.jpg" alt="" />
+          <img src="images/loader/03.jpg" alt="" />
+          <img src="images/loader/04.jpg" alt="" />
+          <img src="images/projects/noxon/spike-embrace.jpg" alt="" />
+        </span>
+        <span class="h-load-half is-r"><span class="h-load-text">Club Cult</span></span>
+      </div>
+    </div>
+
   <div id="smooth-wrapper"><div id="smooth-content">
   <main>
-    <section class="hero">
-      <div class="wrap">
-        <h1 class="display">A creative playground<br /><span class="dim">with serious intent.</span></h1>
-        <div class="hero-meta">
-          <p>CCC works across disciplines — from strategy and thinking through direction, creation, and production. Brand, design, and ideas worth committing to.</p>
-        </div>
+    <header class="h-hero">
+      <div class="h-hero-inner">
+        <div class="h-hero-media" aria-hidden="true"><img src="images/projects/noxon/spike-embrace.jpg" alt="" width="1776" height="1404" fetchpriority="high" /></div>
+        <span class="h-hero-shade" aria-hidden="true"></span>
+        <h1 class="h-hero-title">A creative playground<br /><span class="dim">with serious intent.</span></h1>
+        <p class="h-hero-sub">A creative company</p>
       </div>
-      <div class="band" aria-hidden="true"></div>
-    </section>
+    </header>
 
-    <section class="sec">
-      <div class="wrap intro">
-        <div>
-          <p class="eyebrow reveal" style="margin-bottom:clamp(20px,2.4vw,32px)">CCC</p>
-          <p class="statement reveal">We are a creative company, not a template. <em>We think before we make, and we make things worth committing to.</em></p>
-          <div class="actions reveal"><a class="btn ghost" href="ccc.html">About CCC <span>→</span></a></div>
-        </div>
-        <div class="intro-mark reveal"><img class="stone" src="stone.png" alt="The Creative Club Cult mark carved in stone" width="714" height="509" loading="lazy" /></div>
+    <section class="h-black">
+      <div class="h-steps" aria-labelledby="how-title">
+        <h2 class="h-steps-label" id="how-title">How we work</h2>
+        <article class="h-step">
+          <div class="h-step-head">
+            <span class="h-step-icon" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" focusable="false" data-icon="think"><defs><clipPath id="eye-clip"><path class="eye-clip" d="M8 50L26 35.5C33 29.5 41 26 50 26C59 26 67 29.5 74 35.5L92 50L74 64.5C67 70.5 59 74 50 74C41 74 33 70.5 26 64.5Z"/></clipPath></defs><path class="eye-lid" d="M8 50L26 35.5C33 29.5 41 26 50 26C59 26 67 29.5 74 35.5L92 50L74 64.5C67 70.5 59 74 50 74C41 74 33 70.5 26 64.5Z"/><g clip-path="url(#eye-clip)"><circle cx="50" cy="50" r="23.5"/><g class="eye-pupil" transform="translate(9 1.5)"><path d="M50 40.5V59.5M40.5 50H59.5" stroke-width="5"/></g></g></svg></span>
+            <h3 class="h-step-word">Think</h3>
+          </div>
+          <div class="h-step-side">
+            <p class="h-step-kw">Strategy · Insight · Positioning</p>
+            <p class="h-step-desc">Every project starts with thinking. We interrogate the problem, find the angle, and build the strategic foundation before a single pixel moves.</p>
+          </div>
+        </article>
+        <article class="h-step">
+          <div class="h-step-head">
+            <span class="h-step-icon" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" focusable="false" data-icon="direct"><path class="draw" pathLength="1" d="M16.5 92V75.3L38 61.6V48"/><path class="draw" pathLength="1" d="M83.5 92V75.3L62 61.6V48"/><path class="draw" pathLength="1" d="M30 92V79.5L50 67V35.5"/><path class="draw" pathLength="1" d="M70 92V79.5L50 67"/><path class="draw tip" pathLength="1" d="M50 35.5L35.5 21L50 6.5"/><path class="draw tip" pathLength="1" d="M50 35.5L64.5 21L50 6.5"/><path class="tip-full" d="M50 35.5L35.5 21L50 6.5L64.5 21Z" opacity="0"/></svg></span>
+            <h3 class="h-step-word">Direct</h3>
+          </div>
+          <div class="h-step-side">
+            <p class="h-step-kw">Concept · Art Direction · Narrative</p>
+            <p class="h-step-desc">We set the creative direction: the concept, the tone, the story. A clear point of view that holds every decision together.</p>
+          </div>
+        </article>
+        <article class="h-step">
+          <div class="h-step-head">
+            <span class="h-step-icon" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" focusable="false" data-icon="create"><path class="draw" pathLength="1" d="M69.2 42.8V21.1L50 10L30.8 21.1V37.7L42.5 44.5V53.7L52.2 59.3L72.5 47.6L89.7 57.5V78.7L70.6 89.7L45.9 75.4V63.5"/><path class="draw" pathLength="1" d="M31.1 49.3V47L29.4 46L10 57.2V78.7L29.4 89.9L43.9 81.5"/></svg></span>
+            <h3 class="h-step-word">Create</h3>
+          </div>
+          <div class="h-step-side">
+            <p class="h-step-kw">Design · Craft · Systems</p>
+            <p class="h-step-desc">We make the work. Brand systems, design, motion, and content, crafted with taste and obsessive attention to detail.</p>
+          </div>
+        </article>
+        <article class="h-step">
+          <div class="h-step-head">
+            <span class="h-step-icon" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" focusable="false" data-icon="produce"><defs><clipPath id="palm-clip"><rect x="-10" y="-10" width="120" height="62"/></clipPath></defs><g transform="translate(50 50) scale(.143) translate(-346 -302)" stroke-width="31.5"><path d="M262 433H380Q407 433 407 406V383Q407 356 380 356H292L190 291Q172 280 154 290L72 333V455H163L265 520H430L607 345A38 38 0 0 0 553 293L408 400"/></g><g clip-path="url(#palm-clip)"><circle class="ball" cx="50.6" cy="33.7" r="15.3"/></g></svg></span>
+            <h3 class="h-step-word">Produce</h3>
+          </div>
+          <div class="h-step-side">
+            <p class="h-step-kw">Production · Delivery · Execution</p>
+            <p class="h-step-desc">We bring it to life and out into the world: production, delivery, and execution at the standard the idea deserves.</p>
+          </div>
+        </article>
       </div>
-    </section>
 
-    <section class="sec" id="how">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <div>
-            <p class="eyebrow">Approach</p>
-            <h2 class="heading">How we work</h2>
+      <div class="h-intro">
+        <div class="h-intro-top wrap">
+          <p class="h-intro-label">[ Introduction ]</p>
+          <div class="h-intro-text">
+            <p>We are a creative company, not a template. <span class="dim">We think before we make, and we make things worth committing to.</span></p>
+            <a class="ulink" href="ccc.html">About CCC</a>
           </div>
         </div>
-        <div class="steps reveal">
-          <div class="step"><h3 class="name">Think</h3><div class="body"><p class="kw">Strategy · Insight · Positioning</p><p class="desc">Every project starts with thinking. We interrogate the problem, find the angle, and build the strategic foundation before a single pixel moves.</p></div></div>
-          <div class="step"><h3 class="name">Direct</h3><div class="body"><p class="kw">Concept · Art Direction · Narrative</p><p class="desc">We set the creative direction — the concept, the tone, the story. A clear point of view that holds every decision together.</p></div></div>
-          <div class="step"><h3 class="name">Create</h3><div class="body"><p class="kw">Design · Craft · Systems</p><p class="desc">We make the work. Brand systems, design, motion, and content — crafted with taste and obsessive attention to detail.</p></div></div>
-          <div class="step"><h3 class="name">Produce</h3><div class="body"><p class="kw">Production · Delivery · Execution</p><p class="desc">We bring it to life and out into the world — production, delivery, and execution at the standard the idea deserves.</p></div></div>
+        <div class="h-plus" aria-hidden="true"><i class="v"></i><i class="h"></i><i class="sq"></i></div>
+        <div class="h-strip" aria-hidden="true">
+          <div class="h-strip-track">
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: kru di set (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: sesi foto studio (3:4)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: lighting setup (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: monitor &amp; kamera (3:4)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: diskusi tim (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: talent &amp; wardrobe (3:4)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: lokasi outdoor (3:4)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: proses editing (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: set design (3:4)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: makeup &amp; styling (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: cek hasil di monitor (3:4)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: drone (4:3)</span></div></figure>
+            <figure class="h-strip-item"><div class="slot"><span>Foto BTS: persiapan gear (4:3)</span></div></figure>
+            <figure class="h-strip-item tall"><div class="slot"><span>Foto BTS: foto bareng kru (3:4)</span></div></figure>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="sec" id="work">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <div>
-            <p class="eyebrow">Portfolio</p>
-            <h2 class="heading">Selected work</h2>
+    <section class="h-work on-light" id="work">
+      <div class="h-work-intro">
+        <div class="h-title"><h2 class="h-display fit" data-fit="1" data-title data-title-start="intro">Selected Work</h2></div>
+        <p class="h-work-label">[ Our Selection ]</p>
+      </div>
+      <div class="h-slider">
+        <div class="h-slider-box">
+          <p class="h-count" aria-hidden="true"><span class="h-count-roll"><span class="h-count-col"><span>01</span><span>02</span><span>03</span></span></span><span>/</span><span>03</span></p>
+          <div class="h-slides" style="--n: 3">
+            <a class="h-slide" href="work/movana.html">
+              <img class="h-slide-bg" src="images/projects/movana/hero.jpg" alt="" width="2250" height="1800" decoding="async" />
+              <span class="h-slide-nr" aria-hidden="true">001</span>
+              <div class="h-slide-body">
+                <p class="h-slide-client">Campaign · Photography · Film</p>
+                <h3 class="h-slide-title">MOVANA</h3>
+              </div>
+              <div class="h-slide-credits">
+                <p><span class="r">Creative Direction</span> <span class="n">havscool</span> <span class="r">Photography</span> <span class="n">mitchvbs</span> <span class="r">Videography</span> <span class="n">havscool</span> <span class="r">Drone</span> <span class="n">prabuhaflii</span></p>
+                <p class="scope">Creative Direction / Photography / Videography</p>
+              </div>
+            </a>
+            <a class="h-slide" href="work/whitebeard.html">
+              <img class="h-slide-bg" src="images/projects/whitebeard/hero.jpg" alt="" width="2250" height="1799" decoding="async" />
+              <span class="h-slide-nr" aria-hidden="true">002</span>
+              <div class="h-slide-body">
+                <p class="h-slide-client">Branding · Identity · Illustration</p>
+                <h3 class="h-slide-title">Whitebeard</h3>
+              </div>
+              <div class="h-slide-credits">
+                <p><span class="r">Creative Direction</span> <span class="n">arifhendrawan_</span> <span class="r">Illustrator</span> <span class="n">devanieal</span> <span class="r">Graphic Designer</span> <span class="n">arifhendrawan_</span> <span class="r">Motion Graphic</span> <span class="n">unclethall, mitchvbs</span></p>
+                <p class="scope">Rebranding / Visual Identity / Illustration / Motion</p>
+              </div>
+            </a>
+            <a class="h-slide" href="work/noxon.html">
+              <img class="h-slide-bg" src="images/projects/noxon/hero.jpg" alt="" width="2156" height="1440" decoding="async" />
+              <span class="h-slide-nr" aria-hidden="true">003</span>
+              <div class="h-slide-body">
+                <p class="h-slide-client">Campaign · Photography · Motion</p>
+                <h3 class="h-slide-title">NOXON</h3>
+              </div>
+              <div class="h-slide-credits">
+                <p><span class="r">Creative &amp; Visual Direction</span> <span class="n">mitchvbs</span> <span class="r">Photography</span> <span class="n">fxchryfxb</span> <span class="r">Videography</span> <span class="n">havscool</span> <span class="r">Gaffer</span> <span class="n">kevinalfrdzi_</span></p>
+                <p class="scope">Brand Direction / Creative Concept / Photography / Motion / Campaign Assets</p>
+              </div>
+            </a>
           </div>
-          <div class="arrows">
-            <button class="arrow" type="button" data-rail="rail-work" data-dir="-1" aria-label="Previous"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
-            <button class="arrow" type="button" data-rail="rail-work" data-dir="1" aria-label="Next"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
-          </div>
-        </div>
-        <div class="rail rail-lg" id="rail-work">
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>01</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Identity</p></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>02</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Campaign · Film</p></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>03</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experience · Digital</p></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>04</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Production</p></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>05</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Experimental</p></a>
-          <a class="card reveal" href="project.html"><div class="media"><div class="ph"><span>06</span></div></div><div class="meta"><h3>Untitled Project</h3><span class="y">2026</span></div><p class="eyebrow">Branding · Digital</p></a>
-          <a class="card accent reveal" href="work.html"><p class="eyebrow">Work — Archive</p><p class="heading-sm">View all work.</p><span class="go">Open the archive <span>→</span></span></a>
         </div>
       </div>
     </section>
 
-    <section class="sec" id="journal">
+    <section class="h-cta-sec on-light">
+      <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+      <span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
+      <a class="h-cta" href="work.html"><span class="h-cta-t" data-chars>View all work</span><span class="h-cta-t dup" data-chars aria-hidden="true">View all work</span></a>
+    </section>
+
+    <section class="h-full">
+      <div class="h-full-bg"><div class="slot slot-fill"><span>Foto BTS full-bleed: tim CCC bekerja di set (16:9)</span></div></div>
+      <div class="h-full-copy">
+        <p>Taste is a discipline. Strategy and craft are not opposites. The best work is thought through and beautifully made, with serious intent behind every decision.</p>
+        <a class="ulink" href="ccc.html">About CCC</a>
+      </div>
+    </section>
+
+    <section class="h-journal on-light" id="journal">
+      <div class="h-title"><h2 class="h-display fit" data-fit="1" data-title>Journal</h2></div>
       <div class="wrap">
-        <div class="sec-head reveal">
-          <div>
-            <p class="eyebrow">Journal</p>
-            <h2 class="heading-sm">The other side of CCC</h2>
-          </div>
-          <a class="btn ghost" href="journal.html">Read the journal <span>→</span></a>
-        </div>
+        <p class="eyebrow h-journal-label">The other side of CCC</p>
         <div class="entries reveal">
           <span class="entries-hl" aria-hidden="true"></span>
-          <a class="entry" href="article.html"><span class="t">The cult is forming.</span><span class="c">News — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" href="article.html"><span class="t">Taste is a discipline.</span><span class="c">Thoughts — Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
-          <a class="entry" href="article.html"><span class="t">Notes on making things worth committing to.</span><span class="c">Notes — Jul 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+          <a class="entry" href="journal/the-cult-is-forming.html"><span class="t">The cult is forming.</span><span class="c">News · Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+          <a class="entry" href="journal/taste-is-a-discipline.html"><span class="t">Taste is a discipline.</span><span class="c">Thoughts · Aug 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
+          <a class="entry" href="journal/notes-on-making-things-worth-committing-to.html"><span class="t">Notes on making things worth committing to.</span><span class="c">Notes · Jul 2026</span><span class="thumbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="go">Read</span></a>
         </div>
       </div>
     </section>
 
-    <section class="sec">
+    <section class="h-cta-sec on-light">
+      <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+      <span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
+      <a class="h-cta" href="journal.html"><span class="h-cta-t" data-chars>Read the journal</span><span class="h-cta-t dup" data-chars aria-hidden="true">Read the journal</span></a>
+    </section>
+  </main>
+
+  <div class="h-end"><div class="h-end-in">
+    <span class="h-end-veil" aria-hidden="true"></span>
+    <section class="h-contact" aria-label="Contact">
       <div class="wrap">
-        <p class="eyebrow reveal" style="margin-bottom:clamp(20px,2.4vw,32px)">Contact</p>
-        <h2 class="display reveal">Have something<br />worth building?</h2>
-        <div class="actions reveal">
+        <p class="eyebrow" style="margin-bottom:clamp(20px,2.4vw,32px)">Contact</p>
+        <h2 class="display">Have something<br />worth building?</h2>
+        <div class="actions">
           <a class="btn" href="contact.html">Start a conversation <span>→</span></a>
           <a class="tag" href="contact.html">I have a project</a>
           <a class="tag" href="contact.html">Let's collaborate</a>
@@ -135,40 +246,22 @@
         </div>
       </div>
     </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="col brandcol">
-      <img class="foot-logo" src="logo-ccc.png" alt="Creative Club Cult" />
-      <div class="heading-sm">Creative Club Cult</div>
-    </div>
-    <div class="col">
-      <h4>Menu</h4>
-      <a href="work.html">Work</a>
-      <a href="ccc.html">CCC</a>
-      <a href="journal.html">Journal</a>
-      <a href="contact.html">Contact</a>
-    </div>
-    <div class="col">
-      <h4>Connect</h4>
-      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
-      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
-    </div>
-    <div class="col">
-      <h4>Studio</h4>
-      <span>Bandung, Indonesia</span>
-      <span>Est. 2026</span>
-    </div>
-    <div class="footbar">
-      <span>© 2026 Creative Club Cult. All rights reserved.</span>
-      <span>Think → Direct → Create → Produce</span>
+  <footer class="bigfoot wrap">
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
+    <div class="bigfoot-row">
+      <span>© 2026</span>
+      <span><a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a><br /><a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a></span>
+      <span>Indonesia</span>
     </div>
   </footer>
+  </div></div>
   </div></div>
 
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
