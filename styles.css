@@ -350,8 +350,9 @@ html.is-loading .site-header > * { opacity: 0; }
 .h-slide-bg {
   position: absolute; top: 0; left: 50%; height: 100%; max-width: none; translate: -50% 0;
   width: calc(100cqw - (var(--n) - 1) * (var(--strip) + 6px));
-  object-fit: cover; filter: grayscale(1); transition: filter .8s;
+  object-fit: cover; filter: grayscale(1); transition: filter .8s, scale .9s cubic-bezier(0.22, 1, 0.36, 1);
 }
+.h-slide.is-lean .h-slide-bg { scale: 1.035; } /* the open slide's photo leans in under the cursor (app.js) */
 .h-slide.is-active .h-slide-bg { filter: none; }
 .h-slide::after { content: ""; position: absolute; inset: 0; background: rgba(2, 2, 2, 0.15); pointer-events: none; transition: background .8s; }
 .h-slide.is-active::after { background: rgba(2, 2, 2, 0.42); }
@@ -381,8 +382,6 @@ html.is-loading .site-header > * { opacity: 0; }
 }
 .h-slide-client { margin-bottom: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 .h-slide-title { font-size: clamp(40px, 4.4vw, 76px); font-weight: 500; line-height: 0.95; letter-spacing: -0.035em; }
-/* the open slide's title is a target of its own (app.js rolls its letters on hover) */
-.h-slide.is-active .h-slide-body { pointer-events: auto; }
 /* lines a little taller than the title's own, so nothing of a letter is clipped (pulled back in by the margin) */
 .h-roll { position: relative; display: inline-block; overflow: hidden; vertical-align: top; margin-block: -0.2em; }
 .h-roll-a, .h-roll-b { display: block; line-height: 1.35; }
@@ -777,6 +776,11 @@ html.has-smoother .pstory-bg img { will-change: transform; }
 .pgallery + .sec { position: relative; z-index: 2; background: var(--bg); }
 .pgallery img { width: 100%; height: auto; display: block; }
 .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+/* a big picture set off against a smaller one: the small one drops (stagger) or sits low on the left
+   (stagger-r), so a run of pairs doesn't read as one even grid */
+.duo.stagger { grid-template-columns: 7fr 5fr; align-items: start; }
+.duo.stagger > :last-child { margin-top: 12vw; }
+.duo.stagger-r { grid-template-columns: 5fr 7fr; align-items: end; }
 
 /* ---------- Project end: prev/next + giant wordmark ---------- */
 .pnav { display: flex; justify-content: space-between; gap: var(--gap); padding-top: var(--section); }
@@ -945,6 +949,8 @@ html.pt-fallback.from-zoom body { opacity: 1; transition: none; }
 }
 @media (max-width: 600px) {
   .cards, .caps, .duo, .trio, .credits { grid-template-columns: 1fr; }
+  .duo.stagger, .duo.stagger-r { grid-template-columns: 1fr; }
+  .duo.stagger > :last-child { margin-top: 0; }
   .pstory-body { grid-template-columns: 1fr; }
   .bigfoot-row { grid-template-columns: 1fr 1fr; }
   .bigfoot-row span:first-child { grid-column: 1 / -1; }

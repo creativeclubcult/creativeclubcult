@@ -387,7 +387,11 @@
     var cur = -1;
     var activate = function (i) {
       cur = i;
-      slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i); });
+      slides.forEach(function (s, k) {
+        s.classList.toggle('is-active', k === i);
+        // a strip opened under the cursor: it's already being pointed at
+        if (s._roll) s._roll(k === i && s.matches(':hover'));
+      });
       if (col) col.style.transform = 'translateY(' + (-100 * i / slides.length) + '%)';
     };
     // Opening the open slide: its photo grows to fill the screen just as the project page's hero
@@ -433,24 +437,25 @@
         else if (motionOK) { e.preventDefault(); openProject(s); }
       });
     });
-    // The open slide's title says it can be clicked: with the cursor on it, its letters roll over to
-    // a copy rising from below (as the CTA's do) and the photo leans in a touch. Pointers that hover only.
+    // The open slide says it can be clicked: with the cursor anywhere on it, its title's letters roll
+    // over to a copy rising from below (as the CTA's do) and the photo leans in a touch. Pointers that
+    // hover only.
     if (motionOK && window.matchMedia('(hover: hover)').matches) slides.forEach(function (s, i) {
-      var t = s.querySelector('.h-slide-title'), body = s.querySelector('.h-slide-body'), img = s.querySelector('.h-slide-bg');
+      var t = s.querySelector('.h-slide-title');
       var text = t.textContent, chars = function () {
         return text.split('').map(function (c) { return c === ' ' ? ' ' : '<span class="ch">' + c + '</span>'; }).join('');
       };
       t.setAttribute('aria-label', text);
       t.innerHTML = '<span class="h-roll" aria-hidden="true"><span class="h-roll-a">' + chars() + '</span><span class="h-roll-b">' + chars() + '</span></span>';
-      var lines = t.querySelectorAll('.h-roll-a .ch, .h-roll-b .ch'), a = t.querySelectorAll('.h-roll-a .ch'), bb = t.querySelectorAll('.h-roll-b .ch');
+      var a = t.querySelectorAll('.h-roll-a .ch'), bb = t.querySelectorAll('.h-roll-b .ch');
       var roll = function (on) {
         var to = { yPercent: on ? -100 : 0, duration: 0.55, ease: 'power3.inOut', stagger: 0.022, overwrite: true };
         gsap.to(a, to); gsap.to(bb, to);
-        gsap.to(img, { scale: on ? 1.035 : 1, duration: 0.9, ease: 'power3.out', overwrite: 'auto' });
+        s.classList.toggle('is-lean', on); // (the photo's lean is CSS: GSAP would bake its centring into px)
       };
-      body.addEventListener('mouseenter', function () { if (i === cur && !leaving) roll(true); });
-      body.addEventListener('mouseleave', function () { roll(false); });
-      s.addEventListener('mouseleave', function () { if (lines.length) roll(false); });
+      s._roll = roll;
+      s.addEventListener('mouseenter', function () { if (i === cur && !leaving) roll(true); });
+      s.addEventListener('mouseleave', function () { roll(false); });
     });
     var open = function () { box.classList.add('is-open'); activate(Math.floor(slides.length / 2)); };
     if (motionOK && window.ScrollTrigger) ScrollTrigger.create({ trigger: box, start: 'top 75%', once: true, onEnter: open });
