@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin · CCC</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preload" href="../fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="adm">
+  <!-- Signed out: sign in, or set a new password from a reset link -->
+  <main class="adm-gate" data-view="login" hidden>
+    <form class="adm-card" data-form="login" novalidate>
+      <p class="eyebrow">Creative Club Cult</p>
+      <h1 class="heading-sm">Admin</h1>
+      <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" name="email" autocomplete="username" required /></div>
+      <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" name="password" autocomplete="current-password" required /></div>
+      <button class="btn" type="submit">Sign in</button>
+      <button class="adm-link" type="button" data-action="forgot">Forgot password?</button>
+      <p class="adm-msg" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <main class="adm-gate" data-view="reset" hidden>
+    <form class="adm-card" data-form="reset" novalidate>
+      <p class="eyebrow">Creative Club Cult</p>
+      <h1 class="heading-sm">Set a new password</h1>
+      <div class="field"><label for="r-pass">New password (10+ characters)</label><input id="r-pass" type="password" name="password" autocomplete="new-password" minlength="10" required /></div>
+      <button class="btn" type="submit">Save password</button>
+      <p class="adm-msg" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <main class="adm-gate" data-view="denied" hidden>
+    <div class="adm-card">
+      <p class="eyebrow">Creative Club Cult</p>
+      <h1 class="heading-sm">Not on the team yet</h1>
+      <p class="adm-note">You're signed in as <strong data-me-email></strong>, but this account hasn't been added to the CCC team. Ask an owner to add you.</p>
+      <button class="btn ghost" type="button" data-action="signout">Sign out</button>
+    </div>
+  </main>
+
+  <!-- Signed in, on the team -->
+  <div class="adm-app" data-view="app" hidden>
+    <header class="adm-top">
+      <a class="adm-brand" href="#applicants">CCC Admin</a>
+      <nav class="adm-tabs" aria-label="Sections">
+        <a href="#applicants" data-tab="applicants">People</a>
+        <a href="#inquiries" data-tab="inquiries">Inquiries</a>
+        <a href="#jobs" data-tab="jobs">Roles</a>
+        <a href="#team" data-tab="team">Team</a>
+      </nav>
+      <div class="adm-me"><span data-me-email></span> <span class="adm-role" data-me-role></span> <button class="adm-link" type="button" data-action="signout">Sign out</button></div>
+    </header>
+
+    <section class="adm-panel" data-panel="applicants" hidden>
+      <div class="adm-bar">
+        <input type="search" placeholder="Search name, email, city, company" data-filter="q" />
+        <select data-filter="track"><option value="">All tracks</option><option value="team">Team</option><option value="internship">Internship</option><option value="collaborator">Collaborator / Vendor</option></select>
+        <select data-filter="status"><option value="">Any status</option></select>
+        <select data-filter="skill"><option value="">Any craft</option></select>
+        <span class="adm-count" data-count></span>
+        <button class="btn ghost" type="button" data-action="export">Export CSV</button>
+      </div>
+      <div class="adm-table-wrap"><table class="adm-table">
+        <thead><tr><th>Date</th><th>Name</th><th>Track</th><th>Craft</th><th>City</th><th>Status</th><th>Rating</th></tr></thead>
+        <tbody data-rows></tbody>
+      </table></div>
+      <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
+    </section>
+
+    <section class="adm-panel" data-panel="inquiries" hidden>
+      <div class="adm-bar">
+        <select data-filter="status"><option value="">Any status</option><option>new</option><option>replied</option><option>in progress</option><option>won</option><option>lost</option><option>spam</option></select>
+        <span class="adm-count" data-count></span>
+      </div>
+      <div class="adm-table-wrap"><table class="adm-table">
+        <thead><tr><th>Date</th><th>Name</th><th>Company</th><th>About</th><th>Budget</th><th>Status</th></tr></thead>
+        <tbody data-rows></tbody>
+      </table></div>
+    </section>
+
+    <section class="adm-panel" data-panel="jobs" hidden>
+      <div class="adm-bar">
+        <span class="adm-count" data-count></span>
+        <button class="btn" type="button" data-action="new-job" data-edit-only>New role</button>
+      </div>
+      <div class="adm-table-wrap"><table class="adm-table">
+        <thead><tr><th>Role</th><th>Track</th><th>Section</th><th>Type</th><th>Location</th><th>On the site</th></tr></thead>
+        <tbody data-rows></tbody>
+      </table></div>
+    </section>
+
+    <section class="adm-panel" data-panel="team" hidden>
+      <div class="adm-table-wrap"><table class="adm-table">
+        <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Since</th></tr></thead>
+        <tbody data-rows></tbody>
+      </table></div>
+      <p class="adm-note">Owners and admins can edit; viewers can only read. New team members are added in Supabase for now.</p>
+    </section>
+
+    <aside class="adm-drawer" data-drawer hidden>
+      <button class="adm-close" type="button" data-action="close" aria-label="Close">×</button>
+      <div class="adm-drawer-body" data-drawer-body></div>
+    </aside>
+    <div class="adm-scrim" data-scrim hidden></div>
+  </div>
+
+  <p class="adm-toast" data-toast role="status" aria-live="polite" hidden></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

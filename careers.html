@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Careers · Creative Club Cult</title>
+  <meta name="description" content="Join the Cult: roles, internships and the CCC network of collaborators and vendors." />
+  <meta name="theme-color" content="#05070C" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+  <script>try{if(sessionStorage.getItem('ccc-zoom')){sessionStorage.removeItem('ccc-zoom');document.documentElement.classList.add('from-zoom')}}catch(e){}</script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html">Work</a><a href="ccc.html">CCC</a><a href="journal.html">Journal</a><a href="careers.html" class="nav-careers" aria-current="page">Careers</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
+  </header>
+
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-links" aria-label="Menu">
+      <a href="work.html">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="journal.html">Journal</a>
+      <a href="careers.html" aria-current="page">Careers <span class="menu-tag">Join the Cult</span></a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="menu-foot">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+      <span>Indonesia</span>
+    </div>
+  </div>
+
+  <div id="smooth-wrapper"><div id="smooth-content">
+  <main>
+    <!-- held in place while the page slides up over it; the gradient is drawn live (app.js) -->
+    <section class="cr-hero">
+      <canvas class="cr-gradient" aria-hidden="true"></canvas>
+      <div class="cr-hero-text wrap">
+        <h1 class="display cr-title">Join the Cult.</h1>
+        <a class="cr-down" href="#cr-intro" aria-label="Scroll down"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 4v31M8 23l12 12 12-12"/></svg></a>
+      </div>
+    </section>
+
+    <div class="cr-body">
+    <section class="cr-intro wrap" id="cr-intro">
+      <p class="cr-lead reveal">We're building a creative company that works across borders. <span class="dim">We can't do it alone.</span></p>
+      <p class="cr-sub reveal">Whether you want a seat at the table, a first step into the industry, or to bring your craft to our productions, start here.</p>
+    </section>
+
+    <section class="sec wrap">
+      <div class="caps">
+        <a class="cap cap-link reveal" href="careers/team.html"><h3>The team <svg class="cap-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></h3><p>Full-time and contract roles for people who want to build CCC with us: producers, directors, designers and strategists.</p></a>
+        <a class="cap cap-link reveal" href="careers/internships.html"><h3>Internships <svg class="cap-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></h3><p>For students and recent graduates who want to learn by making. Real projects, real feedback, and a team that takes your ideas seriously.</p></a>
+        <a class="cap cap-link reveal" href="careers/collaborators.html"><h3>Collaborators &amp; vendors <svg class="cap-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></h3><p>Photographers, crews, stylists, studios and rental houses. Join the network we call on for every production, at home and abroad.</p></a>
+      </div>
+    </section>
+
+    <section class="sec wrap roles-sec">
+      <div class="sec-head reveal"><div><p class="eyebrow">Open roles</p><h2 class="heading">Where we need you now.</h2></div></div>
+      <div class="roles" data-roles>
+        <p class="roles-empty">No open roles right now. Open applications are always welcome below.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="apply">
+      <div class="wrap contact-grid">
+        <div class="contact-info reveal">
+          <p class="eyebrow">Apply</p>
+          <h2 class="heading-sm">Tell us who you are. <span class="dim">We read everything.</span></h2>
+          <p class="detail">What happens next: your details join our network, and we get in touch when there's a role or a production that fits. It can take a while, but we do come back.<br /><br />Want your details changed or removed? Email <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>.</p>
+        </div>
+
+        <form class="inquiry apply reveal" novalidate>
+          <p class="field-hint form-note">All fields are required unless marked optional.</p>
+          <div class="field">
+            <span class="label" id="track-label">I'm applying as</span>
+            <div class="tags" data-choice="track" role="group" aria-labelledby="track-label">
+              <button class="tag" type="button" data-value="team" aria-pressed="true">Team</button>
+              <button class="tag" type="button" data-value="internship" aria-pressed="false">Internship</button>
+              <button class="tag" type="button" data-value="collaborator" aria-pressed="false">Collaborator / Vendor</button>
+            </div>
+            <input type="hidden" name="track" value="team" />
+          </div>
+
+          <div class="field" data-tracks="team internship">
+            <label for="a-job">Role</label>
+            <select id="a-job" name="job_id"><option value="">Open application</option></select>
+          </div>
+
+          <div class="field" data-tracks="collaborator">
+            <span class="label" id="entity-label">I am</span>
+            <div class="tags" data-choice="entity_type" role="group" aria-labelledby="entity-label">
+              <button class="tag" type="button" data-value="individual" aria-pressed="true">An individual</button>
+              <button class="tag" type="button" data-value="company" aria-pressed="false">A company / studio</button>
+            </div>
+            <input type="hidden" name="entity_type" value="individual" />
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label for="a-name">Your name</label><input id="a-name" type="text" name="name" autocomplete="name" maxlength="160" required /></div>
+            <div class="field"><label for="a-email">Email</label><input id="a-email" type="email" name="email" autocomplete="email" maxlength="254" required /></div>
+          </div>
+          <div class="field" data-tracks="collaborator" data-entity="company"><label for="a-company">Company / studio name</label><input id="a-company" type="text" name="company_name" autocomplete="organization" maxlength="160" required /></div>
+
+          <div class="field-row">
+            <div class="field"><label for="a-phone">WhatsApp</label><input id="a-phone" type="tel" name="phone" autocomplete="tel" maxlength="40" placeholder="+62" required /></div>
+            <div class="field"><label for="a-ig">Instagram <span class="opt">(optional)</span></label><input id="a-ig" type="text" name="instagram" maxlength="80" placeholder="@" /></div>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label for="a-city">City</label><input id="a-city" type="text" name="city" autocomplete="address-level2" maxlength="120" required /></div>
+            <div class="field"><label for="a-country">Country</label><input id="a-country" type="text" name="country" autocomplete="country-name" maxlength="80" required /></div>
+          </div>
+
+          <div class="field">
+            <span class="label" id="skills-label">Your craft</span>
+            <p class="field-hint" id="skills-hint">Open a field and pick all that apply.</p>
+            <div class="skill-groups" data-skills role="group" aria-labelledby="skills-label" aria-describedby="skills-hint">
+              <button class="grp" type="button" aria-expanded="true" aria-controls="sg-0"><span>Direction</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-0" role="group" aria-label="Direction"><button class="pick" type="button" data-skill="creative-direction" aria-pressed="false">Creative Direction</button><button class="pick" type="button" data-skill="art-direction" aria-pressed="false">Art Direction</button><button class="pick" type="button" data-skill="film-direction" aria-pressed="false">Film Direction</button><button class="pick" type="button" data-skill="strategy" aria-pressed="false">Strategy</button><button class="pick" type="button" data-skill="copywriting" aria-pressed="false">Copywriting</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-1"><span>Camera &amp; Light</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-1" role="group" aria-label="Camera &amp; Light" hidden><button class="pick" type="button" data-skill="photography" aria-pressed="false">Photography</button><button class="pick" type="button" data-skill="videography" aria-pressed="false">Videography</button><button class="pick" type="button" data-skill="cinematography" aria-pressed="false">Cinematography / DOP</button><button class="pick" type="button" data-skill="drone" aria-pressed="false">Drone</button><button class="pick" type="button" data-skill="lighting" aria-pressed="false">Lighting / Gaffer</button><button class="pick" type="button" data-skill="camera-assistant" aria-pressed="false">Camera Assistant</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-2"><span>Production</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-2" role="group" aria-label="Production" hidden><button class="pick" type="button" data-skill="producer" aria-pressed="false">Producer</button><button class="pick" type="button" data-skill="production-management" aria-pressed="false">Production Management</button><button class="pick" type="button" data-skill="location-scouting" aria-pressed="false">Location Scouting</button><button class="pick" type="button" data-skill="casting" aria-pressed="false">Casting</button><button class="pick" type="button" data-skill="set-styling" aria-pressed="false">Set Design / Styling</button><button class="pick" type="button" data-skill="props" aria-pressed="false">Props</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-3"><span>Styling &amp; Talent</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-3" role="group" aria-label="Styling &amp; Talent" hidden><button class="pick" type="button" data-skill="fashion-styling" aria-pressed="false">Fashion Styling</button><button class="pick" type="button" data-skill="makeup-hair" aria-pressed="false">Makeup &amp; Hair</button><button class="pick" type="button" data-skill="talent" aria-pressed="false">Talent / Model</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-4"><span>Post</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-4" role="group" aria-label="Post" hidden><button class="pick" type="button" data-skill="editing" aria-pressed="false">Editing</button><button class="pick" type="button" data-skill="colour-grading" aria-pressed="false">Colour Grading</button><button class="pick" type="button" data-skill="motion-design" aria-pressed="false">Motion Design</button><button class="pick" type="button" data-skill="vfx-cgi" aria-pressed="false">VFX / CGI / 3D</button><button class="pick" type="button" data-skill="sound-music" aria-pressed="false">Sound &amp; Music</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-5"><span>Design &amp; Digital</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-5" role="group" aria-label="Design &amp; Digital" hidden><button class="pick" type="button" data-skill="graphic-design" aria-pressed="false">Graphic Design</button><button class="pick" type="button" data-skill="illustration" aria-pressed="false">Illustration</button><button class="pick" type="button" data-skill="ui-ux" aria-pressed="false">UI / UX</button><button class="pick" type="button" data-skill="web-development" aria-pressed="false">Web Development</button><button class="pick" type="button" data-skill="social-content" aria-pressed="false">Social Content</button></div>
+              <button class="grp" type="button" aria-expanded="false" aria-controls="sg-6"><span>Space &amp; Gear</span><span class="grp-n" hidden></span><svg class="grp-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg></button>
+              <div class="grp-panel" id="sg-6" role="group" aria-label="Space &amp; Gear" hidden><button class="pick" type="button" data-skill="equipment-rental" aria-pressed="false">Equipment Rental</button><button class="pick" type="button" data-skill="studio-space" aria-pressed="false">Studio / Space</button><button class="pick" type="button" data-skill="production-support" aria-pressed="false">Production Support</button></div>
+            </div>
+          </div>
+
+          <div class="field-row" data-tracks="team internship">
+            <div class="field"><label for="a-exp">Years of experience</label><input id="a-exp" type="number" name="experience_years" min="0" max="60" inputmode="numeric" placeholder="0 if you're just starting" required /></div>
+            <div class="field"><label for="a-from">Available from</label><input id="a-from" type="date" name="available_from" required /></div>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label for="a-mode">Work</label>
+              <select id="a-mode" name="work_mode" required><option value="">Select</option><option value="onsite">On site</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="any">Any</option></select>
+            </div>
+            <div class="field"><label for="a-travel">Open to travel?</label>
+              <select id="a-travel" name="can_travel" required><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+          </div>
+
+          <div class="field"><label for="a-lang">Languages</label><input id="a-lang" type="text" name="languages" maxlength="200" placeholder="English, Indonesian" required /></div>
+
+          <div class="field-row" data-tracks="collaborator">
+            <div class="field"><label for="a-rate">Rate range <span class="opt">(optional)</span></label><input id="a-rate" type="text" name="rate_note" maxlength="200" placeholder="Per day or per project" /></div>
+            <div class="field"></div>
+          </div>
+          <div class="field" data-tracks="collaborator"><label for="a-gear">Equipment, studio or team you bring <span class="opt">(optional)</span></label><textarea id="a-gear" name="equipment" maxlength="2000"></textarea></div>
+
+          <div class="field" data-portfolio>
+            <span class="label">Portfolio links</span>
+            <p class="field-hint">At least one link here, or a file below.</p>
+            <div class="links" data-links>
+              <input type="url" name="link" placeholder="https://" maxlength="500" aria-label="Portfolio link 1" />
+            </div>
+            <button class="add-link" type="button" data-add-link>+ Add another link</button>
+          </div>
+
+          <div class="field">
+            <label for="a-files">CV or portfolio files</label>
+            <input id="a-files" class="file-input" type="file" name="files" multiple accept="application/pdf,image/jpeg,image/png,image/webp" />
+            <p class="file-hint">PDF, JPG, PNG or WebP. Up to 3 files, 20 MB each.</p>
+            <ul class="file-list" data-file-list></ul>
+          </div>
+
+          <div class="field"><label for="a-msg" data-label-team>Why CCC? Anything we should know?</label><textarea id="a-msg" name="message" maxlength="5000" required></textarea></div>
+
+          <div class="field"><label for="a-source">How did you hear about us?</label>
+            <select id="a-source" name="source" required><option value="">Select</option><option>Instagram</option><option>LinkedIn</option><option>A friend or colleague</option><option>Our work</option><option>Search</option><option>Other</option></select>
+          </div>
+
+          <label class="consent"><input type="checkbox" name="consent" required /> <span>I agree that CCC may keep my details and files to review my application and contact me about work. See our <a href="privacy.html">Privacy Policy</a>.</span></label>
+
+          <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+
+          <div class="actions" style="margin-top:0"><button type="submit" class="btn submit-btn">Send application <span>→</span></button></div>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="col">
+      <h4>Menu</h4>
+      <a href="work.html">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="journal.html">Journal</a>
+      <a href="contact.html">Contact</a>
+      <a href="careers.html">Careers</a>
+    </div>
+    <div class="col">
+      <h4>Connect</h4>
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+    </div>
+    <div class="col">
+      <h4>Studio</h4>
+      <span>Indonesia</span>
+      <span>Est. 2026</span>
+    </div>
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
+    <div class="footbar">
+      <span>© 2026 Creative Club Cult. All rights reserved. <a href="privacy.html">Privacy</a></span>
+      <span>Think → Direct → Create → Produce</span>
+    </div>
+  </footer>
+  </div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

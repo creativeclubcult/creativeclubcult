@@ -26,8 +26,26 @@
   // follow it the same way; phones keep plain px.
   var dpx = function (n) { var w = window.innerWidth; return w > 760 ? n * w / 1440 : n; };
 
+  // Supabase (project ccc-website). The publishable key is public by design: the database only lets the
+  // site add a contact message or an application, and read the skill list and open roles.
+  var SB_URL = 'https://zneckeqsvwbavqxpolri.supabase.co';
+  var SB_KEY = 'sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU';
+
   // ---- Smooth scroll (GSAP ScrollSmoother; skipped for reduced motion, native on touch) ----
   var smoother = null;
+  // Arriving on a spot in a page (careers.html#apply): go there once the layout has settled, and again
+  // if something that loads late (the open roles) pushes it down before the visitor has scrolled.
+  var spotAt = null;
+  var goToSpot = function () {
+    var id = ''; try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+    var spot = id && document.getElementById(id);
+    if (!spot || !smoother) return;
+    smoother.scrollTo(spot, false, 'top top'); spotAt = smoother.scrollTop();
+  };
+  var keepSpot = function () {
+    if (spotAt === null || Math.abs(smoother.scrollTop() - spotAt) > 2) return;
+    goToSpot(); // (the caller has already re-measured)
+  };
   if (window.gsap && window.ScrollTrigger && window.ScrollSmoother &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
@@ -36,7 +54,7 @@
     // so pages always open at the top; re-measure once images have settled the layout.
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if (!location.hash) window.scrollTo(0, 0);
-    window.addEventListener('load', function () { ScrollTrigger.refresh(); });
+    window.addEventListener('load', function () { ScrollTrigger.refresh(); goToSpot(); });
     smoother = ScrollSmoother.create({
       wrapper: '#smooth-wrapper',
       content: '#smooth-content',
@@ -53,6 +71,10 @@
       var scrub = { trigger: story, start: 'top top', end: 'bottom top', scrub: true };
       gsap.to(story.querySelector('.pstory-bg img'), { yPercent: -15, ease: 'none', scrollTrigger: scrub });
       gsap.fromTo(story.querySelector('.pstory-shade'), { opacity: 0 }, { opacity: 0.35, ease: 'none', scrollTrigger: scrub });
+    });
+    // Careers: the gradient hero holds while the page slides up over it, like a curtain
+    document.querySelectorAll('.cr-hero').forEach(function (hero) {
+      ScrollTrigger.create({ trigger: hero, start: 'top top', end: 'bottom top', pin: hero, pinSpacing: false });
     });
 
     // ---- Home landing: scroll-driven transitions ----
@@ -588,14 +610,14 @@
 
   if (!reduce) {
     // Word-mask the big entry headings
-    document.querySelectorAll('.page-hero h1, .ptitle').forEach(function (h) {
+    document.querySelectorAll('.page-hero h1, .ptitle, .cr-title').forEach(function (h) {
       h.classList.add('anim-text');
       var inners = []; wrapWords(h, inners);
       inners.forEach(function (wi, i) { wi.style.transitionDelay = (0.045 * i) + 's'; });
     });
 
     // Hero / page-hero entrance fade-ups (staggered)
-    var fades = document.querySelectorAll('.page-hero .eyebrow, .page-hero .lead, .page-hero .facts');
+    var fades = document.querySelectorAll('.page-hero .eyebrow, .page-hero .lead, .page-hero .facts, .cr-down svg');
     fades.forEach(function (e, i) { e.classList.add('reveal'); e.style.transitionDelay = (0.12 + 0.08 * i) + 's'; });
 
     // First-screen elements sitting at the very bottom never cross the scroll trigger line,
@@ -1231,7 +1253,7 @@
   })();
 
   // ---- Contact form ----
-  var form = document.querySelector('form.inquiry');
+  var form = document.querySelector('form.inquiry:not(.apply)');
   if (form) {
     var typeRow = form.querySelector('.type-row');
     if (typeRow) {
@@ -1246,21 +1268,468 @@
     }
     var status = form.querySelector('.form-status');
     var submit = form.querySelector('.submit-btn');
+    // messages go to the "inquiries" table (the site may only add one, never read or change one)
+    var INQUIRIES = SB_URL + '/rest/v1/inquiries';
+    var PUBLISHABLE_KEY = SB_KEY;
+    var say = function (text, isError) { status.textContent = text; status.classList.toggle('is-error', !!isError); };
+    var val = function (n) { var el = form.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; };
+    var sending = false;
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var name = form.querySelector('[name="name"]');
-      var email = form.querySelector('[name="email"]');
-      var desc = form.querySelector('[name="description"]');
-      var okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email.value || '').trim());
-      if (!name.value.trim() || !okEmail || !desc.value.trim()) {
-        status.textContent = 'Please fill in your name, a valid email, and a short description.';
+      if (sending) return;
+      var okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('email'));
+      if (!val('name') || !okEmail || !val('description')) {
+        say('Please fill in your name, a valid email, and a short description.', true);
         return;
       }
-      // No backend in the prototype — capture intent gracefully.
-      submit.disabled = true;
-      status.textContent = "Thanks, we've received your note and will be in touch soon.";
-      form.reset();
-      if (typeRow) { typeRow.querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); }
+      var done = function () {
+        say("Thanks, we've received your note and will be in touch soon.");
+        form.reset();
+        if (typeRow) { typeRow.querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); }
+      };
+      if (val('website')) { done(); return; } // the spam trap was filled in: look sent, send nothing
+      sending = true; submit.disabled = true; form.classList.add('is-sending');
+      say('Sending…');
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+      fetch(INQUIRIES, {
+        method: 'POST',
+        headers: { 'apikey': PUBLISHABLE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          inquiry_type: val('inquiryType') || 'I have a project',
+          name: val('name'),
+          company: val('company') || null,
+          email: val('email'),
+          preferred_contact: val('preferred') || 'Email',
+          description: val('description'),
+          timeline: val('timeline') || null,
+          budget: val('budget') || null,
+          page: location.pathname.slice(0, 200)
+        }),
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        done();
+      }).catch(function () {
+        // keep what they wrote, so trying again is one click
+        say('Something went wrong and your note wasn\u2019t sent. Please try again, or email us at hello@creativeclubcult.com.', true);
+      }).then(function () {
+        if (timer) clearTimeout(timer);
+        sending = false; submit.disabled = false; form.classList.remove('is-sending');
+      });
     });
   }
+
+  // ---- Careers hero: a slowly moving gradient, drawn on the GPU ----
+  // A soft ribbon of CCC blue with a haze beside it, folding over near-black under a fine film grain.
+  // One canvas pixel per CSS pixel (it's all soft blends, so it costs little, and the grain keeps one size),
+  // drawn only while it's on screen and the tab is visible; one still frame for reduced motion. If WebGL
+  // isn't there, the canvas hides and the CSS version of the gradient shows instead.
+  var gradCanvas = document.querySelector('canvas.cr-gradient');
+  if (gradCanvas) (function (cv) {
+    var gl = cv.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
+    if (!gl) { cv.hidden = true; return; }
+    var FRAG = [
+      '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;', '#else', 'precision mediump float;', '#endif',
+      'uniform vec2 u_res; uniform float u_time;',
+      'float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+      'vec2 grad(vec2 i) { float a = hash(i) * 6.2831853; return vec2(cos(a), sin(a)); }',
+      'float noise(vec2 p) {',
+      '  vec2 i = floor(p), f = fract(p); vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);',
+      '  return mix(mix(dot(grad(i), f), dot(grad(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),',
+      '             mix(dot(grad(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)), dot(grad(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);',
+      '}',
+      'void main() {',
+      '  vec2 uv = gl_FragCoord.xy / u_res;',
+      '  vec2 p = (uv - 0.5) * vec2(u_res.x / u_res.y, 1.0);',
+      '  float t = u_time;',
+      // the whole field folds slowly, so nothing ever moves in a straight line
+      '  vec2 q = p + 0.8 * vec2(noise(p * 0.7 + vec2(0.0, t * 0.08)), noise(p * 0.7 + vec2(5.2, -t * 0.07)));',
+      // one soft ribbon of light rising left to right; its tilt, curve and width keep changing
+      '  float ang = 0.34 + 0.2 * sin(t * 0.13);',
+      '  vec2 dir = vec2(cos(ang), sin(ang));',
+      '  float along = dot(q, dir);',
+      '  float across = dot(q, vec2(-dir.y, dir.x)) - 0.14 * sin(along * 1.7 + t * 0.29) - 0.12 * sin(t * 0.17 + 1.3);',
+      '  float width = 0.22 + 0.08 * sin(along * 1.3 - t * 0.23);',
+      '  float ends = smoothstep(-1.5, -0.4, along) * (1.0 - smoothstep(0.5, 1.4, along + 0.35 * sin(t * 0.11)));',
+      '  float band = exp(-across * across / (width * width)) * ends;',
+      '  float glow = exp(-across * across / (width * width * 6.0)) * ends;',
+      // a wide haze on the upper side of it, black below
+      '  float haze = smoothstep(-0.1, 0.35, across + 0.3 * noise(q * 1.2 - t * 0.06)) * (1.0 - smoothstep(0.35, 1.1, across));',
+      '  vec3 col = vec3(0.020, 0.027, 0.047);',
+      '  col = mix(col, vec3(0.17, 0.22, 0.44), haze * 0.8);',
+      '  col = mix(col, vec3(0.118, 0.357, 1.0), glow * 0.3);',
+      '  col = mix(col, vec3(0.118, 0.357, 1.0), smoothstep(0.0, 0.9, band) * 0.85);',
+      '  col = mix(col, vec3(0.50, 0.84, 1.0), smoothstep(0.5, 1.0, band) * 0.6);',
+      '  col += (hash(gl_FragCoord.xy + fract(t * 7.31) * 97.0) - 0.5) * 0.07;', // film grain, new every frame
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}'
+    ].join('\n');
+    var VERT = 'attribute vec2 a_pos; void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }';
+    var shader = function (type, src) {
+      var sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+      return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null;
+    };
+    var vs = shader(gl.VERTEX_SHADER, VERT), fs = shader(gl.FRAGMENT_SHADER, FRAG);
+    var prog = vs && fs && gl.createProgram();
+    if (prog) { gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); }
+    if (!prog || !gl.getProgramParameter(prog, gl.LINK_STATUS)) { cv.hidden = true; return; }
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); // one triangle over the screen
+    var loc = gl.getAttribLocation(prog, 'a_pos');
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var uRes = gl.getUniformLocation(prog, 'u_res'), uTime = gl.getUniformLocation(prog, 'u_time');
+
+    var clock = 8, last = null, running = false, onScreen = true, covered = false, lost = false;
+    var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var draw = function () {
+      gl.uniform2f(uRes, cv.width, cv.height); gl.uniform1f(uTime, clock);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+    var size = function () {
+      var r = cv.getBoundingClientRect();
+      var w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
+      if (!lost) draw();
+    };
+    var tick = function (now) {
+      if (!running) return;
+      if (last !== null) clock += Math.min(0.1, (now - last) / 1000); // (no jump after a pause)
+      last = now;
+      draw();
+      requestAnimationFrame(tick);
+    };
+    var update = function () {
+      var go = onScreen && !covered && !document.hidden && !still && !lost;
+      if (go && !running) { running = true; last = null; requestAnimationFrame(tick); }
+      else if (!go) running = false;
+    };
+    size();
+    window.addEventListener('resize', size);
+    document.addEventListener('visibilitychange', update);
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { onScreen = es[0].isIntersecting; update(); }).observe(cv);
+    }
+    // once the page has slid all the way over it, it's still on screen but hidden: stop drawing
+    if (smoother) ScrollTrigger.create({ trigger: '.cr-body', start: 'top 1px', end: 'max', onToggle: function (st) { covered = st.isActive; update(); } });
+    cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); lost = true; running = false; cv.hidden = true; });
+    update();
+  })(gradCanvas);
+
+  // the arrow under the title glides down to the intro
+  document.querySelectorAll('.cr-down').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var target = document.querySelector(a.getAttribute('href'));
+      if (!target || !smoother) return;
+      e.preventDefault();
+      smoother.scrollTo(target, true, 'top top');
+    });
+  });
+
+  // ---- Careers subpages: the open roles for this track, under the part of the studio they sit in ----
+  // Each section says "Open applications welcome" until a role comes in for it; a role opens in place
+  // to show its brief and a link to the form with the track and role already picked.
+  var depts = document.querySelector('.depts[data-track]');
+  if (depts) (function () {
+    var track = depts.getAttribute('data-track');
+    var label = { 'full-time': 'Full-time', 'contract': 'Contract', 'part-time': 'Part-time', 'internship': 'Internship', 'onsite': 'On site', 'remote': 'Remote', 'hybrid': 'Hybrid' };
+    var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    var ARROW = '<svg class="job-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M13 5l7 7-7 7"/></svg>';
+    fetch(SB_URL + '/rest/v1/jobs?select=id,title,department,employment,location,work_mode,summary,description&is_open=eq.true&track=eq.' + encodeURIComponent(track) + '&order=sort,created_at.desc', { headers: { apikey: SB_KEY } })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (jobs) {
+        jobs.forEach(function (j) {
+          var sec = depts.querySelector('[data-dept="' + (j.department || '') + '"]') || depts.querySelector('[data-dept=""]');
+          var d = el('details', 'job'), sum = el('summary');
+          sum.innerHTML = ARROW; // a fixed icon, no data in it
+          sum.appendChild(el('span', 'job-title', j.title));
+          sum.appendChild(el('span', 'job-meta', [label[j.employment] || j.employment, j.location, label[j.work_mode]].filter(Boolean).join(' · ')));
+          var more = el('span', 'job-more'); more.appendChild(el('span', 'c', 'Read the role')); more.appendChild(el('span', 'o', 'Close'));
+          sum.appendChild(more);
+          var body = el('div', 'job-body');
+          if (j.summary) body.appendChild(el('p', null, j.summary));
+          if (j.description) body.appendChild(el('p', null, j.description));
+          var go = el('a', 'btn', 'Apply for this role ');
+          go.href = 'careers.html?track=' + encodeURIComponent(track) + '&job=' + encodeURIComponent(j.id) + '#apply';
+          go.appendChild(el('span', null, '→'));
+          body.appendChild(go);
+          d.appendChild(sum); d.appendChild(body);
+          sec.querySelector('[data-jobs]').appendChild(d);
+          sec.hidden = false;
+          var state = sec.querySelector('.dept-state'); state.textContent = 'Hiring now'; state.classList.add('is-hiring');
+        });
+        if (jobs.length && window.ScrollTrigger) ScrollTrigger.refresh();
+      })
+      .catch(function () { /* the sections stay as they are: open applications welcome */ });
+    // a role opening or closing changes the page height: re-measure the scroll
+    depts.addEventListener('toggle', function () { if (window.ScrollTrigger) ScrollTrigger.refresh(); }, true);
+  })();
+
+  // ---- Careers: three ways in, one form ----
+  // Team / Internship / Collaborator-vendor. Fields for the other tracks hide; files go to the private
+  // "applications" bucket first (each application gets its own folder), then submit_application() files
+  // the whole thing in one go and checks every part of it.
+  var apply = document.querySelector('form.apply');
+  if (apply) (function () {
+    var status = apply.querySelector('.form-status'), submit = apply.querySelector('.submit-btn');
+    var say = function (t, err) { status.textContent = t; status.classList.toggle('is-error', !!err); };
+    var val = function (n) { var el = apply.querySelector('[name="' + n + '"]'); return el ? el.value.trim() : ''; };
+    var headers = { apikey: SB_KEY };
+    var api = function (path, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({}, headers, opts.headers || {});
+      return fetch(SB_URL + path, opts).then(function (r) {
+        return r.text().then(function (t) {
+          var body = null; try { body = t ? JSON.parse(t) : null; } catch (e) { body = t; }
+          if (!r.ok) { var e = new Error((body && body.message) || ('HTTP ' + r.status)); e.code = body && body.code; e.status = r.status; throw e; }
+          return body;
+        });
+      });
+    };
+    var esc = function (t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+
+    // single-choice tag rows (track, entity type) and what they show
+    var track = 'team', entity = 'individual';
+    var sync = function () {
+      apply.querySelectorAll('[data-tracks]').forEach(function (el) {
+        var on = el.getAttribute('data-tracks').split(' ').indexOf(track) > -1;
+        if (on && el.hasAttribute('data-entity')) on = el.getAttribute('data-entity') === entity;
+        el.hidden = !on;
+      });
+      apply.querySelectorAll('[data-entity]:not([data-tracks])').forEach(function (el) { el.hidden = el.getAttribute('data-entity') !== entity; });
+      var msg = apply.querySelector('[data-label-team]');
+      if (msg) msg.textContent = track === 'collaborator' ? 'Tell us about your work. Anything we should know?' : 'Why CCC? Anything we should know?';
+    };
+    apply.querySelectorAll('[data-choice]').forEach(function (row) {
+      var name = row.getAttribute('data-choice');
+      row.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        row.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        apply.querySelector('input[name="' + name + '"]').value = b.getAttribute('data-value');
+        if (name === 'track') track = b.getAttribute('data-value'); else entity = b.getAttribute('data-value');
+        sync();
+      });
+    });
+    var setTrack = function (t) { var b = apply.querySelector('[data-choice="track"] [data-value="' + t + '"]'); if (b) b.click(); };
+    sync();
+    // coming from a careers page or a role: careers.html?track=internship&job=<id>#apply
+    var qs = new URLSearchParams(location.search), wantJob = qs.get('job');
+    if (/^(team|internship|collaborator)$/.test(qs.get('track') || '')) setTrack(qs.get('track'));
+
+    // skills: several may be picked. One field is open at a time (fields left, its crafts right; an
+    // accordion on phones, where an open field can also be closed); each field shows how many are picked.
+    var skillsBox = apply.querySelector('[data-skills]');
+    var picked = {};
+    var narrow = window.matchMedia('(max-width: 760px)');
+    var panelOf = function (g) { return document.getElementById(g.getAttribute('aria-controls')); };
+    var openField = function (g) {
+      skillsBox.querySelectorAll('.grp').forEach(function (x) {
+        var on = x === g;
+        x.setAttribute('aria-expanded', on ? 'true' : 'false');
+        panelOf(x).hidden = !on;
+      });
+    };
+    var counts = function () {
+      skillsBox.querySelectorAll('.grp').forEach(function (g) {
+        var n = panelOf(g).querySelectorAll('[aria-pressed="true"]').length, tag = g.querySelector('.grp-n');
+        tag.textContent = n; tag.hidden = !n;
+      });
+    };
+    skillsBox.addEventListener('click', function (e) {
+      var g = e.target.closest('.grp');
+      if (g) {
+        if (g.getAttribute('aria-expanded') === 'true') { if (narrow.matches) openField(null); }
+        else openField(g);
+        if (window.ScrollTrigger) ScrollTrigger.refresh();
+        return;
+      }
+      var b = e.target.closest('button[data-skill]'); if (!b) return;
+      var on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on) picked[b.getAttribute('data-skill')] = true; else delete picked[b.getAttribute('data-skill')];
+      counts();
+      if (Object.keys(picked).length) cleared(skillsBox.closest('.field'));
+    });
+    // back on a wide screen with every field closed: open the first, so the right side isn't empty
+    narrow.addEventListener('change', function () {
+      if (!narrow.matches && !skillsBox.querySelector('.grp[aria-expanded="true"]')) openField(skillsBox.querySelector('.grp'));
+    });
+    // the list lives in the database (the team can add to it); redraw from there when it differs
+    api('/rest/v1/skills?select=slug,label,grp&active=eq.true&order=sort').then(function (rows) {
+      if (!rows || !rows.length) return;
+      var mine = Array.prototype.map.call(skillsBox.querySelectorAll('[data-skill]'), function (b) { return b.getAttribute('data-skill'); }).join();
+      if (mine === rows.map(function (r) { return r.slug; }).join()) return;
+      var groups = [], by = {};
+      rows.forEach(function (r) { if (!by[r.grp]) { by[r.grp] = []; groups.push(r.grp); } by[r.grp].push(r); });
+      var was = skillsBox.querySelector('.grp[aria-expanded="true"]'), wasName = was ? was.firstChild.textContent : null;
+      var shown = groups.indexOf(wasName); if (shown < 0 && (was || !narrow.matches)) shown = 0;
+      var go = skillsBox.querySelector('.grp-go').outerHTML;
+      skillsBox.innerHTML = groups.map(function (g, i) {
+        return '<button class="grp" type="button" aria-expanded="' + (i === shown) + '" aria-controls="sg-' + i + '"><span>' + esc(g) + '</span><span class="grp-n" hidden></span>' + go + '</button>'
+          + '<div class="grp-panel" id="sg-' + i + '" role="group" aria-label="' + esc(g) + '"' + (i === shown ? '' : ' hidden') + '>' + by[g].map(function (r) {
+            return '<button class="pick" type="button" data-skill="' + esc(r.slug) + '" aria-pressed="' + (picked[r.slug] ? 'true' : 'false') + '">' + esc(r.label) + '</button>';
+          }).join('') + '</div>';
+      }).join('');
+      counts();
+    }).catch(function () { /* the built-in list stays */ });
+
+    // open roles: listed above the form, and in the form's Role menu
+    var rolesBox = document.querySelector('[data-roles]'), jobSel = apply.querySelector('select[name="job_id"]');
+    var label = { 'full-time': 'Full-time', 'contract': 'Contract', 'part-time': 'Part-time', 'internship': 'Internship', 'onsite': 'On site', 'remote': 'Remote', 'hybrid': 'Hybrid' };
+    api('/rest/v1/jobs?select=id,title,track,employment,location,work_mode,summary&is_open=eq.true&order=sort,created_at.desc').then(function (jobs) {
+      if (!jobs || !jobs.length) return;
+      jobs.forEach(function (j) {
+        var o = document.createElement('option'); o.value = j.id; o.textContent = j.title; o.setAttribute('data-track', j.track); jobSel.appendChild(o);
+        if (j.id === wantJob) { setTrack(j.track); jobSel.value = j.id; }
+      });
+      if (!rolesBox) return;
+      rolesBox.innerHTML = jobs.map(function (j) {
+        var meta = [label[j.employment] || j.employment, j.location, label[j.work_mode]].filter(Boolean).join(' · ');
+        return '<div class="role"><div><h3>' + esc(j.title) + '</h3>' + (j.summary ? '<p>' + esc(j.summary) + '</p>' : '') + '</div>'
+          + '<span class="meta">' + esc(meta) + '</span><a class="ulink" href="#apply" data-job="' + esc(j.id) + '" data-track="' + esc(j.track) + '">Apply</a></div>';
+      }).join('');
+      rolesBox.addEventListener('click', function (e) {
+        var a = e.target.closest('[data-job]'); if (!a) return;
+        setTrack(a.getAttribute('data-track')); jobSel.value = a.getAttribute('data-job');
+        if (smoother) { e.preventDefault(); smoother.scrollTo('#apply', true, 'top top'); }
+      });
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+      keepSpot();
+    }).catch(function () { /* the "no open roles" line stays */ });
+    jobSel.addEventListener('change', function () {
+      var o = jobSel.options[jobSel.selectedIndex]; if (o && o.getAttribute('data-track')) setTrack(o.getAttribute('data-track'));
+    });
+
+    // portfolio links: up to 5 fields
+    var linksBox = apply.querySelector('[data-links]'), addLink = apply.querySelector('[data-add-link]');
+    addLink.addEventListener('click', function () {
+      var n = linksBox.querySelectorAll('input').length;
+      if (n >= 5) return;
+      var i = document.createElement('input'); i.type = 'url'; i.name = 'link'; i.placeholder = 'https://'; i.maxLength = 500; i.setAttribute('aria-label', 'Portfolio link ' + (n + 1));
+      linksBox.appendChild(i); i.focus();
+      if (n + 1 >= 5) addLink.hidden = true;
+    });
+
+    // files: up to 3, 20 MB each, PDF or images
+    var MAX = 20 * 1024 * 1024, TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    var fileInput = apply.querySelector('input[type="file"]'), fileList = apply.querySelector('[data-file-list]');
+    var files = [];
+    var drawFiles = function () {
+      fileList.innerHTML = files.map(function (f, i) {
+        return '<li><span>' + esc(f.name) + ' · ' + (f.size / 1048576).toFixed(1) + ' MB</span><button type="button" data-remove="' + i + '">Remove</button></li>';
+      }).join('');
+    };
+    fileInput.addEventListener('change', function () {
+      var skipped = [];
+      Array.prototype.forEach.call(fileInput.files, function (f) {
+        if (files.length >= 3) { skipped.push(f.name + ' (3 files max)'); return; }
+        if (TYPES.indexOf(f.type) < 0) { skipped.push(f.name + ' (PDF, JPG, PNG or WebP only)'); return; }
+        if (f.size > MAX) { skipped.push(f.name + ' (over 20 MB)'); return; }
+        files.push(f);
+      });
+      fileInput.value = '';
+      drawFiles();
+      if (files.length) cleared(apply.querySelector('[data-portfolio]'));
+      say(skipped.length ? 'Not added: ' + skipped.join(', ') + '.' : '', !!skipped.length);
+    });
+    fileList.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-remove]'); if (!b) return;
+      files.splice(+b.getAttribute('data-remove'), 1); drawFiles();
+    });
+
+    var uuid = function () {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+    };
+    var safeName = function (n) {
+      var dot = n.lastIndexOf('.'), ext = dot > 0 ? n.slice(dot).toLowerCase().replace(/[^a-z0-9.]/g, '') : '';
+      var base = (dot > 0 ? n.slice(0, dot) : n).normalize('NFKD').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'file';
+      return base + ext;
+    };
+
+    var stillMissing = function (n) {
+      say(!n ? '' : n === 1 ? 'One field still needs an answer. It\u2019s marked in red.' : n + ' fields still need an answer. They\u2019re marked in red.', !!n);
+    };
+    var cleared = function (f) {
+      if (!f || !f.classList.contains('is-invalid')) return;
+      f.classList.remove('is-invalid');
+      stillMissing(apply.querySelectorAll('.is-invalid').length);
+    };
+    apply.addEventListener('input', function (e) { cleared(e.target.closest('.field, .consent')); });
+    apply.addEventListener('change', function (e) { cleared(e.target.closest('.field, .consent')); });
+
+    var sending = false;
+    apply.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (sending) return;
+      var links = Array.prototype.map.call(linksBox.querySelectorAll('input'), function (i) { return i.value.trim(); }).filter(Boolean);
+      var badLink = links.filter(function (l) { return !/^https?:\/\/\S+$/i.test(l); })[0];
+      var skills = Object.keys(picked);
+      // everything is required unless marked optional: each [required] field the current track shows,
+      // plus at least one craft and one portfolio link or file. Missing ones turn red; we go to the first.
+      var missing = [];
+      apply.querySelectorAll('[required]').forEach(function (el) {
+        if (el.closest('[hidden]')) return;
+        var ok = el.type === 'checkbox' ? el.checked : el.value.trim() !== '' && el.checkValidity();
+        if (ok && el.type === 'email') ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim());
+        if (!ok) missing.push(el.closest('.field, .consent'));
+      });
+      if (!skills.length) missing.push(skillsBox.closest('.field'));
+      if (!links.length && !files.length) missing.push(apply.querySelector('[data-portfolio]'));
+      if (missing.length) {
+        missing.sort(function (a, b) { return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1; });
+        apply.querySelectorAll('.is-invalid').forEach(function (f) { f.classList.remove('is-invalid'); }); // (fields of another track)
+        missing.forEach(function (f) { f.classList.add('is-invalid'); });
+        stillMissing(missing.length);
+        var first = missing[0], input = first.querySelector('input:not([type="hidden"]), select, textarea, button');
+        if (smoother) smoother.scrollTo(first, true, 'center center'); else first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (input) input.focus({ preventScroll: true });
+        return;
+      }
+      if (badLink) { say('Links should start with https:// (check "' + badLink.slice(0, 60) + '").', true); return; }
+
+      var finish = function () {
+        apply.innerHTML = '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">You’re in our network now.</span></h3><p class="detail">We’ll be in touch when there’s a role or a production that fits.</p></div>';
+      };
+      if (val('website')) { finish(); return; } // the spam trap was filled in: look sent, send nothing
+
+      sending = true; submit.disabled = true; apply.classList.add('is-sending');
+      var folder = uuid(), uploaded = [];
+      var upload = function (i) {
+        if (i >= files.length) return Promise.resolve();
+        var f = files[i], path = folder + '/' + (i + 1) + '-' + safeName(f.name);
+        say('Uploading ' + (i + 1) + ' of ' + files.length + '…');
+        return api('/storage/v1/object/applications/' + path.split('/').map(encodeURIComponent).join('/'), {
+          method: 'POST', headers: { 'Content-Type': f.type, 'x-upsert': 'false' }, body: f
+        }).then(function () { uploaded.push({ path: path, name: f.name }); return upload(i + 1); });
+      };
+      upload(0).then(function () {
+        say('Sending…');
+        var langs = val('languages').split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 10);
+        return api('/rest/v1/rpc/submit_application', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: {
+            track: track, entity_type: track === 'collaborator' ? entity : 'individual',
+            name: val('name'), company_name: track === 'collaborator' && entity === 'company' ? val('company_name') : '',
+            email: val('email'), phone: val('phone'), instagram: val('instagram'), city: val('city'), country: val('country'),
+            work_mode: val('work_mode'), can_travel: val('can_travel'), languages: langs,
+            job_id: track === 'collaborator' ? '' : val('job_id'),
+            experience_years: track === 'collaborator' ? '' : val('experience_years'),
+            available_from: track === 'collaborator' ? '' : val('available_from'),
+            rate_note: track === 'collaborator' ? val('rate_note') : '', equipment: track === 'collaborator' ? val('equipment') : '',
+            skills: skills, links: links, message: val('message'), source: val('source'),
+            consent: true, page: location.pathname, files: uploaded
+          } })
+        });
+      }).then(finish).catch(function (err) {
+        say(err && err.code === '54000'
+          ? 'We’ve already received a few applications from this email in the last hour. Please try again later.'
+          : err && err.code === '22023'
+          ? 'Some details are missing. Please check the form and try again.'
+          : 'Something went wrong and your application wasn’t sent. Please try again, or email us at hello@creativeclubcult.com.', true);
+        sending = false; submit.disabled = false; apply.classList.remove('is-sending');
+      });
+    });
+  })();
 })();
