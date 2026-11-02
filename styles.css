@@ -132,6 +132,17 @@ span.tag { cursor: default; }
    so the header keeps its height and the words stay on one baseline) */
 .nav-careers { padding: 2px 10px; margin-block: -3px; border: 1px solid currentColor; border-radius: var(--pill); }
 .menu-btn { display: none; background: none; border: 0; padding: 0; color: inherit; font-size: inherit; cursor: pointer; }
+/* Phone, scrolled: the header returns over running text, so it drops the inversion and sits on a fade
+   of the page colour (at the top of the page it stays transparent over the heroes) */
+@media (max-width: 760px) {
+  .site-header { --hb: #05070C; }
+  body.is-light .site-header { --hb: #EAEDF1; }
+  .site-header::before { content: ""; position: absolute; inset: 0 0 -24px; z-index: -1; pointer-events: none;
+    background: linear-gradient(to bottom, var(--hb) 45%, transparent); opacity: 0; transition: opacity .35s; }
+  html.is-scrolled:not(.menu-open) .site-header { mix-blend-mode: normal; color: #EAEDF1; }
+  html.is-scrolled:not(.menu-open) body.is-light .site-header { color: #020202; }
+  html.is-scrolled:not(.menu-open):not(.hdr-hidden) .site-header::before { opacity: 1; }
+}
 
 /* ---------- Menu overlay ---------- */
 .menu {
@@ -461,6 +472,7 @@ html.is-loading .site-header > * { opacity: 0; }
 
 /* ---------- Cards ---------- */
 .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px var(--gap); }
+.cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } /* the work archive while it holds four projects or fewer */
 .card { display: flex; flex-direction: column; min-width: 0; }
 .card .media { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: var(--bg-soft); }
 .card .media .ph {
@@ -890,10 +902,10 @@ form.inquiry { display: flex; flex-direction: column; gap: 28px; }
 .cr-hero {
   position: sticky; top: 0; z-index: 0; height: 48vh; min-height: 340px; overflow: hidden; color: #EAEDF1;
   background: /* a still of the live gradient, for when WebGL isn't there */
-    radial-gradient(38% 22% at 42% 72%, rgba(127, 214, 255, 0.45), transparent 75%),
-    radial-gradient(80% 50% at 40% 74%, rgba(30, 91, 255, 0.85), transparent 72%),
-    radial-gradient(110% 100% at 8% 0%, rgba(43, 56, 112, 1), transparent 75%),
-    #05070C;
+    radial-gradient(25% 30% at 70% 45%, rgba(133, 186, 227, 0.55), transparent 75%),
+    radial-gradient(40% 45% at 62% 50%, rgba(46, 102, 168, 0.6), transparent 75%),
+    radial-gradient(60% 70% at 40% 40%, rgba(10, 31, 61, 0.9), transparent 75%),
+    #02050A;
 }
 html.has-smoother .cr-hero { position: relative; }
 .cr-gradient { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -1002,36 +1014,25 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 .role p { margin-top: 6px; color: var(--graphite); font-size: var(--t-body-sm); }
 .role .meta { font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); }
 .role .ulink { margin-top: 0; }
-/* crafts: fields down the left, the open field's checklist on the right (an accordion on phones) */
-.skill-groups { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); column-gap: var(--gap); align-items: start; margin-top: 6px; }
-.grp {
-  grid-column: 1; display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 0;
-  border: 0; border-bottom: 1px solid transparent; background: none; text-align: left;
-  font-size: var(--t-body-sm); line-height: 1.3; color: var(--graphite); cursor: pointer; transition: color .2s;
+/* crafts: one row per field, closed until tapped (any number open); an open field slides down to show
+   its crafts as pills, a closed one lists what's picked in it (under the name on phones) */
+.skill-groups { margin-top: 6px; border-top: 1px solid var(--line); }
+.sg { border-bottom: 1px solid var(--line); }
+.sg-head {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 4px 12px; align-items: center; width: 100%; padding: 14px 0;
+  border: 0; background: none; text-align: left; font-size: var(--t-body-sm); line-height: 1.3; color: var(--ink); cursor: pointer;
 }
-.grp:hover, .grp[aria-expanded="true"] { color: var(--ink); }
-.grp-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--ink); color: var(--bg); font-size: 11px; line-height: 18px; text-align: center; }
-.grp-go { flex: none; margin-left: auto; width: 14px; height: 14px; opacity: 0.35; transition: opacity .25s, translate .3s cubic-bezier(.2, .8, .2, 1), rotate .3s cubic-bezier(.2, .8, .2, 1); }
-.grp:hover .grp-go { opacity: 0.7; }
-.grp[aria-expanded="true"] .grp-go { opacity: 1; translate: 4px 0; }
-.grp-panel { grid-column: 2; grid-row: 1 / span 20; animation: job-in .4s cubic-bezier(.2, .7, .2, 1); }
-/* in the open field, each craft sits on its own rule, row for row with the fields beside it */
-.grp-panel .pick { padding: 11px 0; line-height: 1.3; border-bottom: 1px solid var(--line); }
-.pick {
-  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 5px 0; border: 0; background: none;
-  font-size: var(--t-body-sm); line-height: 1.35; text-align: left; color: var(--graphite); cursor: pointer; transition: color .2s;
-}
-.pick::before {
-  content: ""; flex: none; width: 11px; height: 11px; margin-top: 0.22em; border: 1px solid var(--ash); border-radius: 2px;
-  background: center / 9px no-repeat; transition: background-color .2s, border-color .2s;
-}
-.pick:hover { color: var(--ink); }
-.pick:hover::before { border-color: var(--ink); }
-.pick[aria-pressed="true"] { color: var(--ink); }
-.pick[aria-pressed="true"]::before {
-  border-color: var(--ink); background-color: var(--ink);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%2305070C' stroke-width='1.6'/%3E%3C/svg%3E");
-}
+.sg-arrow { width: 14px; height: 14px; color: var(--graphite); transition: rotate .5s cubic-bezier(.65, 0, .35, 1), color .2s; }
+.sg-head:hover .sg-arrow, .sg-head[aria-expanded="true"] .sg-arrow { color: var(--ink); }
+.sg-head[aria-expanded="true"] .sg-arrow { rotate: 90deg; }
+.sg-picked { justify-self: end; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--graphite); }
+.sg-head[aria-expanded="true"] .sg-picked { display: none; }
+.sg-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s cubic-bezier(.65, 0, .35, 1); }
+.sg-head[aria-expanded="true"] + .sg-body { grid-template-rows: 1fr; }
+.sg-clip { min-height: 0; overflow: hidden; }
+.sg-panel { padding: 0 0 18px 26px; opacity: 0; translate: 0 -6px; transition: opacity .4s cubic-bezier(.65, 0, .35, 1), translate .5s cubic-bezier(.65, 0, .35, 1); }
+.sg-head[aria-expanded="true"] + .sg-body .sg-panel { opacity: 1; translate: none; }
+@media (prefers-reduced-motion: reduce) { .sg-body, .sg-panel, .sg-arrow { transition: none; } }
 .field-hint { margin-top: -4px; font-size: var(--t-caption); color: var(--graphite); }
 .links { display: flex; flex-direction: column; gap: 6px; }
 .add-link, .file-list button {
@@ -1055,10 +1056,7 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 .apply-done .detail { margin-top: 16px; color: var(--graphite); line-height: 1.7; }
 @media (max-width: 760px) {
   .role { grid-template-columns: 1fr; gap: 8px; }
-  .skill-groups { grid-template-columns: 1fr; }
-  .grp-panel { grid-column: 1; grid-row: auto; padding: 0 0 8px; }
-  .grp-go { opacity: 0.6; rotate: 90deg; }
-  .grp[aria-expanded="true"] .grp-go { translate: none; rotate: -90deg; }
+  .sg-picked { grid-column: 2 / -1; justify-self: start; }
 }
 
 /* ---------- Footer ---------- */
@@ -1139,7 +1137,7 @@ html.pt-fallback.from-zoom body { opacity: 1; transition: none; }
   .menu-btn { display: block; }
 }
 @media (max-width: 600px) {
-  .cards, .caps, .duo, .trio, .credits { grid-template-columns: 1fr; }
+  .cards, .cards.two, .caps, .duo, .trio, .credits { grid-template-columns: 1fr; }
   .duo.stagger, .duo.stagger-r { grid-template-columns: 1fr; }
   .duo.stagger > :last-child { margin-top: 0; }
   .pstory-body { grid-template-columns: 1fr; }

@@ -540,11 +540,17 @@
 
   // ---- Header: hides on the way down, returns on the way up ----
   (function () {
+    // off the top of the page, the phone header gets a fade of the page colour behind it (styles.css)
+    var root = document.documentElement;
+    var mark = function () { root.classList.toggle('is-scrolled', (window.scrollY || root.scrollTop) > 40); };
+    mark();
+    window.addEventListener('scroll', mark, { passive: true });
     if (!motionOK) return;
     var items = document.querySelectorAll('.site-header > *');
     var last = 0, hidden = false;
     var setHidden = function (down) {
       hidden = down;
+      root.classList.toggle('hdr-hidden', down);
       gsap.to(items, { autoAlpha: down ? 0 : 1, y: down ? '-75%' : '0%', ease: 'power3', overwrite: 'auto', stagger: { each: 0.03, from: 'center' } });
     };
     // the home intro's hand-over tucks the header away for its full-screen moment
@@ -1321,7 +1327,8 @@
   }
 
   // ---- Careers hero: a slowly moving gradient, drawn on the GPU ----
-  // A soft ribbon of CCC blue with a haze beside it, folding over near-black under a fine film grain.
+  // Liquid folds of blue over near-black navy with a glass ball in it (after monopo.vn's hero),
+  // under a fine film grain. The liquid and the ball answer the pointer.
   // One canvas pixel per CSS pixel (it's all soft blends, so it costs little, and the grain keeps one size),
   // drawn only while it's on screen and the tab is visible; one still frame for reduced motion. If WebGL
   // isn't there, the canvas hides and the CSS version of the gradient shows instead.
@@ -1331,7 +1338,7 @@
     if (!gl) { cv.hidden = true; return; }
     var FRAG = [
       '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;', '#else', 'precision mediump float;', '#endif',
-      'uniform vec2 u_res; uniform float u_time;',
+      'uniform vec2 u_res; uniform float u_time; uniform vec2 u_mouse; uniform float u_scroll;',
       'float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
       'vec2 grad(vec2 i) { float a = hash(i) * 6.2831853; return vec2(cos(a), sin(a)); }',
       'float noise(vec2 p) {',
@@ -1339,29 +1346,52 @@
       '  return mix(mix(dot(grad(i), f), dot(grad(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),',
       '             mix(dot(grad(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)), dot(grad(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);',
       '}',
+      'float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 3; i++) { v += a * noise(p); p = p * 1.9 + vec2(1.7, 9.2); a *= 0.42; } return v; }',
+      // a liquid at a point on the canvas (in pixels). There are two: the soft one behind (sharp 0) and a
+      // crisper one of its own inside the ball (sharp 1), from another part of the noise (seed) and moving
+      // its own way (speed, negative runs it backwards); the two differing is what makes the ball read as glass.
+      'vec3 fluid(vec2 at, float sharp, vec2 seed, float speed) {',
+      '  vec2 p = (at - 0.5 * u_res) / (700.0 + 0.12 * u_res.x) * vec2(0.7, 1.0);', // (stretched sideways so the folds run long)
+      '  float t = u_time * speed;',
+      '  p += seed + u_mouse * 0.18;', // the pointer drags the whole field a little
+      // the field is warped by itself twice, so it pours and folds like a liquid rather than drifting
+      '  vec2 q = vec2(fbm(p + vec2(0.0, t * 0.05)), fbm(p + vec2(5.2, 1.3) - t * 0.04));',
+      '  vec2 r = vec2(fbm(p + 1.1 * q + vec2(1.7, 9.2) + t * 0.06 + u_mouse * 0.25), fbm(p + 1.1 * q + vec2(8.3, 2.8) - t * 0.05));',
+      '  float v = fbm(p + 1.2 * r) + 0.2 * r.y;',
+      // ribbons: light gathers along one line of the field. Each ribbon is a wide navy glow, then blue, light
+      // blue, and a pale highlight at its middle; away from them it's near-black navy
+      '  float w = mix(0.08, 0.06, sharp);',
+      '  float k = max(exp(-pow((v - 0.02) / w, 2.0)), sharp * 0.9 * exp(-pow((v + 0.16) / w, 2.0)));', // (the ball's liquid has a second line, so it's never mostly dark)
+      '  vec3 col = mix(vec3(0.008, 0.02, 0.04), vec3(0.04, 0.12, 0.24), smoothstep(0.02, 0.5, k));',
+      '  col = mix(col, vec3(0.18, 0.40, 0.66), smoothstep(0.5, 0.85, k));',
+      '  col = mix(col, vec3(0.52, 0.73, 0.89), smoothstep(0.84, 0.98, k));',
+      '  col = mix(col, vec3(0.80, 0.90, 0.96), smoothstep(0.97, 1.0, k) * 0.7);',
+      '  return col;',
+      '}',
       'void main() {',
-      '  vec2 uv = gl_FragCoord.xy / u_res;',
-      '  vec2 p = (uv - 0.5) * vec2(u_res.x / u_res.y, 1.0);',
-      '  float t = u_time;',
-      // the whole field folds slowly, so nothing ever moves in a straight line
-      '  vec2 q = p + 0.8 * vec2(noise(p * 0.7 + vec2(0.0, t * 0.08)), noise(p * 0.7 + vec2(5.2, -t * 0.07)));',
-      // one soft ribbon of light rising left to right; its tilt, curve and width keep changing
-      '  float ang = 0.34 + 0.2 * sin(t * 0.13);',
-      '  vec2 dir = vec2(cos(ang), sin(ang));',
-      '  float along = dot(q, dir);',
-      '  float across = dot(q, vec2(-dir.y, dir.x)) - 0.14 * sin(along * 1.7 + t * 0.29) - 0.12 * sin(t * 0.17 + 1.3);',
-      '  float width = 0.22 + 0.08 * sin(along * 1.3 - t * 0.23);',
-      '  float ends = smoothstep(-1.5, -0.4, along) * (1.0 - smoothstep(0.5, 1.4, along + 0.35 * sin(t * 0.11)));',
-      '  float band = exp(-across * across / (width * width)) * ends;',
-      '  float glow = exp(-across * across / (width * width * 6.0)) * ends;',
-      // a wide haze on the upper side of it, black below
-      '  float haze = smoothstep(-0.1, 0.35, across + 0.3 * noise(q * 1.2 - t * 0.06)) * (1.0 - smoothstep(0.35, 1.1, across));',
-      '  vec3 col = vec3(0.020, 0.027, 0.047);',
-      '  col = mix(col, vec3(0.17, 0.22, 0.44), haze * 0.8);',
-      '  col = mix(col, vec3(0.118, 0.357, 1.0), glow * 0.3);',
-      '  col = mix(col, vec3(0.118, 0.357, 1.0), smoothstep(0.0, 0.9, band) * 0.85);',
-      '  col = mix(col, vec3(0.50, 0.84, 1.0), smoothstep(0.5, 1.0, band) * 0.6);',
-      '  col += (hash(gl_FragCoord.xy + fract(t * 7.31) * 97.0) - 0.5) * 0.07;', // film grain, new every frame
+      '  vec2 at = gl_FragCoord.xy - vec2(0.0, u_scroll * 0.25 * u_res.y), uv = gl_FragCoord.xy / u_res;',
+      // on a desktop, a big glass ball over the right of the hero, cut by both the top and the bottom edge;
+      // on a phone, a smaller one hanging from the top edge, its whole lower curve above the title. It swings against the pointer, and rises
+      // faster than the liquid as the page slides up over it
+      '  float wide = smoothstep(500.0, 1200.0, u_res.x);',
+      '  float R = mix(0.62 * u_res.y, max(0.36 * u_res.x, 1.3 * u_res.y), wide);',
+      '  vec2 c = vec2(mix(0.6, 0.72, wide) * u_res.x, mix(1.15 * u_res.y, R - 0.25 * u_res.y, wide))',
+      '         - u_mouse * vec2(90.0 * min(1.0, u_res.x / 1200.0), 42.0) + vec2(0.0, u_scroll * 0.75 * u_res.y);',
+      '  vec2 d = (at - c) / R; float l = length(d);',
+      '  vec3 col;',
+      '  if (l < 1.0) {',
+      // inside, the ball's own liquid, distorted as through glass: twisted around the middle, magnified there
+      // and squeezed into thin streaks along the rim, and pushed by the pointer more than the field behind
+      '    float a = (1.0 - l) * 1.4 + 0.25 * sin(u_time * 0.1);',
+      '    vec2 e = mat2(cos(a), sin(a), -sin(a), cos(a)) * (at - c);',
+      '    vec2 src = c + e * (0.8 + 0.7 * pow(l, 6.0)) + u_mouse * vec2(60.0, 40.0);',
+      '    col = fluid(src, 1.0, vec2(3.7, -2.1), -0.8);',
+      '  } else {',
+      '    col = fluid(at, 0.0, vec2(0.0), 0.6);',
+      '    col *= 1.0 - 0.25 * (1.0 - smoothstep(1.0, 1.0 + 40.0 / R, l));', // a soft shadow just outside
+      '  }',
+      '  col *= 0.88 * (1.0 - 0.45 * smoothstep(0.4, 0.0, uv.y)) * (1.0 - 0.35 * smoothstep(0.75, 1.0, uv.y));', // darker toward the title, and under the header
+      '  col += (hash(gl_FragCoord.xy + fract(u_time * 7.31) * 97.0) - 0.5) * 0.09;', // film grain, new every frame
       '  gl_FragColor = vec4(col, 1.0);',
       '}'
     ].join('\n');
@@ -1379,12 +1409,21 @@
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); // one triangle over the screen
     var loc = gl.getAttribLocation(prog, 'a_pos');
     gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    var uRes = gl.getUniformLocation(prog, 'u_res'), uTime = gl.getUniformLocation(prog, 'u_time');
+    var uRes = gl.getUniformLocation(prog, 'u_res'), uTime = gl.getUniformLocation(prog, 'u_time'), uMouse = gl.getUniformLocation(prog, 'u_mouse'), uScroll = gl.getUniformLocation(prog, 'u_scroll');
 
     var clock = 8, last = null, running = false, onScreen = true, covered = false, lost = false;
+    // the pointer, -1 to 1 across the window; the drawn value eases after it. Without a mouse it wanders slowly.
+    var mouse = { x: 0, y: 0 }, aim = { x: 0, y: 0 }, pointed = false;
+    window.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse') return;
+      pointed = true; aim.x = e.clientX / innerWidth * 2 - 1; aim.y = 1 - e.clientY / innerHeight * 2;
+    }, { passive: true });
     var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var draw = function () {
       gl.uniform2f(uRes, cv.width, cv.height); gl.uniform1f(uTime, clock);
+      gl.uniform2f(uMouse, mouse.x, mouse.y);
+      var top = smoother ? smoother.scrollTop() : window.scrollY;
+      gl.uniform1f(uScroll, Math.min(1, Math.max(0, top / (cv.height || 1))));
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
     var size = function () {
@@ -1396,6 +1435,8 @@
     var tick = function (now) {
       if (!running) return;
       if (last !== null) clock += Math.min(0.1, (now - last) / 1000); // (no jump after a pause)
+      if (!pointed) { aim.x = 0.6 * Math.sin(clock * 0.21); aim.y = 0.4 * Math.sin(clock * 0.17 + 1.0); }
+      mouse.x += (aim.x - mouse.x) * 0.06; mouse.y += (aim.y - mouse.y) * 0.06;
       last = now;
       draw();
       requestAnimationFrame(tick);
@@ -1467,9 +1508,11 @@
   })();
 
   // ---- Careers: three ways in, one form ----
-  // Team / Internship / Collaborator-vendor. Fields for the other tracks hide; files go to the private
-  // "applications" bucket first (each application gets its own folder), then submit_application() files
-  // the whole thing in one go and checks every part of it.
+  // Team / Internship / Collaborator-vendor. Fields for the other tracks hide. Job applications and the
+  // creative network are kept apart: Team and Internship go to the private "applications" bucket and
+  // submit_application(), collaborators and vendors to the "network" bucket and submit_network(). Files
+  // go up first (each sign-up gets its own folder), then the function files the whole thing in one go
+  // and checks every part of it.
   var apply = document.querySelector('form.apply');
   if (apply) (function () {
     var status = apply.querySelector('.form-status'), submit = apply.querySelector('.submit-btn');
@@ -1492,7 +1535,7 @@
     // single-choice tag rows (track, entity type) and what they show
     var track = 'team', entity = 'individual';
     var sync = function () {
-      apply.querySelectorAll('[data-tracks]').forEach(function (el) {
+      (apply.closest('#apply') || apply).querySelectorAll('[data-tracks]').forEach(function (el) { // (the intro beside the form too)
         var on = el.getAttribute('data-tracks').split(' ').indexOf(track) > -1;
         if (on && el.hasAttribute('data-entity')) on = el.getAttribute('data-entity') === entity;
         el.hidden = !on;
@@ -1517,43 +1560,33 @@
     var qs = new URLSearchParams(location.search), wantJob = qs.get('job');
     if (/^(team|internship|collaborator)$/.test(qs.get('track') || '')) setTrack(qs.get('track'));
 
-    // skills: several may be picked. One field is open at a time (fields left, its crafts right; an
-    // accordion on phones, where an open field can also be closed); each field shows how many are picked.
+    // skills: several may be picked. Fields start closed; any number can be open and each stays open
+    // until its name is tapped again. A closed field lists what's picked in it. The open/close slide is CSS.
     var skillsBox = apply.querySelector('[data-skills]');
     var picked = {};
-    var narrow = window.matchMedia('(max-width: 760px)');
-    var panelOf = function (g) { return document.getElementById(g.getAttribute('aria-controls')); };
-    var openField = function (g) {
-      skillsBox.querySelectorAll('.grp').forEach(function (x) {
-        var on = x === g;
-        x.setAttribute('aria-expanded', on ? 'true' : 'false');
-        panelOf(x).hidden = !on;
-      });
+    var toggleField = function (h) {
+      var open = h.getAttribute('aria-expanded') !== 'true';
+      h.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.getElementById(h.getAttribute('aria-controls')).inert = !open;
     };
-    var counts = function () {
-      skillsBox.querySelectorAll('.grp').forEach(function (g) {
-        var n = panelOf(g).querySelectorAll('[aria-pressed="true"]').length, tag = g.querySelector('.grp-n');
-        tag.textContent = n; tag.hidden = !n;
+    // the page got taller or shorter: let the smooth scroller re-measure once the slide is done
+    skillsBox.addEventListener('transitionend', function (e) {
+      if (e.propertyName === 'grid-template-rows' && window.ScrollTrigger) ScrollTrigger.refresh();
+    });
+    var summarise = function () {
+      skillsBox.querySelectorAll('.sg').forEach(function (g) {
+        g.querySelector('.sg-picked').textContent = Array.prototype.map.call(g.querySelectorAll('[aria-pressed="true"]'), function (b) { return b.textContent; }).join(', ');
       });
     };
     skillsBox.addEventListener('click', function (e) {
-      var g = e.target.closest('.grp');
-      if (g) {
-        if (g.getAttribute('aria-expanded') === 'true') { if (narrow.matches) openField(null); }
-        else openField(g);
-        if (window.ScrollTrigger) ScrollTrigger.refresh();
-        return;
-      }
+      var h = e.target.closest('.sg-head');
+      if (h) { toggleField(h); return; }
       var b = e.target.closest('button[data-skill]'); if (!b) return;
       var on = b.getAttribute('aria-pressed') !== 'true';
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       if (on) picked[b.getAttribute('data-skill')] = true; else delete picked[b.getAttribute('data-skill')];
-      counts();
+      summarise();
       if (Object.keys(picked).length) cleared(skillsBox.closest('.field'));
-    });
-    // back on a wide screen with every field closed: open the first, so the right side isn't empty
-    narrow.addEventListener('change', function () {
-      if (!narrow.matches && !skillsBox.querySelector('.grp[aria-expanded="true"]')) openField(skillsBox.querySelector('.grp'));
     });
     // the list lives in the database (the team can add to it); redraw from there when it differs
     api('/rest/v1/skills?select=slug,label,grp&active=eq.true&order=sort').then(function (rows) {
@@ -1562,16 +1595,18 @@
       if (mine === rows.map(function (r) { return r.slug; }).join()) return;
       var groups = [], by = {};
       rows.forEach(function (r) { if (!by[r.grp]) { by[r.grp] = []; groups.push(r.grp); } by[r.grp].push(r); });
-      var was = skillsBox.querySelector('.grp[aria-expanded="true"]'), wasName = was ? was.firstChild.textContent : null;
-      var shown = groups.indexOf(wasName); if (shown < 0 && (was || !narrow.matches)) shown = 0;
-      var go = skillsBox.querySelector('.grp-go').outerHTML;
+      var shown = Array.prototype.map.call(skillsBox.querySelectorAll('.sg-head[aria-expanded="true"] .sg-name'), function (n) { return n.textContent; });
+      var arrow = skillsBox.querySelector('.sg-arrow').outerHTML;
       skillsBox.innerHTML = groups.map(function (g, i) {
-        return '<button class="grp" type="button" aria-expanded="' + (i === shown) + '" aria-controls="sg-' + i + '"><span>' + esc(g) + '</span><span class="grp-n" hidden></span>' + go + '</button>'
-          + '<div class="grp-panel" id="sg-' + i + '" role="group" aria-label="' + esc(g) + '"' + (i === shown ? '' : ' hidden') + '>' + by[g].map(function (r) {
-            return '<button class="pick" type="button" data-skill="' + esc(r.slug) + '" aria-pressed="' + (picked[r.slug] ? 'true' : 'false') + '">' + esc(r.label) + '</button>';
-          }).join('') + '</div>';
+        var on = shown.indexOf(g) >= 0;
+        return '<div class="sg"><button class="sg-head" type="button" aria-expanded="' + on + '" aria-controls="sg-' + i + '">' + arrow
+          + '<span class="sg-name">' + esc(g) + '</span><span class="sg-picked"></span></button>'
+          + '<div class="sg-body" id="sg-' + i + '"' + (on ? '' : ' inert') + '><div class="sg-clip"><div class="sg-panel tags" role="group" aria-label="' + esc(g) + '">' + by[g].map(function (r) {
+            return '<button class="tag" type="button" data-skill="' + esc(r.slug) + '" aria-pressed="' + (picked[r.slug] ? 'true' : 'false') + '">' + esc(r.label) + '</button>';
+          }).join('') + '</div></div></div></div>';
       }).join('');
-      counts();
+      summarise();
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
     }).catch(function () { /* the built-in list stays */ });
 
     // open roles: listed above the form, and in the form's Role menu
@@ -1579,6 +1614,7 @@
     var label = { 'full-time': 'Full-time', 'contract': 'Contract', 'part-time': 'Part-time', 'internship': 'Internship', 'onsite': 'On site', 'remote': 'Remote', 'hybrid': 'Hybrid' };
     api('/rest/v1/jobs?select=id,title,track,employment,location,work_mode,summary&is_open=eq.true&order=sort,created_at.desc').then(function (jobs) {
       if (!jobs || !jobs.length) return;
+      if (rolesBox) rolesBox.closest('[data-roles-sec]').hidden = false; // the section only shows with roles to list
       jobs.forEach(function (j) {
         var o = document.createElement('option'); o.value = j.id; o.textContent = j.title; o.setAttribute('data-track', j.track); jobSel.appendChild(o);
         if (j.id === wantJob) { setTrack(j.track); jobSel.value = j.id; }
@@ -1689,38 +1725,79 @@
       }
       if (badLink) { say('Links should start with https:// (check "' + badLink.slice(0, 60) + '").', true); return; }
 
+      var network = track === 'collaborator';
       var finish = function () {
-        apply.innerHTML = '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">You’re in our network now.</span></h3><p class="detail">We’ll be in touch when there’s a role or a production that fits.</p></div>';
+        var html = network
+          ? '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">We’ll keep your work on file.</span></h3><p class="detail">We’ll reach out when a project fits.</p></div>'
+          : '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">Your application is in.</span></h3><p class="detail">We’ll be in touch if there’s a role that fits.</p></div>';
+        var sm = window.ScrollSmoother && ScrollSmoother.get();
+        if (!window.gsap || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          apply.innerHTML = html;
+          if (window.ScrollTrigger) ScrollTrigger.refresh();
+          var d = apply.querySelector('.apply-done');
+          if (sm) sm.scrollTo(d, false, 'center center'); else d.scrollIntoView({ block: 'center' });
+          return;
+        }
+        // the form fades out, its space is held while the page glides to the thank-you (in the middle of the
+        // screen, clear of the header), the message fades in, then the held space eases away below it
+        var ease = 'power2.inOut', h = apply.offsetHeight;
+        gsap.to(apply, { autoAlpha: 0, duration: 0.45, ease: ease, onComplete: function () {
+          apply.innerHTML = html;
+          var done = apply.querySelector('.apply-done'), end = apply.offsetHeight;
+          apply.style.minHeight = h + 'px';
+          gsap.set(apply, { autoAlpha: 1 });
+          gsap.set(done, { autoAlpha: 0, y: 16 });
+          if (window.ScrollTrigger) ScrollTrigger.refresh();
+          var shrink = function () {
+            gsap.to(apply, { minHeight: end, duration: 0.7, ease: ease, onComplete: function () {
+              apply.style.minHeight = '';
+              if (window.ScrollTrigger) ScrollTrigger.refresh();
+            } });
+          };
+          gsap.to(done, { autoAlpha: 1, y: 0, duration: 0.8, delay: 0.5, ease: ease, clearProps: 'transform' });
+          if (sm) {
+            // don't aim past where the page will end once the held space is gone
+            var to = Math.min(sm.offset(done, 'center center'), ScrollTrigger.maxScroll(window) - (h - end));
+            var at = { y: sm.scrollTop() };
+            gsap.to(at, { y: Math.max(0, to), duration: 1.1, ease: ease, onUpdate: function () { sm.scrollTop(at.y); }, onComplete: shrink });
+          } else {
+            done.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(shrink, 900);
+          }
+        } });
       };
       if (val('website')) { finish(); return; } // the spam trap was filled in: look sent, send nothing
 
       sending = true; submit.disabled = true; apply.classList.add('is-sending');
+      var bucket = network ? 'network' : 'applications';
       var folder = uuid(), uploaded = [];
       var upload = function (i) {
         if (i >= files.length) return Promise.resolve();
         var f = files[i], path = folder + '/' + (i + 1) + '-' + safeName(f.name);
         say('Uploading ' + (i + 1) + ' of ' + files.length + '…');
-        return api('/storage/v1/object/applications/' + path.split('/').map(encodeURIComponent).join('/'), {
+        return api('/storage/v1/object/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'), {
           method: 'POST', headers: { 'Content-Type': f.type, 'x-upsert': 'false' }, body: f
         }).then(function () { uploaded.push({ path: path, name: f.name }); return upload(i + 1); });
       };
       upload(0).then(function () {
         say('Sending…');
         var langs = val('languages').split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 10);
-        return api('/rest/v1/rpc/submit_application', {
+        var payload = {
+          name: val('name'), email: val('email'), phone: val('phone'), instagram: val('instagram'), city: val('city'), country: val('country'),
+          work_mode: val('work_mode'), can_travel: val('can_travel'), languages: langs,
+          skills: skills, links: links, message: val('message'), source: val('source'),
+          consent: true, page: location.pathname, files: uploaded
+        };
+        if (network) Object.assign(payload, {
+          entity_type: entity, company_name: entity === 'company' ? val('company_name') : '',
+          rate_note: val('rate_note'), equipment: val('equipment')
+        });
+        else Object.assign(payload, {
+          track: track, job_id: val('job_id'), experience_years: val('experience_years'), available_from: val('available_from')
+        });
+        return api('/rest/v1/rpc/' + (network ? 'submit_network' : 'submit_application'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ payload: {
-            track: track, entity_type: track === 'collaborator' ? entity : 'individual',
-            name: val('name'), company_name: track === 'collaborator' && entity === 'company' ? val('company_name') : '',
-            email: val('email'), phone: val('phone'), instagram: val('instagram'), city: val('city'), country: val('country'),
-            work_mode: val('work_mode'), can_travel: val('can_travel'), languages: langs,
-            job_id: track === 'collaborator' ? '' : val('job_id'),
-            experience_years: track === 'collaborator' ? '' : val('experience_years'),
-            available_from: track === 'collaborator' ? '' : val('available_from'),
-            rate_note: track === 'collaborator' ? val('rate_note') : '', equipment: track === 'collaborator' ? val('equipment') : '',
-            skills: skills, links: links, message: val('message'), source: val('source'),
-            consent: true, page: location.pathname, files: uploaded
-          } })
+          body: JSON.stringify({ payload: payload })
         });
       }).then(finish).catch(function (err) {
         say(err && err.code === '54000'

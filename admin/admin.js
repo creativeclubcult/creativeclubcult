@@ -10,13 +10,15 @@
   var sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
 
   var PAGE = 100;
-  var TRACK = { team: 'Team', internship: 'Internship', collaborator: 'Collaborator / Vendor' };
-  var STATUS = {
-    team: ['new', 'reviewing', 'shortlisted', 'interview', 'hired', 'declined', 'archived'],
-    internship: ['new', 'reviewing', 'shortlisted', 'interview', 'hired', 'declined', 'archived'],
-    collaborator: ['new', 'verified', 'worked-with', 'favourite', 'not-a-fit', 'archived']
+  var TRACK = { team: 'Team', internship: 'Internship' };
+  // Two pipelines, kept apart: careers applicants (team, internship) and the creative network (collaborators,
+  // vendors). Same screens, but separate tables, files bucket and statuses.
+  var KINDS = {
+    applicants: { table: 'applicants', skills: 'applicant_skills', files: 'applicant_files', notes: 'applicant_notes', fk: 'applicant_id',
+      bucket: 'applications', csv: 'ccc-applicants', statuses: ['new', 'reviewing', 'shortlisted', 'interview', 'hired', 'declined', 'archived'] },
+    network: { table: 'network_profiles', skills: 'network_profile_skills', files: 'network_profile_files', notes: 'network_profile_notes', fk: 'profile_id',
+      bucket: 'network', csv: 'ccc-network', statuses: ['new', 'verified', 'worked-with', 'favourite', 'not-a-fit', 'archived'] }
   };
-  var ALL_STATUS = ['new', 'reviewing', 'shortlisted', 'interview', 'hired', 'declined', 'verified', 'worked-with', 'favourite', 'not-a-fit', 'archived'];
   var INQ_STATUS = ['new', 'replied', 'in progress', 'won', 'lost', 'spam'];
   var WORK = { onsite: 'On site', remote: 'Remote', hybrid: 'Hybrid', any: 'Any' };
 
@@ -147,194 +149,206 @@
     return sb.from('skills').select('slug, label, grp, active').order('sort').then(function (r) {
       skills = r.data || []; skillLabel = {};
       skills.forEach(function (s) { skillLabel[s.slug] = s.label; });
-      var sel = $('[data-panel="applicants"] [data-filter="skill"]');
-      sel.length = 1;
-      skills.forEach(function (s) { sel.appendChild(h('option', { value: s.slug }, s.label)); });
-      var st = $('[data-panel="applicants"] [data-filter="status"]');
-      st.length = 1;
-      ALL_STATUS.forEach(function (s) { st.appendChild(h('option', { value: s }, s)); });
+      Object.keys(KINDS).forEach(function (kind) {
+        var panel = $('[data-panel="' + kind + '"]');
+        var sel = $('[data-filter="skill"]', panel);
+        sel.length = 1;
+        skills.forEach(function (s) { sel.appendChild(h('option', { value: s.slug }, s.label)); });
+        var st = $('[data-filter="status"]', panel);
+        st.length = 1;
+        KINDS[kind].statuses.forEach(function (s) { st.appendChild(h('option', { value: s }, s)); });
+      });
     });
   }
 
-  // ================= PEOPLE (applicants & vendors) =================
-  var ap = { panel: $('[data-panel="applicants"]'), from: 0 };
-  var apFilter = function () {
-    var f = {}; $$('[data-filter]', ap.panel).forEach(function (el) { f[el.getAttribute('data-filter')] = el.value.trim(); }); return f;
-  };
-  function apQuery(f, from, to, cols) {
-    var sel = cols || 'id, created_at, track, entity_type, name, company_name, email, city, country, status, rating, tags, skills:applicant_skills(skill_slug)';
-    if (f.skill) sel += ', sf:applicant_skills!inner(skill_slug)';
-    var q = sb.from('applicants').select(sel, { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
-    if (f.track) q = q.eq('track', f.track);
-    if (f.status) q = q.eq('status', f.status);
-    if (f.skill) q = q.eq('sf.skill_slug', f.skill);
-    if (f.q) {
-      var t = f.q.replace(/["\\,()*%]/g, ' ').replace(/\s+/g, ' ').trim();
-      if (t) q = q.or(['name', 'email', 'city', 'country', 'company_name'].map(function (c) { return c + '.ilike."*' + t + '*"'; }).join(','));
-    }
-    return q;
-  }
-  function apLoad(more) {
-    if (!more) ap.from = 0;
-    var tbody = $('[data-rows]', ap.panel);
-    apQuery(apFilter(), ap.from, ap.from + PAGE - 1).then(function (r) {
-      if (r.error) return fail(r.error);
-      if (!more) tbody.innerHTML = '';
-      (r.data || []).forEach(function (a) {
-        var crafts = (a.skills || []).map(function (s) { return skillLabel[s.skill_slug] || s.skill_slug; });
-        tbody.appendChild(h('tr', { onclick: function () { apOpen(a.id); } },
-          h('td', {}, date(a.created_at)),
-          h('td', {}, a.name, a.company_name ? h('span', { class: 'sub', text: a.company_name }) : null, h('span', { class: 'sub', text: a.email })),
-          h('td', {}, TRACK[a.track] || a.track),
-          h('td', {}, crafts.slice(0, 3).join(', ') + (crafts.length > 3 ? ' +' + (crafts.length - 3) : '')),
-          h('td', {}, [a.city, a.country].filter(Boolean).join(', ')),
-          h('td', {}, h('span', { class: 'adm-pill' + (a.status === 'new' ? ' is-new' : ''), text: a.status })),
-          h('td', {}, a.rating ? '★'.repeat(a.rating) : '')));
-      });
-      if (!tbody.children.length) tbody.appendChild(h('tr', { class: 'empty' }, h('td', { colspan: 7, text: 'Nobody here yet.' })));
-      ap.from += (r.data || []).length;
-      $('[data-count]', ap.panel).textContent = (r.count || 0) + ' people';
-      $('[data-action="more"]', ap.panel).hidden = ap.from >= (r.count || 0);
-    });
-  }
-  loaders.applicants = function () { apLoad(false); };
-  var apTimer;
-  $$('[data-filter]', ap.panel).forEach(function (el) {
-    el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', function () { clearTimeout(apTimer); apTimer = setTimeout(function () { apLoad(false); }, 250); });
-  });
-  $('[data-action="more"]', ap.panel).addEventListener('click', function () { apLoad(true); });
-
-  function apOpen(id) {
-    Promise.all([
-      sb.from('applicants').select('*, skills:applicant_skills(skill_slug), files:applicant_files(id, path, name, size, mime, created_at), job:jobs(title)').eq('id', id).single(),
-      sb.from('applicant_notes').select('id, body, author_email, author_id, created_at').eq('applicant_id', id).order('created_at', { ascending: false })
-    ]).then(function (res) {
-      if (res[0].error) return fail(res[0].error);
-      var a = res[0].data, notes = res[1].data || [];
-      var ro = !canEdit();
-      var crafts = (a.skills || []).map(function (s) { return skillLabel[s.skill_slug] || s.skill_slug; });
-      var wa = a.phone ? a.phone.replace(/[^\d]/g, '') : '';
-      var ig = a.instagram ? a.instagram.replace(/^@/, '').replace(/[^A-Za-z0-9._]/g, '') : '';
-
-      var status = select(STATUS[a.track] || ALL_STATUS, a.status, { disabled: ro });
-      var rating = select([['', '—'], [1, '★'], [2, '★★'], [3, '★★★'], [4, '★★★★'], [5, '★★★★★']], a.rating == null ? '' : a.rating, { disabled: ro });
-      var tags = h('input', { type: 'text', value: (a.tags || []).join(', '), placeholder: 'fashion, fast, Jakarta crew', disabled: ro });
-      var save = h('button', { class: 'btn', type: 'button', disabled: ro, onclick: function () {
-        var t = tags.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 30);
-        sb.from('applicants').update({ status: status.value, rating: rating.value ? +rating.value : null, tags: t }).eq('id', a.id).then(function (r) {
-          if (r.error) return fail(r.error);
-          toast('Saved.'); apLoad(false);
-        });
-      } }, 'Save');
-
-      var noteBox = h('textarea', { placeholder: 'Add a note for the team', maxlength: 4000, disabled: ro });
-      var notesList = h('div', { class: 'adm-notes' });
-      var drawNotes = function (list) {
-        notesList.innerHTML = '';
-        list.forEach(function (n) {
-          notesList.appendChild(h('div', { class: 'note' }, h('p', { text: n.body }),
-            h('span', {}, (n.author_email || 'team') + ' · ' + dateTime(n.created_at),
-              (n.author_id === me.id || isOwner()) ? [' · ', h('button', { class: 'adm-link', type: 'button', onclick: function () {
-                sb.from('applicant_notes').delete().eq('id', n.id).then(function (r) { if (r.error) return fail(r.error); notes = notes.filter(function (x) { return x.id !== n.id; }); drawNotes(notes); });
-              } }, 'Delete')] : null)));
-        });
-      };
-      drawNotes(notes);
-      var addNote = h('button', { class: 'btn ghost', type: 'button', disabled: ro, onclick: function () {
-        var body = noteBox.value.trim(); if (!body) return;
-        sb.from('applicant_notes').insert({ applicant_id: a.id, body: body, author_email: me.email }).select('id, body, author_email, author_id, created_at').single().then(function (r) {
-          if (r.error) return fail(r.error);
-          noteBox.value = ''; notes.unshift(r.data); drawNotes(notes);
-        });
-      } }, 'Add note');
-
-      var files = h('div', { class: 'adm-files' }, (a.files || []).map(function (f) {
-        return h('button', { type: 'button', onclick: function () {
-          sb.storage.from('applications').createSignedUrl(f.path, 120).then(function (r) {
-            if (r.error) return fail(r.error);
-            window.open(r.data.signedUrl, '_blank', 'noopener');
-          });
-        } }, f.name + (f.size ? ' · ' + (f.size / 1048576).toFixed(1) + ' MB' : ''));
-      }));
-      var links = h('div', { class: 'adm-links' }, (a.links || []).map(function (u) {
-        var ok = safeUrl(u); return ok ? h('a', { href: ok, target: '_blank', rel: 'noopener noreferrer', text: u }) : h('span', { text: u });
-      }));
-
-      var del = isOwner() ? h('button', { class: 'adm-link adm-danger', type: 'button', onclick: function () {
-        if (!confirm('Delete ' + a.name + ' and their files for good? This can\u2019t be undone.')) return;
-        var paths = (a.files || []).map(function (f) { return f.path; });
-        (paths.length ? sb.storage.from('applications').remove(paths) : Promise.resolve({})).then(function (r) {
-          if (r && r.error) return fail(r.error);
-          return sb.from('applicants').delete().eq('id', a.id).then(function (r2) {
-            if (r2.error) return fail(r2.error);
-            toast('Deleted.'); closeDrawer(); apLoad(false);
-          });
-        });
-      } }, 'Delete this person') : null;
-
-      openDrawer([
-        h('h2', { text: a.name }),
-        h('p', { class: 'lead-line' }, [TRACK[a.track], a.entity_type === 'company' ? 'Company' : null, a.company_name, 'since ' + date(a.created_at)].filter(Boolean).join(' · ')),
-        sec('Status', h('div', { class: 'adm-controls' },
-          h('label', {}, 'Status', status), h('label', {}, 'Rating', rating), h('label', { class: 'wide' }, 'Tags (comma separated)', tags)),
-          h('div', { class: 'adm-row' }, save, ro ? h('span', { class: 'adm-note', text: 'Viewers can read only.' }) : null)),
-        sec('Contact', kv([
-          ['Email', h('a', { href: 'mailto:' + a.email, text: a.email })],
-          ['WhatsApp', wa ? h('a', { href: 'https://wa.me/' + wa, target: '_blank', rel: 'noopener noreferrer', text: a.phone }) : a.phone],
-          ['Instagram', ig ? h('a', { href: 'https://instagram.com/' + ig, target: '_blank', rel: 'noopener noreferrer', text: '@' + ig }) : null],
-          ['Location', [a.city, a.country].filter(Boolean).join(', ')]
-        ])),
-        sec('Work', kv([
-          ['Craft', crafts.join(', ')],
-          ['Role', a.job ? a.job.title : (a.track !== 'collaborator' ? 'Open application' : null)],
-          ['Experience', a.experience_years != null ? a.experience_years + ' years' : null],
-          ['Available from', a.available_from ? date(a.available_from) : null],
-          ['Works', WORK[a.work_mode]],
-          ['Travel', a.can_travel == null ? null : (a.can_travel ? 'Yes' : 'No')],
-          ['Languages', (a.languages || []).join(', ')],
-          ['Rate', a.rate_note],
-          ['Brings', a.equipment ? h('div', { class: 'adm-text', text: a.equipment }) : null]
-        ])),
-        (a.links && a.links.length) || (a.files && a.files.length) ? sec('Portfolio', links, files) : null,
-        a.message ? sec('Message', h('div', { class: 'adm-text', text: a.message })) : null,
-        sec('Notes', h('div', { class: 'adm-controls' }, h('label', { class: 'wide' }, 'New note', noteBox)), h('div', { class: 'adm-row' }, addNote), notesList),
-        sec('Record', kv([
-          ['Heard via', a.source], ['Sent from', a.page], ['Consent', dateTime(a.consent_at)], ['Updated', dateTime(a.updated_at)]
-        ]), h('div', { class: 'adm-row' }, del))
-      ]);
-    }).catch(fail);
-  }
-
-  // CSV of everyone matching the current filters (for sharing a shortlist or a crew list)
-  $('[data-action="export"]', ap.panel).addEventListener('click', function () {
-    var f = apFilter(), rows = [], from = 0;
-    var cols = 'created_at, track, entity_type, name, company_name, email, phone, instagram, city, country, work_mode, can_travel, languages, experience_years, available_from, rate_note, links, status, rating, tags, skills:applicant_skills(skill_slug)';
-    var next = function () {
-      return apQuery(f, from, from + 999, cols).then(function (r) {
-        if (r.error) throw r.error;
-        rows = rows.concat(r.data || []); from += (r.data || []).length;
-        if ((r.data || []).length === 1000 && from < 10000) return next();
-      });
+  // ================= PEOPLE (careers applicants, and the creative network) =================
+  function people(kind) {
+    var K = KINDS[kind], net = kind === 'network';
+    var ap = { panel: $('[data-panel="' + kind + '"]'), from: 0 };
+    var apFilter = function () {
+      var f = {}; $$('[data-filter]', ap.panel).forEach(function (el) { f[el.getAttribute('data-filter')] = el.value.trim(); }); return f;
     };
-    next().then(function () {
-      var head = ['Date', 'Track', 'Type', 'Name', 'Company', 'Email', 'WhatsApp', 'Instagram', 'City', 'Country', 'Craft', 'Works', 'Travel', 'Languages', 'Experience', 'Available', 'Rate', 'Links', 'Status', 'Rating', 'Tags'];
-      var q = function (v) {
-        var s = v == null ? '' : String(v);
-        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // no formulas when opened in a spreadsheet
-        return '"' + s.replace(/"/g, '""') + '"';
+    var crafts = function (a) { return (a.skills || []).map(function (s) { return skillLabel[s.skill_slug] || s.skill_slug; }); };
+    function apQuery(f, from, to, cols) {
+      var sel = cols || 'id, created_at, ' + (net ? 'entity_type' : 'track') + ', name, company_name, email, city, country, status, rating, tags, skills:' + K.skills + '(skill_slug)';
+      if (f.skill) sel += ', sf:' + K.skills + '!inner(skill_slug)';
+      var q = sb.from(K.table).select(sel, { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
+      ['track', 'entity_type', 'status'].forEach(function (c) { if (f[c]) q = q.eq(c, f[c]); });
+      if (f.skill) q = q.eq('sf.skill_slug', f.skill);
+      if (f.q) {
+        var t = f.q.replace(/["\\,()*%]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (t) q = q.or(['name', 'email', 'city', 'country', 'company_name'].map(function (c) { return c + '.ilike."*' + t + '*"'; }).join(','));
+      }
+      return q;
+    }
+    function apLoad(more) {
+      if (!more) ap.from = 0;
+      var tbody = $('[data-rows]', ap.panel);
+      apQuery(apFilter(), ap.from, ap.from + PAGE - 1).then(function (r) {
+        if (r.error) return fail(r.error);
+        if (!more) tbody.innerHTML = '';
+        (r.data || []).forEach(function (a) {
+          var c = crafts(a);
+          tbody.appendChild(h('tr', { onclick: function () { apOpen(a.id); } },
+            h('td', {}, date(a.created_at)),
+            h('td', {}, a.name, a.company_name ? h('span', { class: 'sub', text: a.company_name }) : null, h('span', { class: 'sub', text: a.email })),
+            h('td', {}, net ? (a.entity_type === 'company' ? 'Company' : 'Individual') : (TRACK[a.track] || a.track)),
+            h('td', {}, c.slice(0, 3).join(', ') + (c.length > 3 ? ' +' + (c.length - 3) : '')),
+            h('td', {}, [a.city, a.country].filter(Boolean).join(', ')),
+            h('td', {}, h('span', { class: 'adm-pill' + (a.status === 'new' ? ' is-new' : ''), text: a.status })),
+            h('td', {}, a.rating ? '★'.repeat(a.rating) : '')));
+        });
+        if (!tbody.children.length) tbody.appendChild(h('tr', { class: 'empty' }, h('td', { colspan: 7, text: 'Nobody here yet.' })));
+        ap.from += (r.data || []).length;
+        $('[data-count]', ap.panel).textContent = (r.count || 0) + ' people';
+        $('[data-action="more"]', ap.panel).hidden = ap.from >= (r.count || 0);
+      });
+    }
+    loaders[kind] = function () { apLoad(false); };
+    var apTimer;
+    $$('[data-filter]', ap.panel).forEach(function (el) {
+      el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', function () { clearTimeout(apTimer); apTimer = setTimeout(function () { apLoad(false); }, 250); });
+    });
+    $('[data-action="more"]', ap.panel).addEventListener('click', function () { apLoad(true); });
+
+    function apOpen(id) {
+      var noteOf = function (body) { var n = { body: body, author_email: me.email }; n[K.fk] = id; return n; };
+      Promise.all([
+        sb.from(K.table).select('*, skills:' + K.skills + '(skill_slug), files:' + K.files + '(id, path, name, size, mime, created_at)' + (net ? '' : ', job:jobs(title)')).eq('id', id).single(),
+        sb.from(K.notes).select('id, body, author_email, author_id, created_at').eq(K.fk, id).order('created_at', { ascending: false })
+      ]).then(function (res) {
+        if (res[0].error) return fail(res[0].error);
+        var a = res[0].data, notes = res[1].data || [];
+        var ro = !canEdit();
+        var wa = a.phone ? a.phone.replace(/[^\d]/g, '') : '';
+        var ig = a.instagram ? a.instagram.replace(/^@/, '').replace(/[^A-Za-z0-9._]/g, '') : '';
+
+        var status = select(K.statuses, a.status, { disabled: ro });
+        var rating = select([['', '—'], [1, '★'], [2, '★★'], [3, '★★★'], [4, '★★★★'], [5, '★★★★★']], a.rating == null ? '' : a.rating, { disabled: ro });
+        var tags = h('input', { type: 'text', value: (a.tags || []).join(', '), placeholder: 'fashion, fast, Jakarta crew', disabled: ro });
+        var save = h('button', { class: 'btn', type: 'button', disabled: ro, onclick: function () {
+          var t = tags.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 30);
+          sb.from(K.table).update({ status: status.value, rating: rating.value ? +rating.value : null, tags: t }).eq('id', a.id).then(function (r) {
+            if (r.error) return fail(r.error);
+            toast('Saved.'); apLoad(false);
+          });
+        } }, 'Save');
+
+        var noteBox = h('textarea', { placeholder: 'Add a note for the team', maxlength: 4000, disabled: ro });
+        var notesList = h('div', { class: 'adm-notes' });
+        var drawNotes = function (list) {
+          notesList.innerHTML = '';
+          list.forEach(function (n) {
+            notesList.appendChild(h('div', { class: 'note' }, h('p', { text: n.body }),
+              h('span', {}, (n.author_email || 'team') + ' · ' + dateTime(n.created_at),
+                (n.author_id === me.id || isOwner()) ? [' · ', h('button', { class: 'adm-link', type: 'button', onclick: function () {
+                  sb.from(K.notes).delete().eq('id', n.id).then(function (r) { if (r.error) return fail(r.error); notes = notes.filter(function (x) { return x.id !== n.id; }); drawNotes(notes); });
+                } }, 'Delete')] : null)));
+          });
+        };
+        drawNotes(notes);
+        var addNote = h('button', { class: 'btn ghost', type: 'button', disabled: ro, onclick: function () {
+          var body = noteBox.value.trim(); if (!body) return;
+          sb.from(K.notes).insert(noteOf(body)).select('id, body, author_email, author_id, created_at').single().then(function (r) {
+            if (r.error) return fail(r.error);
+            noteBox.value = ''; notes.unshift(r.data); drawNotes(notes);
+          });
+        } }, 'Add note');
+
+        var files = h('div', { class: 'adm-files' }, (a.files || []).map(function (f) {
+          return h('button', { type: 'button', onclick: function () {
+            sb.storage.from(K.bucket).createSignedUrl(f.path, 120).then(function (r) {
+              if (r.error) return fail(r.error);
+              window.open(r.data.signedUrl, '_blank', 'noopener');
+            });
+          } }, f.name + (f.size ? ' · ' + (f.size / 1048576).toFixed(1) + ' MB' : ''));
+        }));
+        var links = h('div', { class: 'adm-links' }, (a.links || []).map(function (u) {
+          var ok = safeUrl(u); return ok ? h('a', { href: ok, target: '_blank', rel: 'noopener noreferrer', text: u }) : h('span', { text: u });
+        }));
+
+        var del = isOwner() ? h('button', { class: 'adm-link adm-danger', type: 'button', onclick: function () {
+          if (!confirm('Delete ' + a.name + ' and their files for good? This can\u2019t be undone.')) return;
+          var paths = (a.files || []).map(function (f) { return f.path; });
+          (paths.length ? sb.storage.from(K.bucket).remove(paths) : Promise.resolve({})).then(function (r) {
+            if (r && r.error) return fail(r.error);
+            return sb.from(K.table).delete().eq('id', a.id).then(function (r2) {
+              if (r2.error) return fail(r2.error);
+              toast('Deleted.'); closeDrawer(); apLoad(false);
+            });
+          });
+        } }, 'Delete this person') : null;
+
+        openDrawer([
+          h('h2', { text: a.name }),
+          h('p', { class: 'lead-line' }, [net ? 'Creative network' : TRACK[a.track], a.entity_type === 'company' ? 'Company' : null, a.company_name, 'since ' + date(a.created_at)].filter(Boolean).join(' · ')),
+          sec('Status', h('div', { class: 'adm-controls' },
+            h('label', {}, 'Status', status), h('label', {}, 'Rating', rating), h('label', { class: 'wide' }, 'Tags (comma separated)', tags)),
+            h('div', { class: 'adm-row' }, save, ro ? h('span', { class: 'adm-note', text: 'Viewers can read only.' }) : null)),
+          sec('Contact', kv([
+            ['Email', h('a', { href: 'mailto:' + a.email, text: a.email })],
+            ['WhatsApp', wa ? h('a', { href: 'https://wa.me/' + wa, target: '_blank', rel: 'noopener noreferrer', text: a.phone }) : a.phone],
+            ['Instagram', ig ? h('a', { href: 'https://instagram.com/' + ig, target: '_blank', rel: 'noopener noreferrer', text: '@' + ig }) : null],
+            ['Location', [a.city, a.country].filter(Boolean).join(', ')]
+          ])),
+          sec('Work', kv([
+            ['Craft', crafts(a).join(', ')],
+            ['Role', net ? null : (a.job ? a.job.title : 'Open application')],
+            ['Experience', a.experience_years != null ? a.experience_years + ' years' : null],
+            ['Available from', a.available_from ? date(a.available_from) : null],
+            ['Works', WORK[a.work_mode]],
+            ['Travel', a.can_travel == null ? null : (a.can_travel ? 'Yes' : 'No')],
+            ['Languages', (a.languages || []).join(', ')],
+            ['Rate', a.rate_note],
+            ['Brings', a.equipment ? h('div', { class: 'adm-text', text: a.equipment }) : null]
+          ])),
+          (a.links && a.links.length) || (a.files && a.files.length) ? sec('Portfolio', links, files) : null,
+          a.message ? sec('Message', h('div', { class: 'adm-text', text: a.message })) : null,
+          sec('Notes', h('div', { class: 'adm-controls' }, h('label', { class: 'wide' }, 'New note', noteBox)), h('div', { class: 'adm-row' }, addNote), notesList),
+          sec('Record', kv([
+            ['Heard via', a.source], ['Sent from', a.page], ['Consent', dateTime(a.consent_at)], ['Updated', dateTime(a.updated_at)]
+          ]), h('div', { class: 'adm-row' }, del))
+        ]);
+      }).catch(fail);
+    }
+
+    // CSV of everyone matching the current filters (for sharing a shortlist or a crew list)
+    $('[data-action="export"]', ap.panel).addEventListener('click', function () {
+      var f = apFilter(), rows = [], from = 0;
+      var cols = 'created_at, ' + (net ? 'entity_type, company_name' : 'track') + ', name, email, phone, instagram, city, country, work_mode, can_travel, languages, '
+        + (net ? 'rate_note' : 'experience_years, available_from') + ', links, status, rating, tags, skills:' + K.skills + '(skill_slug)';
+      var next = function () {
+        return apQuery(f, from, from + 999, cols).then(function (r) {
+          if (r.error) throw r.error;
+          rows = rows.concat(r.data || []); from += (r.data || []).length;
+          if ((r.data || []).length === 1000 && from < 10000) return next();
+        });
       };
-      var lines = [head.map(q).join(',')].concat(rows.map(function (a) {
-        return [date(a.created_at), TRACK[a.track], a.entity_type, a.name, a.company_name, a.email, a.phone, a.instagram, a.city, a.country,
-          (a.skills || []).map(function (s) { return skillLabel[s.skill_slug] || s.skill_slug; }).join('; '),
-          WORK[a.work_mode], a.can_travel == null ? '' : (a.can_travel ? 'yes' : 'no'), (a.languages || []).join('; '),
-          a.experience_years, a.available_from, a.rate_note, (a.links || []).join(' '), a.status, a.rating, (a.tags || []).join('; ')].map(q).join(',');
-      }));
-      var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-      var link = h('a', { href: URL.createObjectURL(blob), download: 'ccc-people-' + new Date().toISOString().slice(0, 10) + '.csv' });
-      document.body.appendChild(link); link.click(); link.remove();
-      toast(rows.length + ' people exported.');
-    }).catch(fail);
-  });
+      next().then(function () {
+        var head = ['Date'].concat(net ? ['Type', 'Company'] : ['Track'],
+          ['Name', 'Email', 'WhatsApp', 'Instagram', 'City', 'Country', 'Craft', 'Works', 'Travel', 'Languages'],
+          net ? ['Rate'] : ['Experience', 'Available'], ['Links', 'Status', 'Rating', 'Tags']);
+        var q = function (v) {
+          var s = v == null ? '' : String(v);
+          if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // no formulas when opened in a spreadsheet
+          return '"' + s.replace(/"/g, '""') + '"';
+        };
+        var lines = [head.map(q).join(',')].concat(rows.map(function (a) {
+          return [date(a.created_at)].concat(net ? [a.entity_type, a.company_name] : [TRACK[a.track]],
+            [a.name, a.email, a.phone, a.instagram, a.city, a.country, crafts(a).join('; '),
+              WORK[a.work_mode], a.can_travel == null ? '' : (a.can_travel ? 'yes' : 'no'), (a.languages || []).join('; ')],
+            net ? [a.rate_note] : [a.experience_years, a.available_from],
+            [(a.links || []).join(' '), a.status, a.rating, (a.tags || []).join('; ')]).map(q).join(',');
+        }));
+        var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        var link = h('a', { href: URL.createObjectURL(blob), download: K.csv + '-' + new Date().toISOString().slice(0, 10) + '.csv' });
+        document.body.appendChild(link); link.click(); link.remove();
+        toast(rows.length + ' people exported.');
+      }).catch(fail);
+    });
+  }
+  people('applicants');
+  people('network');
 
   // ================= INQUIRIES (contact form) =================
   var inq = { panel: $('[data-panel="inquiries"]') };
