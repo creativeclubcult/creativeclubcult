@@ -61,7 +61,7 @@
           <p>Creative Club Cult (CCC) is a creative company based in Indonesia. When this policy says "we", it means CCC. Questions about your data go to hello@creativeclubcult.com.</p>
           <h2>What we collect</h2>
           <p>Only what you send us. Through the contact form: your name, email, company, preferred way of contact and what your project is about, including timeline and budget if you share them. Through the careers form: your name and contact details, location, the crafts you offer, how you like to work, languages, portfolio links, any files you upload (such as a CV or portfolio) and your message.</p>
-          <p>We don't use advertising or tracking cookies on this website.</p>
+          <p>We don't use advertising or tracking cookies on this website. To see how many people visit and which pages they read, we use Vercel Web Analytics. It sets no cookies and doesn't identify you: it counts page visits together with the referring site and your country, browser and device type, and we only see the totals.</p>
           <h2>Why we keep it</h2>
           <p>To answer your message, to review your application, and to get in touch when a role or a production fits what you do.</p>
           <p>Job applications and our creative network are kept apart. If you apply for a role or an internship, we use your details for that application only. If you sign up as a collaborator or vendor, your details go into our creative network: a private list we use to find the right people for our projects. Signing up doesn't mean you've been hired, and nothing about you is made public.</p>
@@ -113,5 +113,12 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
+  <script>
+    // Vercel Web Analytics: cookieless visit counts, only on the live site
+    if (/creativeclubcult\.com$/.test(location.hostname)) {
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      var va = document.createElement('script'); va.defer = true; va.src = '/_vercel/insights/script.js'; document.head.appendChild(va);
+    }
+  </script>
 </body>
 </html>

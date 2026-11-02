@@ -1533,10 +1533,12 @@
     var esc = function (t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
 
     // single-choice tag rows (track, entity type) and what they show
-    var track = 'team', entity = 'individual';
+    // No track is picked on arrival: the rest of the form opens once one is (styles.css), so nobody
+    // sends an internship or a vendor sign-up as a team application by mistake.
+    var track = '', entity = 'individual';
     var sync = function () {
       (apply.closest('#apply') || apply).querySelectorAll('[data-tracks]').forEach(function (el) { // (the intro beside the form too)
-        var on = el.getAttribute('data-tracks').split(' ').indexOf(track) > -1;
+        var on = el.getAttribute('data-tracks').split(' ').indexOf(track || (apply.contains(el) ? '' : 'team')) > -1;
         if (on && el.hasAttribute('data-entity')) on = el.getAttribute('data-entity') === entity;
         el.hidden = !on;
       });
@@ -1552,6 +1554,10 @@
         apply.querySelector('input[name="' + name + '"]').value = b.getAttribute('data-value');
         if (name === 'track') track = b.getAttribute('data-value'); else entity = b.getAttribute('data-value');
         sync();
+        if (name === 'track' && !apply.hasAttribute('data-track')) {
+          apply.setAttribute('data-track', '');
+          if (window.ScrollTrigger) ScrollTrigger.refresh(); // the page just grew
+        }
       });
     });
     var setTrack = function (t) { var b = apply.querySelector('[data-choice="track"] [data-value="' + t + '"]'); if (b) b.click(); };

@@ -85,14 +85,15 @@
 
         <form class="inquiry apply reveal" novalidate>
           <p class="field-hint form-note">All fields are required unless marked optional.</p>
-          <div class="field">
+          <div class="field track-field">
             <span class="label" id="track-label">I'm applying as</span>
             <div class="tags" data-choice="track" role="group" aria-labelledby="track-label">
-              <button class="tag" type="button" data-value="team" aria-pressed="true">Team</button>
+              <button class="tag" type="button" data-value="team" aria-pressed="false">Team</button>
               <button class="tag" type="button" data-value="internship" aria-pressed="false">Internship</button>
               <button class="tag" type="button" data-value="collaborator" aria-pressed="false">Collaborator / Vendor</button>
             </div>
-            <input type="hidden" name="track" value="team" />
+            <p class="field-hint" data-track-hint>Pick one and the form opens.</p>
+            <input type="hidden" name="track" value="" />
           </div>
 
           <div class="field" data-tracks="team internship">
@@ -228,5 +229,12 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"></script>
   <script src="app.js"></script>
+  <script>
+    // Vercel Web Analytics: cookieless visit counts, only on the live site
+    if (/creativeclubcult\.com$/.test(location.hostname)) {
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      var va = document.createElement('script'); va.defer = true; va.src = '/_vercel/insights/script.js'; document.head.appendChild(va);
+    }
+  </script>
 </body>
 </html>

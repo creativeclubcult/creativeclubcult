@@ -1004,6 +1004,13 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 }
 
 .apply [hidden] { display: none !important; } /* fields for another track (app.js) */
+/* until a track is picked, only the picker shows (app.js sets data-track) */
+.apply:not([data-track]) > :not(.form-note):not(.track-field):not(.hp) { display: none; }
+.apply[data-track] [data-track-hint] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .apply[data-track] > :not(.form-note):not(.track-field) { animation: apply-open .6s cubic-bezier(.2, .8, .2, 1) both; }
+}
+@keyframes apply-open { from { opacity: 0; transform: translateY(12px); } }
 .roles { border-top: 1px solid var(--line); }
 .roles-empty { padding: 20px 0; color: var(--graphite); }
 .role {
