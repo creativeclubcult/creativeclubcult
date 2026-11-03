@@ -1234,6 +1234,14 @@
     });
   })();
 
+  // ---- Skipped page transitions (a second click mid-fade, a hidden tab) reject their promises; nothing to handle ----
+  ['pageswap', 'pagereveal'].forEach(function (type) {
+    window.addEventListener(type, function (e) {
+      var vt = e.viewTransition;
+      if (vt) [vt.ready, vt.finished, vt.updateCallbackDone].forEach(function (p) { if (p) p.catch(function () {}); });
+    });
+  });
+
   // ---- Page transition fallback (browsers without cross-document View Transitions) ----
   (function () {
     if ('startViewTransition' in document) return; // native VT handles it via CSS
