@@ -916,6 +916,7 @@ html.has-smoother .cr-hero { position: relative; }
 .cr-down:hover { translate: 0 6px; }
 .cr-body { position: relative; z-index: 1; background: var(--bg); }
 .cr-intro { padding-top: var(--section); }
+.cr-body #apply { padding-top: calc(var(--section) * 2); } /* the form gets more air above it than a plain section */
 .cr-lead { max-width: 20ch; font-size: var(--t-heading); line-height: 1.06; letter-spacing: -0.023em; }
 .cr-sub { max-width: 46ch; margin-top: clamp(20px, 2.4vw, 32px); font-size: var(--t-sub); line-height: 1.4; color: var(--graphite); }
 @media (min-width: 761px) {
@@ -1006,6 +1007,22 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 .apply [hidden] { display: none !important; } /* fields for another track (app.js) */
 /* until a track is picked, only the picker shows (app.js sets data-track) */
 .apply:not([data-track]) > :not(.form-note):not(.track-field):not(.hp) { display: none; }
+/* the three ways in, solid until one is picked; then the others step back to outlines. On hover a
+   button brightens and an arrow slides out of it, pointing down to the form */
+.apply [data-choice="track"] { gap: 10px; }
+.apply [data-choice="track"] .tag {
+  gap: 0; padding: 14px 20px; font-size: var(--t-body-sm);
+  background: var(--ink); color: var(--bg); border-color: var(--ink);
+  transition: background .3s, color .3s, border-color .3s, gap .3s, padding .3s;
+}
+.apply [data-choice="track"] .tag-go { width: 0; height: 14px; opacity: 0; transform: rotate(90deg); transition: width .3s, opacity .3s; } /* points down, to the form */
+.apply[data-track] [data-choice="track"] .tag[aria-pressed="false"] { background: transparent; color: var(--ink); border-color: var(--ash); }
+@media (hover: hover) {
+  .apply [data-choice="track"] .tag:hover { background: #fff; color: var(--bg); border-color: #fff; gap: 10px; padding-right: 18px; }
+  .apply [data-choice="track"] .tag:hover .tag-go { width: 14px; opacity: 1; }
+}
+.apply [data-choice="track"] .tag[aria-pressed="true"] { gap: 10px; padding-right: 18px; }
+.apply [data-choice="track"] .tag[aria-pressed="true"] .tag-go { width: 14px; opacity: 1; }
 .apply[data-track] [data-track-hint] { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .apply[data-track] > :not(.form-note):not(.track-field) { animation: apply-open .6s cubic-bezier(.2, .8, .2, 1) both; }
@@ -1025,6 +1042,7 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
    its crafts as pills, a closed one lists what's picked in it (under the name on phones) */
 .skill-groups { margin-top: 6px; border-top: 1px solid var(--line); }
 .sg { border-bottom: 1px solid var(--line); }
+.sg[hidden], .sg .tag[hidden] { display: none; } /* crafts that don't fit the picked way in (app.js) */
 .sg-head {
   display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 4px 12px; align-items: center; width: 100%; padding: 14px 0;
   border: 0; background: none; text-align: left; font-size: var(--t-body-sm); line-height: 1.3; color: var(--ink); cursor: pointer;

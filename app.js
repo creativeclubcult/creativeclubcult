@@ -1251,6 +1251,7 @@
       var dest = a.href;
       if (!href || href.charAt(0) === '#' || href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0 ||
           a.target === '_blank' || (a.host && a.host !== location.host)) return;
+      if (document.documentElement.hasAttribute('data-unsaved')) return; // the browser asks first (careers form); no fade behind its question
       e.preventDefault();
       document.body.classList.remove('pt-in');
       document.body.classList.add('pt-out');
@@ -1339,6 +1340,7 @@
     var FRAG = [
       '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;', '#else', 'precision mediump float;', '#endif',
       'uniform vec2 u_res; uniform float u_time; uniform vec2 u_mouse; uniform float u_scroll;',
+      'vec3 spectrum(float x) { return 0.5 + 0.5 * cos(6.2831853 * (x + vec3(0.0, 0.33, 0.67))); }',
       'float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
       'vec2 grad(vec2 i) { float a = hash(i) * 6.2831853; return vec2(cos(a), sin(a)); }',
       'float noise(vec2 p) {',
@@ -1378,18 +1380,36 @@
       '  vec2 c = vec2(mix(0.6, 0.72, wide) * u_res.x, mix(1.15 * u_res.y, R - 0.25 * u_res.y, wide))',
       '         - u_mouse * vec2(90.0 * min(1.0, u_res.x / 1200.0), 42.0) + vec2(0.0, u_scroll * 0.75 * u_res.y);',
       '  vec2 d = (at - c) / R; float l = length(d);',
-      '  vec3 col;',
-      '  if (l < 1.0) {',
+      // the inside and the outside are worked out separately and cross-faded over 4px at the rim,
+      // so the glass melts into the liquid instead of sitting on it like a cut-out
+      '  vec3 col, cin = vec3(0.0), cout = vec3(0.0); float s = 4.0 / R;',
+      '  if (l < 1.0 + s) {',
       // inside, the ball's own liquid, distorted as through glass: twisted around the middle, magnified there
       // and squeezed into thin streaks along the rim, and pushed by the pointer more than the field behind
       '    float a = (1.0 - l) * 1.4 + 0.25 * sin(u_time * 0.1);',
       '    vec2 e = mat2(cos(a), sin(a), -sin(a), cos(a)) * (at - c);',
       '    vec2 src = c + e * (0.8 + 0.7 * pow(l, 6.0)) + u_mouse * vec2(60.0, 40.0);',
-      '    col = fluid(src, 1.0, vec2(3.7, -2.1), -0.8);',
-      '  } else {',
-      '    col = fluid(at, 0.0, vec2(0.0), 0.6);',
-      '    col *= 1.0 - 0.25 * (1.0 - smoothstep(1.0, 1.0 + 40.0 / R, l));', // a soft shadow just outside
+      '    vec3 col = fluid(src, 1.0, vec2(3.7, -2.1), -0.8);',
+      // near the rim the glass splits the light: red and blue are bent apart, so bright folds crossing
+      // the edge break into a rainbow, with a faint iridescent band along it (only computed in that band)
+      '    float band = smoothstep(0.8, 1.0, l);',
+      '    if (band > 0.0) {',
+      '      vec2 n = normalize(at - c) * 40.0 * band * band;',
+      '      col.r = fluid(src + n, 1.0, vec2(3.7, -2.1), -0.8).r;',
+      '      col.b = fluid(src - n, 1.0, vec2(3.7, -2.1), -0.8).b;',
+      '      float x = (l - 0.8) / 0.2;',
+      '      col += (spectrum(x * 1.3 + 0.1) - 0.35) * smoothstep(0.55, 1.0, x) * 0.3 * (0.35 + col.g);',
+      '    }',
+      '    cin = col;',
       '  }',
+      '  if (l > 1.0 - s) {',
+      '    vec3 col = fluid(at, 0.0, vec2(0.0), 0.6);',
+      '    col *= 1.0 - 0.25 * (1.0 - smoothstep(1.0, 1.0 + 40.0 / R, l));', // a soft shadow just outside
+      '    float o = (l - 1.0) * R / 26.0;', // and the rainbow spilling a little past the edge
+      '    if (o > 0.0 && o < 1.0) col += (spectrum(0.75 - o * 0.6) - 0.35) * (1.0 - o) * (1.0 - o) * 0.12;',
+      '    cout = col;',
+      '  }',
+      '  col = mix(cout, cin, smoothstep(1.0 + s, 1.0 - s, l));',
       '  col *= 0.88 * (1.0 - 0.45 * smoothstep(0.4, 0.0, uv.y)) * (1.0 - 0.35 * smoothstep(0.75, 1.0, uv.y));', // darker toward the title, and under the header
       '  col += (hash(gl_FragCoord.xy + fract(u_time * 7.31) * 97.0) - 0.5) * 0.09;', // film grain, new every frame
       '  gl_FragColor = vec4(col, 1.0);',
@@ -1560,6 +1580,17 @@
         }
       });
     });
+    // once something is typed or picked, leaving (reload, closing the tab, a link) asks first; nothing is
+    // kept, it only stops a slip. Cleared once the application is in.
+    var unsaved = function (on) {
+      if (on) document.documentElement.setAttribute('data-unsaved', ''); else document.documentElement.removeAttribute('data-unsaved');
+    };
+    apply.addEventListener('input', function () { unsaved(true); });
+    apply.addEventListener('change', function () { unsaved(true); });
+    window.addEventListener('beforeunload', function (e) {
+      if (!document.documentElement.hasAttribute('data-unsaved')) return;
+      e.preventDefault(); e.returnValue = '';
+    });
     var setTrack = function (t) { var b = apply.querySelector('[data-choice="track"] [data-value="' + t + '"]'); if (b) b.click(); };
     sync();
     // coming from a careers page or a role: careers.html?track=internship&job=<id>#apply
@@ -1591,9 +1622,37 @@
       var on = b.getAttribute('aria-pressed') !== 'true';
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       if (on) picked[b.getAttribute('data-skill')] = true; else delete picked[b.getAttribute('data-skill')];
+      unsaved(true);
       summarise();
       if (Object.keys(picked).length) cleared(skillsBox.closest('.field'));
     });
+    // each way in shows only the crafts that fit it: staff roles for the team, junior ones for interns,
+    // and the whole list (talent, styling, gear and space included) for collaborators and vendors.
+    // A craft not listed here (one added in the admin later) shows for collaborators only.
+    var TRACK_SKILLS = {
+      team: ['creative-direction', 'art-direction', 'film-direction', 'strategy', 'copywriting',
+        'photography', 'videography', 'cinematography', 'producer', 'production-management',
+        'editing', 'colour-grading', 'motion-design', 'vfx-cgi',
+        'graphic-design', 'illustration', 'ui-ux', 'web-development', 'social-content'],
+      internship: ['strategy', 'copywriting', 'photography', 'videography', 'camera-assistant',
+        'production-management', 'location-scouting', 'editing', 'colour-grading', 'motion-design',
+        'graphic-design', 'illustration', 'ui-ux', 'web-development', 'social-content']
+    };
+    function fitSkills() {
+      var list = TRACK_SKILLS[track];
+      skillsBox.querySelectorAll('.sg').forEach(function (g) {
+        var any = false;
+        g.querySelectorAll('[data-skill]').forEach(function (b) {
+          var slug = b.getAttribute('data-skill'), on = !list || list.indexOf(slug) > -1;
+          b.hidden = !on; any = any || on;
+          if (!on && picked[slug]) { b.setAttribute('aria-pressed', 'false'); delete picked[slug]; }
+        });
+        g.hidden = !any;
+      });
+      summarise();
+    }
+    apply.querySelector('[data-choice="track"]').addEventListener('click', fitSkills);
+    fitSkills();
     // the list lives in the database (the team can add to it); redraw from there when it differs
     api('/rest/v1/skills?select=slug,label,grp&active=eq.true&order=sort').then(function (rows) {
       if (!rows || !rows.length) return;
@@ -1611,7 +1670,7 @@
             return '<button class="tag" type="button" data-skill="' + esc(r.slug) + '" aria-pressed="' + (picked[r.slug] ? 'true' : 'false') + '">' + esc(r.label) + '</button>';
           }).join('') + '</div></div></div></div>';
       }).join('');
-      summarise();
+      fitSkills();
       if (window.ScrollTrigger) ScrollTrigger.refresh();
     }).catch(function () { /* the built-in list stays */ });
 
@@ -1733,6 +1792,7 @@
 
       var network = track === 'collaborator';
       var finish = function () {
+        unsaved(false);
         var html = network
           ? '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">We’ll keep your work on file.</span></h3><p class="detail">We’ll reach out when a project fits.</p></div>'
           : '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">Your application is in.</span></h3><p class="detail">We’ll be in touch if there’s a role that fits.</p></div>';
