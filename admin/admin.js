@@ -109,6 +109,7 @@
       me = { id: session.user.id, email: session.user.email, role: r.data.role, name: r.data.full_name };
       $('[data-me-role]').textContent = me.role;
       $$('[data-edit-only]').forEach(function (el) { el.hidden = !canEdit(); });
+      $$('[data-owner-only]').forEach(function (el) { el.hidden = !isOwner(); });
       show('app');
       loadSkills().then(openTab);
     });
@@ -464,4 +465,26 @@
       });
     });
   };
+
+  // Full copy of every table as one JSON file (the free backup: download it regularly and keep it somewhere safe)
+  var BACKUP = ['inquiries', 'applicants', 'applicant_skills', 'applicant_files', 'applicant_notes',
+    'network_profiles', 'network_profile_skills', 'network_profile_files', 'network_profile_notes', 'jobs', 'skills', 'team_members'];
+  $('[data-action="backup"]', teamP.panel).addEventListener('click', function (e) {
+    var btn = e.currentTarget, out = { made_at: new Date().toISOString(), tables: {} };
+    var grab = function (table, from) {
+      return sb.from(table).select('*').range(from, from + 999).then(function (r) {
+        if (r.error) throw new Error(table + ': ' + r.error.message);
+        out.tables[table] = (out.tables[table] || []).concat(r.data || []);
+        if ((r.data || []).length === 1000) return grab(table, from + 1000);
+      });
+    };
+    btn.disabled = true; toast('Preparing backup…');
+    BACKUP.reduce(function (p, t) { return p.then(function () { return grab(t, 0); }); }, Promise.resolve()).then(function () {
+      var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      var link = h('a', { href: URL.createObjectURL(blob), download: 'ccc-backup-' + out.made_at.slice(0, 10) + '.json' });
+      document.body.appendChild(link); link.click(); link.remove();
+      var n = BACKUP.reduce(function (s, t) { return s + out.tables[t].length; }, 0);
+      toast('Backup downloaded: ' + n + ' records.');
+    }).catch(fail).then(function () { btn.disabled = false; });
+  });
 })();

@@ -114,6 +114,10 @@
     </section>
 
     <section class="adm-panel" data-panel="team" hidden>
+      <div class="adm-bar" data-owner-only hidden>
+        <span class="adm-count">Backup: every record in one file. Uploaded files stay in Supabase.</span>
+        <button class="btn ghost" type="button" data-action="backup">Download backup</button>
+      </div>
       <div class="adm-table-wrap"><table class="adm-table">
         <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Since</th></tr></thead>
         <tbody data-rows></tbody>
