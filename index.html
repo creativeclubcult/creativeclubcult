@@ -19,6 +19,28 @@
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
   <script>
+    ['pageswap', 'pagereveal'].forEach(function (t) {
+      addEventListener(t, function (e) {
+        var v = e.viewTransition; if (!v) return;
+        [v.ready, v.finished, v.updateCallbackDone].forEach(function (p) { p.catch(function () {}); });
+        if (t !== 'pagereveal') return;
+        var pass = function (c) {
+          if (c.target !== document.documentElement) return;
+          var x = c.clientX, y = c.clientY;
+          v.skipTransition();
+          v.finished.catch(function () {}).then(function () {
+            requestAnimationFrame(function () {
+              var a = document.elementFromPoint(x, y); a = a && a.closest('a[href]');
+              if (a) a.click();
+            });
+          });
+        };
+        document.addEventListener('click', pass, true);
+        v.finished.catch(function () {}).then(function () { document.removeEventListener('click', pass, true); });
+      });
+    });
+  </script>
+  <script>
     try {
       if (!sessionStorage.getItem('ccc-loader') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         document.documentElement.classList.add('is-loading');

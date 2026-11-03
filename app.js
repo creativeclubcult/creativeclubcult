@@ -1234,14 +1234,6 @@
     });
   })();
 
-  // ---- Skipped page transitions (a second click mid-fade, a hidden tab) reject their promises; nothing to handle ----
-  ['pageswap', 'pagereveal'].forEach(function (type) {
-    window.addEventListener(type, function (e) {
-      var vt = e.viewTransition;
-      if (vt) [vt.ready, vt.finished, vt.updateCallbackDone].forEach(function (p) { if (p) p.catch(function () {}); });
-    });
-  });
-
   // ---- Page transition fallback (browsers without cross-document View Transitions) ----
   (function () {
     if ('startViewTransition' in document) return; // native VT handles it via CSS
@@ -1588,8 +1580,8 @@
         }
       });
     });
-    // once something is typed or picked, leaving (reload, closing the tab, a link) asks first; nothing is
-    // kept, it only stops a slip. Cleared once the application is in.
+    // once something is typed or picked, closing the tab asks first. Moving around the site never does:
+    // a draft is kept for the tab instead (see below). Cleared once the application is in.
     var unsaved = function (on) {
       if (on) document.documentElement.setAttribute('data-unsaved', ''); else document.documentElement.removeAttribute('data-unsaved');
     };
@@ -1713,13 +1705,56 @@
 
     // portfolio links: up to 5 fields
     var linksBox = apply.querySelector('[data-links]'), addLink = apply.querySelector('[data-add-link]');
-    addLink.addEventListener('click', function () {
+    var newLink = function () {
       var n = linksBox.querySelectorAll('input').length;
-      if (n >= 5) return;
+      if (n >= 5) return null;
       var i = document.createElement('input'); i.type = 'url'; i.name = 'link'; i.placeholder = 'https://'; i.maxLength = 500; i.setAttribute('aria-label', 'Portfolio link ' + (n + 1));
-      linksBox.appendChild(i); i.focus();
+      linksBox.appendChild(i);
       if (n + 1 >= 5) addLink.hidden = true;
-    });
+      return i;
+    };
+    addLink.addEventListener('click', function () { var i = newLink(); if (i) i.focus(); });
+
+    // draft: what's typed and picked is kept for this tab, so someone can look around the site and come
+    // back to the form as they left it. Files can't be kept; they're picked again.
+    var DRAFT = 'ccc-apply-draft', NOT_KEPT = { files: 1, website: 1, link: 1, consent: 1, track: 1, entity_type: 1 };
+    var saveDraft = function () {
+      var d = { track: track, entity: entity, skills: Object.keys(picked), fields: {}, links: [] };
+      apply.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (el) {
+        if (!NOT_KEPT[el.name]) d.fields[el.name] = el.value;
+      });
+      linksBox.querySelectorAll('input').forEach(function (i) { if (i.value.trim()) d.links.push(i.value); });
+      try { sessionStorage.setItem(DRAFT, JSON.stringify(d)); } catch (e) {}
+    };
+    var draft = null;
+    try { draft = JSON.parse(sessionStorage.getItem(DRAFT) || 'null'); } catch (e) {}
+    if (draft && draft.track) {
+      if (!qs.get('track') && !wantJob) setTrack(draft.track);
+      var eb = apply.querySelector('[data-choice="entity_type"] [data-value="' + draft.entity + '"]'); if (eb) eb.click();
+      Object.keys(draft.fields || {}).forEach(function (n) {
+        var el = apply.querySelector('[name="' + n + '"]');
+        if (el && n !== 'job_id') el.value = draft.fields[n];
+      });
+      if (!wantJob && draft.fields && draft.fields.job_id) wantJob = draft.fields.job_id; // the roles menu fills in later
+      (draft.links || []).forEach(function (l, k) {
+        var i = k === 0 ? linksBox.querySelector('input') : newLink();
+        if (i) i.value = l;
+      });
+      (draft.skills || []).forEach(function (slug) {
+        var b = skillsBox.querySelector('[data-skill="' + slug + '"]');
+        if (b && !b.hidden) { b.setAttribute('aria-pressed', 'true'); picked[slug] = true; }
+      });
+      summarise();
+      unsaved(true);
+    }
+    apply.addEventListener('input', saveDraft);
+    apply.addEventListener('change', saveDraft);
+    apply.addEventListener('click', function (e) { if (e.target.closest('[data-choice] button, button[data-skill]')) saveDraft(); });
+    // a link to another page of the site: the draft is kept, so no "leave site?" question
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (a && a.host === location.host && a.pathname !== location.pathname && a.target !== '_blank') unsaved(false);
+    }, true);
 
     // files: up to 3, 20 MB each, PDF or images
     var MAX = 20 * 1024 * 1024, TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -1802,6 +1837,7 @@
       var network = track === 'collaborator';
       var finish = function () {
         unsaved(false);
+        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
         var html = network
           ? '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">We’ll keep your work on file.</span></h3><p class="detail">We’ll reach out when a project fits.</p></div>'
           : '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">Your application is in.</span></h3><p class="detail">We’ll be in touch if there’s a role that fits.</p></div>';
