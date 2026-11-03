@@ -1868,7 +1868,7 @@
         });
       }).then(finish).catch(function (err) {
         say(err && err.code === '54000'
-          ? 'We’ve already received a few applications from this email in the last hour. Please try again later.'
+          ? 'We can’t take another application right now. Please try again in an hour, or email us at hello@creativeclubcult.com.'
           : err && err.code === '22023'
           ? 'Some details are missing. Please check the form and try again.'
           : 'Something went wrong and your application wasn’t sent. Please try again, or email us at hello@creativeclubcult.com.', true);
