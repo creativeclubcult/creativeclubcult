@@ -1259,10 +1259,80 @@
     });
   })();
 
+  // ---- Leaving a half-filled form (contact, careers) ----
+  // Once something is typed or picked, a link or the reload keys ask in the page first; the browser asks by
+  // itself for its reload and back buttons and for closing the tab. Leaving clears the form (clear()).
+  // Returns the switch the form flips: on for picks that aren't typing, off once it's sent.
+  function guardForm(f, label, clear) {
+    var root = document.documentElement;
+    var dirty = function (on) { if (on) root.setAttribute('data-unsaved', ''); else root.removeAttribute('data-unsaved'); };
+    f.addEventListener('input', function () { dirty(true); });
+    f.addEventListener('change', function () { dirty(true); });
+    window.addEventListener('beforeunload', function (e) {
+      if (!root.hasAttribute('data-unsaved')) return;
+      e.preventDefault(); e.returnValue = '';
+    });
+    var ask = document.createElement('dialog');
+    ask.className = 'leave-ask';
+    ask.setAttribute('aria-labelledby', 'leave-ask-title');
+    ask.innerHTML = '<p class="eyebrow"></p>'
+      + '<h2 class="heading-sm" id="leave-ask-title">You haven\u2019t finished yet.</h2>'
+      + '<p class="leave-ask-text">If you leave now, what you\u2019ve filled in will be cleared.</p>'
+      + '<div class="leave-ask-actions"><button class="btn" type="button" data-stay>Keep filling</button>'
+      + '<button class="btn ghost" type="button" data-go>Leave and clear</button></div>';
+    ask.querySelector('.eyebrow').textContent = label;
+    document.body.appendChild(ask);
+    var then = null;
+    var wipe = function () { clear(); dirty(false); };
+    // (clicks outside it do nothing, so a burst of clicks on the menu can't flicker it; Esc or a button closes it)
+    var askFirst = function (go) {
+      then = go; // a later click replaces an earlier one
+      if (root.classList.contains('menu-open')) { var mb = document.querySelector('.menu-btn'); if (mb) mb.click(); }
+      if (!ask.open) ask.showModal();
+      ask.querySelector('[data-stay]').focus();
+    };
+    ask.querySelector('[data-stay]').addEventListener('click', function () { ask.close(); });
+    ask.querySelector('[data-go]').addEventListener('click', function () {
+      var go = then; ask.close(); wipe();
+      if (go) go();
+    });
+    ask.addEventListener('close', function () { then = null; });
+    var samePage = function (a) {
+      var path = function (p) { return p.replace(/\.html$/, '').replace(/\/(index)?$/, ''); };
+      return a.host === location.host && path(a.pathname) === path(location.pathname) && a.search === location.search && !!a.hash;
+    };
+    window.addEventListener('click', function (e) {
+      if (!root.hasAttribute('data-unsaved')) return;
+      if (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // a new tab: this one stays
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a || a.target === '_blank' || a.hasAttribute('download') || !/^https?:$/.test(a.protocol) || samePage(a)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      askFirst(function () { a.click(); });
+    }, true);
+    document.addEventListener('keydown', function (e) {
+      if (!root.hasAttribute('data-unsaved')) return;
+      var k = (e.key || '').toLowerCase();
+      if (k === 'f5' || ((e.metaKey || e.ctrlKey) && k === 'r')) { e.preventDefault(); askFirst(function () { location.reload(); }); }
+    });
+    // back here from the back/forward cache after leaving: the form starts over
+    window.addEventListener('pageshow', function (e) { if (e.persisted) { if (ask.open) ask.close(); wipe(); } });
+    return dirty;
+  }
+
   // ---- Contact form ----
   var form = document.querySelector('form.inquiry:not(.apply)');
   if (form) {
     var typeRow = form.querySelector('.type-row');
+    // empty, with the first kind of message picked (reset leaves the hidden field as it was)
+    var clearForm = function () {
+      form.reset();
+      var first = typeRow && typeRow.querySelector('button');
+      if (typeRow) typeRow.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === first ? 'true' : 'false'); });
+      var hid = form.querySelector('input[name="inquiryType"]');
+      if (hid && first) hid.value = first.textContent.trim();
+    };
+    clearForm(); // every visit starts empty (some browsers refill fields after a reload)
+    var written = guardForm(form, 'Your message', function () { clearForm(); form.querySelector('.form-status').textContent = ''; });
     if (typeRow) {
       typeRow.addEventListener('click', function (e) {
         var b = e.target.closest('button');
@@ -1291,8 +1361,8 @@
       }
       var done = function () {
         say("Thanks, we've received your note and will be in touch soon.");
-        form.reset();
-        if (typeRow) { typeRow.querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); }
+        clearForm();
+        written(false);
       };
       if (val('website')) { done(); return; } // the spam trap was filled in: look sent, send nothing
       sending = true; submit.disabled = true; form.classList.add('is-sending');
@@ -1580,18 +1650,12 @@
         }
       });
     });
-    // once something is typed or picked, closing the tab asks first. Moving around the site never does:
-    // a draft is kept for the tab instead (see below). Cleared once the application is in.
-    var unsaved = function (on) {
-      if (on) document.documentElement.setAttribute('data-unsaved', ''); else document.documentElement.removeAttribute('data-unsaved');
-    };
-    apply.addEventListener('input', function () { unsaved(true); });
-    apply.addEventListener('change', function () { unsaved(true); });
-    window.addEventListener('beforeunload', function (e) {
-      if (!document.documentElement.hasAttribute('data-unsaved')) return;
-      e.preventDefault(); e.returnValue = '';
-    });
+    // once something is typed or picked, leaving asks first (guardForm). Cleared once the application is in.
+    var unsaved = guardForm(apply, 'Your application', function () { resetForm(); });
     var setTrack = function (t) { var b = apply.querySelector('[data-choice="track"] [data-value="' + t + '"]'); if (b) b.click(); };
+    apply.reset(); // every visit starts empty (some browsers refill fields after a reload)
+    apply.querySelector('input[name="track"]').value = '';
+    apply.querySelector('input[name="entity_type"]').value = 'individual';
     sync();
     // coming from a careers page or a role: careers.html?track=internship&job=<id>#apply
     var qs = new URLSearchParams(location.search), wantJob = qs.get('job');
@@ -1715,46 +1779,6 @@
     };
     addLink.addEventListener('click', function () { var i = newLink(); if (i) i.focus(); });
 
-    // draft: what's typed and picked is kept for this tab, so someone can look around the site and come
-    // back to the form as they left it. Files can't be kept; they're picked again.
-    var DRAFT = 'ccc-apply-draft', NOT_KEPT = { files: 1, website: 1, link: 1, consent: 1, track: 1, entity_type: 1 };
-    var saveDraft = function () {
-      var d = { track: track, entity: entity, skills: Object.keys(picked), fields: {}, links: [] };
-      apply.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (el) {
-        if (!NOT_KEPT[el.name]) d.fields[el.name] = el.value;
-      });
-      linksBox.querySelectorAll('input').forEach(function (i) { if (i.value.trim()) d.links.push(i.value); });
-      try { sessionStorage.setItem(DRAFT, JSON.stringify(d)); } catch (e) {}
-    };
-    var draft = null;
-    try { draft = JSON.parse(sessionStorage.getItem(DRAFT) || 'null'); } catch (e) {}
-    if (draft && draft.track) {
-      if (!qs.get('track') && !wantJob) setTrack(draft.track);
-      var eb = apply.querySelector('[data-choice="entity_type"] [data-value="' + draft.entity + '"]'); if (eb) eb.click();
-      Object.keys(draft.fields || {}).forEach(function (n) {
-        var el = apply.querySelector('[name="' + n + '"]');
-        if (el && n !== 'job_id') el.value = draft.fields[n];
-      });
-      if (!wantJob && draft.fields && draft.fields.job_id) wantJob = draft.fields.job_id; // the roles menu fills in later
-      (draft.links || []).forEach(function (l, k) {
-        var i = k === 0 ? linksBox.querySelector('input') : newLink();
-        if (i) i.value = l;
-      });
-      (draft.skills || []).forEach(function (slug) {
-        var b = skillsBox.querySelector('[data-skill="' + slug + '"]');
-        if (b && !b.hidden) { b.setAttribute('aria-pressed', 'true'); picked[slug] = true; }
-      });
-      summarise();
-      unsaved(true);
-    }
-    apply.addEventListener('input', saveDraft);
-    apply.addEventListener('change', saveDraft);
-    apply.addEventListener('click', function (e) { if (e.target.closest('[data-choice] button, button[data-skill]')) saveDraft(); });
-    // a link to another page of the site: the draft is kept, so no "leave site?" question
-    document.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('a[href]');
-      if (a && a.host === location.host && a.pathname !== location.pathname && a.target !== '_blank') unsaved(false);
-    }, true);
 
     // files: up to 3, 20 MB each, PDF or images
     var MAX = 20 * 1024 * 1024, TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -1782,6 +1806,29 @@
       var b = e.target.closest('[data-remove]'); if (!b) return;
       files.splice(+b.getAttribute('data-remove'), 1); drawFiles();
     });
+
+    // back to an empty form, as on arrival
+    var resetForm = function () {
+      apply.reset();
+      track = ''; entity = 'individual';
+      apply.querySelector('input[name="track"]').value = ''; // (reset leaves hidden fields as they were)
+      apply.querySelector('input[name="entity_type"]').value = 'individual';
+      apply.removeAttribute('data-track');
+      apply.querySelectorAll('[data-choice] button').forEach(function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-value') === 'individual' ? 'true' : 'false');
+      });
+      Object.keys(picked).forEach(function (k) { delete picked[k]; });
+      skillsBox.querySelectorAll('[data-skill]').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      linksBox.querySelectorAll('input').forEach(function (i, k) { if (k) i.remove(); });
+      addLink.hidden = false;
+      files = []; drawFiles();
+      apply.querySelectorAll('.is-invalid').forEach(function (f) { f.classList.remove('is-invalid'); });
+      say('');
+      sync(); fitSkills();
+      unsaved(false);
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+    };
+
 
     var uuid = function () {
       if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -1837,7 +1884,6 @@
       var network = track === 'collaborator';
       var finish = function () {
         unsaved(false);
-        try { sessionStorage.removeItem(DRAFT); } catch (e) {}
         var html = network
           ? '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">We’ll keep your work on file.</span></h3><p class="detail">We’ll reach out when a project fits.</p></div>'
           : '<div class="apply-done"><h3 class="heading-sm">Thank you. <span class="dim">Your application is in.</span></h3><p class="detail">We’ll be in touch if there’s a role that fits.</p></div>';

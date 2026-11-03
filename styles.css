@@ -1129,6 +1129,24 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 body.has-cursor, body.has-cursor * { cursor: none !important; }
 @media (hover: none), (pointer: coarse) { .cursor { display: none !important; } }
 
+/* ---------- Leaving a half-filled careers form (app.js) ---------- */
+.leave-ask {
+  width: min(460px, calc(100vw - 32px)); max-width: none; margin: auto;
+  padding: clamp(24px, 3vw, 36px); border: 1px solid var(--line);
+  background: var(--bg-soft); color: var(--ink);
+}
+.leave-ask::backdrop { background: rgba(2, 3, 6, 0.72); }
+.leave-ask .heading-sm { margin-top: 12px; }
+.leave-ask-text { margin-top: 12px; font-size: var(--t-body); line-height: 1.5; color: var(--graphite); }
+.leave-ask-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+body.has-cursor .leave-ask, body.has-cursor .leave-ask * { cursor: auto !important; }
+body.has-cursor .leave-ask button { cursor: pointer !important; }
+.leave-ask[open] { animation: leave-ask-in .3s cubic-bezier(.2, .8, .2, 1) both; }
+.leave-ask[open]::backdrop { animation: leave-ask-fade .3s ease both; }
+@keyframes leave-ask-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes leave-ask-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .leave-ask[open], .leave-ask[open]::backdrop { animation: none; } }
+
 /* ---------- Page transitions ---------- */
 @view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: pt-out .34s ease both; }
