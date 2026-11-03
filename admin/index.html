@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
-  <!-- the admin only talks to Supabase; nothing else may run or load here -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://zneckeqsvwbavqxpolri.supabase.co wss://zneckeqsvwbavqxpolri.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <!-- the admin only talks to Supabase (live, or the development copy on a local preview); nothing else may run or load here -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://zneckeqsvwbavqxpolri.supabase.co https://jvhhcehzhgpcphtpynnx.supabase.co; font-src 'self'; connect-src 'self' https://zneckeqsvwbavqxpolri.supabase.co wss://zneckeqsvwbavqxpolri.supabase.co https://jvhhcehzhgpcphtpynnx.supabase.co wss://jvhhcehzhgpcphtpynnx.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <title>Admin · CCC</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preload" href="/fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
@@ -16,7 +16,7 @@
   <!-- Signed out: sign in, or set a new password from a reset link -->
   <main class="adm-gate" data-view="login" hidden>
     <form class="adm-card" data-form="login" novalidate>
-      <p class="eyebrow">Creative Club Cult</p>
+      <p class="eyebrow">Creative Club Cult <span class="adm-env" data-env hidden>Development</span></p>
       <h1 class="heading-sm">Admin</h1>
       <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" name="email" autocomplete="username" required /></div>
       <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" name="password" autocomplete="current-password" required /></div>
@@ -47,90 +47,185 @@
 
   <!-- Signed in, on the team -->
   <div class="adm-app" data-view="app" hidden>
-    <header class="adm-top">
-      <a class="adm-brand" href="#applicants">CCC Admin</a>
-      <nav class="adm-tabs" aria-label="Sections">
-        <a href="#applicants" data-tab="applicants">Applicants</a>
-        <a href="#network" data-tab="network">Network</a>
-        <a href="#inquiries" data-tab="inquiries">Inquiries</a>
-        <a href="#jobs" data-tab="jobs">Roles</a>
-        <a href="#team" data-tab="team">Team</a>
+    <aside class="adm-side" id="adm-side" data-side>
+      <div class="adm-side-top">
+        <a class="adm-brand" href="#overview">CCC Admin</a>
+        <span class="adm-env" data-env hidden>Development</span>
+      </div>
+      <nav class="adm-nav" aria-label="Admin">
+        <a href="#overview" data-tab="overview">Overview</a>
+        <a href="#portfolio" data-tab="portfolio">Website &amp; Portfolio</a>
+        <a href="#inquiries" data-tab="inquiries">Leads &amp; Clients <span class="adm-badge" data-badge="inquiries" hidden></span></a>
+        <a href="#projects" data-tab="projects" class="is-soon">Projects <span class="adm-soon">Soon</span></a>
+        <a href="#finance" data-tab="finance" class="is-soon">Finance <span class="adm-soon">Soon</span></a>
+        <p class="adm-nav-group">Crew &amp; Vendors</p>
+        <a href="#applicants" data-tab="applicants" class="is-sub">Applicants <span class="adm-badge" data-badge="applicants" hidden></span></a>
+        <a href="#network" data-tab="network" class="is-sub">Creative network <span class="adm-badge" data-badge="network" hidden></span></a>
+        <a href="#jobs" data-tab="jobs" class="is-sub">Open roles</a>
+        <a href="#documents" data-tab="documents" class="is-soon">Documents <span class="adm-soon">Soon</span></a>
+        <a href="#reports" data-tab="reports" class="is-soon">Reports <span class="adm-soon">Soon</span></a>
+        <a href="#team" data-tab="team">Settings</a>
       </nav>
-      <div class="adm-me"><span data-me-email></span> <span class="adm-role" data-me-role></span> <button class="adm-link" type="button" data-action="signout">Sign out</button></div>
-    </header>
-
-    <section class="adm-panel" data-panel="applicants" hidden>
-      <div class="adm-bar">
-        <input type="search" placeholder="Search name, email, city" data-filter="q" />
-        <select data-filter="track"><option value="">All tracks</option><option value="team">Team</option><option value="internship">Internship</option></select>
-        <select data-filter="status"><option value="">Any status</option></select>
-        <select data-filter="skill"><option value="">Any craft</option></select>
-        <span class="adm-count" data-count></span>
-        <button class="btn ghost" type="button" data-action="export">Export CSV</button>
+      <div class="adm-me">
+        <span class="adm-me-mail" data-me-email></span>
+        <span class="adm-role" data-me-role></span>
+        <button class="adm-link" type="button" data-action="signout">Sign out</button>
       </div>
-      <div class="adm-table-wrap"><table class="adm-table">
-        <thead><tr><th>Date</th><th>Name</th><th>Track</th><th>Craft</th><th>City</th><th>Status</th><th>Rating</th></tr></thead>
-        <tbody data-rows></tbody>
-      </table></div>
-      <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
-    </section>
+    </aside>
+    <div class="adm-scrim adm-side-scrim" data-side-scrim hidden></div>
 
-    <section class="adm-panel" data-panel="network" hidden>
-      <div class="adm-bar">
-        <input type="search" placeholder="Search name, email, city, company" data-filter="q" />
-        <select data-filter="entity_type"><option value="">Everyone</option><option value="individual">Individuals</option><option value="company">Companies</option></select>
-        <select data-filter="status"><option value="">Any status</option></select>
-        <select data-filter="skill"><option value="">Any craft</option></select>
-        <span class="adm-count" data-count></span>
-        <button class="btn ghost" type="button" data-action="export">Export CSV</button>
-      </div>
-      <div class="adm-table-wrap"><table class="adm-table">
-        <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>Craft</th><th>City</th><th>Status</th><th>Rating</th></tr></thead>
-        <tbody data-rows></tbody>
-      </table></div>
-      <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
-    </section>
+    <div class="adm-main">
+      <p class="adm-devbar" data-env hidden>Development database (ccc-website-dev). Test data only; nothing here reaches the live site.</p>
+      <header class="adm-head">
+        <button class="adm-menu" type="button" aria-controls="adm-side" aria-expanded="false" data-action="menu">Menu</button>
+        <div class="adm-head-text">
+          <h1 class="adm-title" data-page-title>Overview</h1>
+          <p class="adm-sub" data-page-sub></p>
+        </div>
+        <div class="adm-head-actions" data-page-actions></div>
+      </header>
 
-    <section class="adm-panel" data-panel="inquiries" hidden>
-      <div class="adm-bar">
-        <select data-filter="status"><option value="">Any status</option><option>new</option><option>replied</option><option>in progress</option><option>won</option><option>lost</option><option>spam</option></select>
-        <span class="adm-count" data-count></span>
-      </div>
-      <div class="adm-table-wrap"><table class="adm-table">
-        <thead><tr><th>Date</th><th>Name</th><th>Company</th><th>About</th><th>Budget</th><th>Status</th></tr></thead>
-        <tbody data-rows></tbody>
-      </table></div>
-    </section>
+      <section class="adm-panel" data-panel="overview" hidden>
+        <div class="ov-cards" data-ov-cards></div>
+        <div class="ov-grid">
+          <section class="ov-box">
+            <h2 class="ov-h">Needs attention</h2>
+            <ul class="ov-list" data-ov-attention><li class="ov-wait">Loading…</li></ul>
+          </section>
+          <section class="ov-box">
+            <h2 class="ov-h">Recent activity</h2>
+            <ul class="ov-list" data-ov-activity><li class="ov-wait">Loading…</li></ul>
+          </section>
+          <section class="ov-box ov-wide">
+            <h2 class="ov-h">Active projects</h2>
+            <div class="adm-table-wrap"><table class="adm-table">
+              <thead><tr><th>Project</th><th>Client</th><th>Stage</th><th>PIC</th><th>Deadline</th><th>Next action</th></tr></thead>
+              <tbody><tr class="empty"><td colspan="6">Projects aren&rsquo;t tracked in the admin yet. This list fills in once the Projects module is built.</td></tr></tbody>
+            </table></div>
+          </section>
+          <section class="ov-box">
+            <h2 class="ov-h">Integrations</h2>
+            <div data-integrations><p class="ov-wait">Checking…</p></div>
+          </section>
+        </div>
+      </section>
 
-    <section class="adm-panel" data-panel="jobs" hidden>
-      <div class="adm-bar">
-        <span class="adm-count" data-count></span>
-        <button class="btn" type="button" data-action="new-job" data-edit-only>New role</button>
-      </div>
-      <div class="adm-table-wrap"><table class="adm-table">
-        <thead><tr><th>Role</th><th>Track</th><th>Section</th><th>Type</th><th>Location</th><th>On the site</th></tr></thead>
-        <tbody data-rows></tbody>
-      </table></div>
-    </section>
+      <section class="adm-panel" data-panel="portfolio" hidden>
+        <div class="adm-bar">
+          <input type="search" placeholder="Search title, client, slug" data-pf-filter="q" aria-label="Search portfolio" />
+          <select data-pf-filter="status" aria-label="Status">
+            <option value="active">Draft &amp; published</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+            <option value="">Everything</option>
+          </select>
+          <span class="adm-count" data-count></span>
+        </div>
+        <div class="adm-table-wrap"><table class="adm-table pf-table">
+          <thead><tr><th><span class="sr">Cover</span></th><th>Project</th><th>Client</th><th>Year</th><th>Status</th><th>Order</th><th>Updated</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+        <section class="pf-builtin">
+          <h2 class="ov-h">Built into the site</h2>
+          <p class="adm-note">These four pages are part of the site&rsquo;s code, so they can&rsquo;t be edited here. Ask the developer for changes.</p>
+          <ul class="pf-builtin-list" data-pf-builtin></ul>
+        </section>
+      </section>
 
-    <section class="adm-panel" data-panel="team" hidden>
-      <div class="adm-bar" data-owner-only hidden>
-        <span class="adm-count">Backup: every record in one file. Uploaded files stay in Supabase.</span>
-        <button class="btn ghost" type="button" data-action="backup">Download backup</button>
-      </div>
-      <div class="adm-table-wrap"><table class="adm-table">
-        <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Since</th></tr></thead>
-        <tbody data-rows></tbody>
-      </table></div>
-      <p class="adm-note">Owners and admins can edit; viewers can only read. New team members are added in Supabase for now.</p>
-    </section>
+      <section class="adm-panel" data-panel="applicants" hidden>
+        <div class="adm-bar">
+          <input type="search" placeholder="Search name, email, city" data-filter="q" aria-label="Search applicants" />
+          <select data-filter="track" aria-label="Track"><option value="">All tracks</option><option value="team">Team</option><option value="internship">Internship</option></select>
+          <select data-filter="status" aria-label="Status"><option value="">Any status</option></select>
+          <select data-filter="skill" aria-label="Craft"><option value="">Any craft</option></select>
+          <span class="adm-count" data-count></span>
+          <button class="btn ghost" type="button" data-action="export">Export CSV</button>
+        </div>
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>Date</th><th>Name</th><th>Track</th><th>Craft</th><th>City</th><th>Status</th><th>Rating</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+        <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
+      </section>
 
-    <aside class="adm-drawer" data-drawer hidden>
+      <section class="adm-panel" data-panel="network" hidden>
+        <div class="adm-bar">
+          <input type="search" placeholder="Search name, email, city, company" data-filter="q" aria-label="Search network" />
+          <select data-filter="entity_type" aria-label="Type"><option value="">Everyone</option><option value="individual">Individuals</option><option value="company">Companies</option></select>
+          <select data-filter="status" aria-label="Status"><option value="">Any status</option></select>
+          <select data-filter="skill" aria-label="Craft"><option value="">Any craft</option></select>
+          <span class="adm-count" data-count></span>
+          <button class="btn ghost" type="button" data-action="export">Export CSV</button>
+        </div>
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>Craft</th><th>City</th><th>Status</th><th>Rating</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+        <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
+      </section>
+
+      <section class="adm-panel" data-panel="inquiries" hidden>
+        <div class="adm-bar">
+          <select data-filter="status" aria-label="Status"><option value="">Any status</option><option>new</option><option>replied</option><option>in progress</option><option>won</option><option>lost</option><option>spam</option></select>
+          <span class="adm-count" data-count></span>
+        </div>
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>Date</th><th>Name</th><th>Company</th><th>About</th><th>Budget</th><th>Status</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+      </section>
+
+      <section class="adm-panel" data-panel="jobs" hidden>
+        <div class="adm-bar">
+          <span class="adm-count" data-count></span>
+        </div>
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>Role</th><th>Track</th><th>Section</th><th>Type</th><th>Location</th><th>On the site</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+      </section>
+
+      <section class="adm-panel" data-panel="team" hidden>
+        <h2 class="ov-h">Team</h2>
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Since</th></tr></thead>
+          <tbody data-rows></tbody>
+        </table></div>
+        <p class="adm-note">Owners and admins can edit; viewers can only read. New team members are added in Supabase for now.</p>
+        <div class="set-block" data-owner-only hidden>
+          <h2 class="ov-h">Backup</h2>
+          <div class="adm-bar">
+            <span class="adm-count">Every record in one file. Uploaded files stay in Supabase.</span>
+            <button class="btn ghost" type="button" data-action="backup">Download backup</button>
+          </div>
+        </div>
+        <div class="set-block">
+          <h2 class="ov-h">Integrations</h2>
+          <div data-integrations><p class="ov-wait">Checking…</p></div>
+        </div>
+      </section>
+
+      <section class="adm-panel adm-soon-panel" data-panel="soon" hidden>
+        <p class="adm-soon-text" data-soon-text></p>
+      </section>
+    </div>
+
+    <aside class="adm-drawer" data-drawer hidden aria-modal="true" role="dialog" aria-label="Details">
       <button class="adm-close" type="button" data-action="close" aria-label="Close">×</button>
       <div class="adm-drawer-body" data-drawer-body></div>
     </aside>
     <div class="adm-scrim" data-scrim hidden></div>
   </div>
+
+  <dialog class="adm-ask" data-ask aria-labelledby="adm-ask-title">
+    <h2 class="adm-ask-title" id="adm-ask-title" data-ask-title></h2>
+    <p class="adm-ask-text" data-ask-text></p>
+    <div class="adm-ask-actions">
+      <button class="btn" type="button" data-ask-ok></button>
+      <button class="btn ghost" type="button" data-ask-cancel>Cancel</button>
+    </div>
+  </dialog>
 
   <p class="adm-toast" data-toast role="status" aria-live="polite" hidden></p>
 

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <base href="../" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Work · Creative Club Cult</title>
+  <meta name="description" content="A project by Creative Club Cult." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Creative Club Cult" />
+  <meta property="og:title" content="Work · Creative Club Cult" />
+  <meta property="og:description" content="A project by Creative Club Cult." />
+  <meta property="og:url" content="https://creativeclubcult.com/work/view" />
+  <meta property="og:image" content="https://creativeclubcult.com/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+  <meta name="theme-color" content="#05070C" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    ['pageswap', 'pagereveal'].forEach(function (t) {
+      addEventListener(t, function (e) {
+        var v = e.viewTransition; if (!v) return;
+        [v.ready, v.finished, v.updateCallbackDone].forEach(function (p) { p.catch(function () {}); });
+        if (t !== 'pagereveal') return;
+        var pass = function (c) {
+          if (c.target !== document.documentElement) return;
+          var x = c.clientX, y = c.clientY;
+          v.skipTransition();
+          v.finished.catch(function () {}).then(function () {
+            requestAnimationFrame(function () {
+              var a = document.elementFromPoint(x, y); a = a && a.closest('a[href]');
+              if (a) a.click();
+            });
+          });
+        };
+        document.addEventListener('click', pass, true);
+        v.finished.catch(function () {}).then(function () { document.removeEventListener('click', pass, true); });
+      });
+    });
+  </script>
+  <script>try{if(sessionStorage.getItem('ccc-zoom')){sessionStorage.removeItem('ccc-zoom');document.documentElement.classList.add('from-zoom')}}catch(e){}</script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Creative Club Cult<sup>©</sup></a>
+    <nav class="nav-links" aria-label="Main"><a href="work.html" aria-current="page">Work</a><a href="ccc.html">CCC</a><a href="journal.html">Journal</a><a href="careers.html" class="nav-careers">Careers</a></nav>
+    <a href="contact.html" class="nav-contact">Contact</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu">Menu</button>
+  </header>
+
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-links" aria-label="Menu">
+      <a href="work.html" aria-current="page">Work</a>
+      <a href="ccc.html">CCC</a>
+      <a href="journal.html">Journal</a>
+      <a href="careers.html">Careers <span class="menu-tag">Join the Cult</span></a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="menu-foot">
+      <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a>
+      <a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a>
+      <span>Indonesia</span>
+    </div>
+  </div>
+
+  <div id="smooth-wrapper"><div id="smooth-content">
+  <main>
+    <section class="pstory" data-pf-story>
+      <div class="pstory-bg" aria-hidden="true"><img alt="" fetchpriority="high" data-pf-hero /><span class="pstory-shade"></span></div>
+
+      <div class="pstory-hero wrap">
+        <h1 class="ptitle" data-pf-title></h1>
+        <div class="pmeta">
+          <span data-pf-tags></span>
+          <span data-pf-year></span>
+        </div>
+      </div>
+
+      <div class="pstory-body wrap">
+        <div class="pdesc" data-pf-desc>
+          <dl class="pfacts" data-pf-facts></dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="pgallery wrap" data-pf-gallery></section>
+  </main>
+
+  <nav class="pnav wrap" data-pf-static='[[&quot;MOVANA&quot;, &quot;work/movana.html&quot;, &quot;images/projects/movana/thumb.jpg&quot;], [&quot;Whitebeard&quot;, &quot;work/whitebeard.html&quot;, &quot;images/projects/whitebeard/tshirt.jpg&quot;], [&quot;NOXON&quot;, &quot;work/noxon.html&quot;, &quot;images/projects/noxon/thumb.jpg&quot;], [&quot;Citarasa Tradisi&quot;, &quot;work/tradisi.html&quot;, &quot;images/projects/tradisi/lychee-poster.jpg&quot;]]' aria-label="More projects">
+    <a class="pnav-prev" href="work/tradisi.html" data-preview="images/projects/tradisi/lychee-poster.jpg"><span>Prev:</span><u>Citarasa Tradisi</u></a>
+    <a class="pnav-next" href="work/movana.html" data-preview="images/projects/movana/thumb.jpg"><span>Next:</span><u>MOVANA</u></a>
+  </nav>
+  <footer class="bigfoot wrap">
+    <p class="bigmark" aria-label="Creative Club Cult">Creative Club Cult<sup>©</sup></p>
+    <div class="bigfoot-row">
+      <span>© 2026 · <a href="careers.html">Careers</a> · <a href="privacy.html">Privacy</a></span>
+      <span><a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a><br /><a href="https://instagram.com/creativeclubcult" target="_blank" rel="noopener">Instagram ↗</a></span>
+      <span>Indonesia</span>
+    </div>
+  </footer>
+  </div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" integrity="sha384-HOvlOYPIs/zjoIkWUGXkVmXsjr8GuZLV+Q+rcPwmJOVZVpvTSXQChiN4t9Euv9Vc" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" integrity="sha384-P8VzCVnT9NBUkMrpcIZrJbA7EBjJvh/fJS6PmP+4nLIM284DtsImIv8D0fFjIkeh" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollSmoother.min.js" integrity="sha384-dd8lT3AimXbI347qlZzlijPa4qnSlgGxuTqK2HlcfvF5+aOIeddPdMFmFpypQPZN" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js" integrity="sha384-JCMGAgtMgo/19ttIm8BSnUFxOA5KAxaKT7jZdTDtaL0df8+CHKRo9XFCmhsvUlXG" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js" integrity="sha384-lg3+EgIwmxYq9YD4ix279pdUEasqmOS17fF+2mI/NEg6JHkawYaWYpJ6nKZenPOy" crossorigin="anonymous"></script>
+  <script src="portfolio.js"></script>
+  <script>
+    // Vercel Web Analytics: cookieless visit counts, only on the live site
+    if (/creativeclubcult\.com$/.test(location.hostname)) {
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      var va = document.createElement('script'); va.defer = true; va.src = '/_vercel/insights/script.js'; document.head.appendChild(va);
+    }
+  </script>
+</body>
+</html>
