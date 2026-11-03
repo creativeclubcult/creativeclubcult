@@ -1,0 +1,21 @@
+# Supabase's free plan pauses a project after about a week without traffic.
+# This reads one row through the public API every three days so ccc-website stays awake.
+# (Scheduled workflows only run from the default branch, so this file lives on main.)
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one row
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://zneckeqsvwbavqxpolri.supabase.co/rest/v1/jobs?select=id&limit=1" \
+            -H "apikey: sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU")
+          echo "status $code"
+          test "$code" = "200"
