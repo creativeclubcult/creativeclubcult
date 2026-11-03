@@ -311,6 +311,8 @@ html.is-loading .site-header > * { opacity: 0; }
 .h-strip-item { flex: none; width: clamp(140px, 12vw, 220px); }
 .h-strip .slot { width: 100%; aspect-ratio: 4 / 3; }
 .h-strip-item.tall .slot { aspect-ratio: 3 / 4; }
+.h-strip-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.h-strip-item.tall img { aspect-ratio: 3 / 4; }
 
 /* Light sections (turn dark when Contact arrives) */
 .on-light { position: relative; z-index: 1; background: var(--ink); color: #020202; }
@@ -552,6 +554,9 @@ a.card:hover h3 { color: var(--steel); }
   clip-path: inset(100% 0 0 0);
   transition: clip-path .5s cubic-bezier(.65,0,.25,1);
 }
+.entry .thumbs i { background: var(--pic, none) 0% 50% / 300% auto no-repeat, var(--media); }
+.entry .thumbs i:nth-child(2) { background-position: 50% 50%; }
+.entry .thumbs i:nth-child(3) { background-position: 100% 50%; }
 .entry .thumbs i:nth-child(2) { transition-delay: .06s; }
 .entry .thumbs i:nth-child(3) { transition-delay: .12s; }
 .entry .go { justify-self: end; font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 1px solid currentColor; opacity: 0; transition: opacity .3s ease; }
@@ -591,6 +596,9 @@ body.is-light .jl-item, body.is-light .jl-tile-media { --ink: #EAEDF1; color: #E
 body.is-light .jl-item .slot, body.is-light .jl-tile-media .slot {
   background: var(--media); border-color: rgba(234, 237, 241, 0.16); color: rgba(234, 237, 241, 0.5);
 }
+/* "All entries" card under an article: black on the light page so its words read */
+body.is-light .card.tint { background: #020202; color: #EAEDF1; }
+body.is-light .card.tint .eyebrow { color: rgba(234, 237, 241, 0.55); }
 
 /* Journal index (accordion.net.au/work-style): filters + List/Grid switch held at the left, tall entry
    cards down the centre, a travelling strip of thumbnails at the right. Grid view: square tiles. */
