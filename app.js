@@ -1633,7 +1633,8 @@
       team: ['creative-direction', 'art-direction', 'film-direction', 'strategy', 'copywriting',
         'photography', 'videography', 'cinematography', 'producer', 'production-management',
         'editing', 'colour-grading', 'motion-design', 'vfx-cgi',
-        'graphic-design', 'illustration', 'ui-ux', 'web-development', 'social-content'],
+        'graphic-design', 'illustration', 'ui-ux', 'web-development', 'social-content',
+        'marketing', 'pr-communications', 'account-management'],
       internship: ['strategy', 'copywriting', 'photography', 'videography', 'camera-assistant',
         'production-management', 'location-scouting', 'editing', 'colour-grading', 'motion-design',
         'graphic-design', 'illustration', 'ui-ux', 'web-development', 'social-content']
