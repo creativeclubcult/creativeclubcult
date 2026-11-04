@@ -20,7 +20,14 @@ The live Sheet (in the Shared Drive "CCC" of hello@creativeclubcult.com since 20
 - The pg_cron schedules are applied: `sheets-sync-day` every minute 06:00 to 23:59 Jakarta time, `sheets-sync-night` every 10 minutes 00:00 to 05:59, `sheets-housekeeping` every 5 minutes.
 - The Supabase CLI is not installed on this machine, so DEV runs minified builds. Each function is a small loader that reads its build `<name>@<first 12 hex of the source SHA-256>` from the DEV only table `public.deploy_bundles_dev` (server key only) and runs it only when the SHA-256 matches the pin.
 - Builds reach that table through `deploy-relay-dev`: a row is registered in SQL with the expected hash, and the relay stores only an upload with that hash. Between uploads the relay is a 410 stub. The same relay can hand a registered Apps Script file (`sync-gs@<sha12>`) back to the script editor, so Sync.gs reaches a copy's editor without being typed. Pins on 2026-11-05: `sheets-write@51539e0ddf2e`, `sheets-sync@5fb5ea22dd63`, `sheets-bridge@104bfc70164f`.
-- Production gets these folders deployed with the CLI, never the DEV builds: `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt`.
+- Production never gets the DEV builds; see below.
+
+## PROD status (2026-11-05, project `zneckeqsvwbavqxpolri`)
+
+- All three are deployed from commit `833c780` of this repo. Each function is a one-line entry that imports `https://raw.githubusercontent.com/creativeclubcult/creativeclubcult/<commit>/supabase/functions/<name>/index.ts`; the bundle is built at deploy time, so the code that runs is this folder at that commit. To ship a change, push it, then deploy the same entry with the new commit hash. With the CLI installed, `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt` does the same from a checkout.
+- Paired with the live Sheet (env `prod`), whose web app runs Sync.gs 1.2.1 (deployment version 2). `admin_origins` is `https://creativeclubcult.com`.
+- Reading is on and writing is off: `sheet_values.flags` has `pull_enabled` true and `writes_enabled` false, and the live script's `SYNC_WRITES` is `off`. Writing goes on after two days of matching figures (`ops/PRODUCTION.md`, step 9).
+- The pg_cron schedules are the same as on DEV.
 
 ## Tests
 
