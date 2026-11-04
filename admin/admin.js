@@ -1,7 +1,9 @@
-/* CCC admin: overview, website portfolio, leads, people & vendors, open roles, team.
+/* CCC admin core: sign in, the sidebar and addresses, drawers, the website portfolio, careers (applicants and open
+   roles) and the creative network. The pages in admin/eco/ (overview, leads, clients, projects, crew, documents,
+   finance, reports, settings) build on window.cccAdmin, set at the end of this file.
    Everything here runs as the signed-in team member; the database decides what they may see and change
-   (row level security: viewers read, admins and owners edit, owners delete). Anything typed by the public
-   is put on the page as text, never as HTML. */
+   (row level security: viewers read, admins and owners edit, owners delete, money only for those allowed).
+   Anything typed by the public is put on the page as text, never as HTML. */
 (function () {
   'use strict';
 
@@ -25,12 +27,13 @@
     network: { table: 'network_profiles', skills: 'network_profile_skills', files: 'network_profile_files', notes: 'network_profile_notes', fk: 'profile_id',
       bucket: 'network', csv: 'ccc-network', statuses: ['new', 'verified', 'worked-with', 'favourite', 'not-a-fit', 'archived'] }
   };
-  var INQ_STATUS = ['new', 'replied', 'in progress', 'won', 'lost', 'spam'];
   var WORK = { onsite: 'On site', remote: 'Remote', hybrid: 'Hybrid', any: 'Any' };
 
-  var me = null, skills = [], skillLabel = {};
+  var me = null, skills = [], skillLabel = {}, signedIn = [];
   var canEdit = function () { return me && (me.role === 'owner' || me.role === 'admin'); };
   var isOwner = function () { return me && me.role === 'owner'; };
+  // amounts, Finance, the Kas and the Sheet's figures: owners always, others once an owner turns it on (the database checks again)
+  var canMoney = function () { return !!(me && me.money); };
 
   // ---------- small helpers ----------
   var $ = function (s, r) { return (r || document).querySelector(s); };
@@ -131,6 +134,8 @@
   });
   $$('[data-action="signout"]').forEach(function (b) { b.addEventListener('click', function () { sb.auth.signOut(); }); });
 
+  // the pages in admin/eco/ load after this file; opening the first page waits for them
+  var ready = new Promise(function (go) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); });
   var routing = false;
   function route(session) {
     if (!session) { me = null; show('login'); return; }
@@ -138,48 +143,57 @@
     // (re-routing would close an open record and lose what was being typed)
     if (me && me.id === session.user.id) return;
     if (routing) return; routing = true;
-    sb.from('team_members').select('role, full_name, email').eq('user_id', session.user.id).maybeSingle().then(function (r) {
+    sb.from('team_members').select('role, full_name, email, can_see_money').eq('user_id', session.user.id).maybeSingle().then(function (r) {
       routing = false;
       if (recovering) return; // a reset link turned up meanwhile: the reset form stays
       $$('[data-me-email]').forEach(function (el) { el.textContent = session.user.email; });
       if (r.error || !r.data) { show('denied'); return; }
-      me = { id: session.user.id, email: session.user.email, role: r.data.role, name: r.data.full_name };
+      me = { id: session.user.id, email: session.user.email, role: r.data.role, name: r.data.full_name,
+        money: r.data.role === 'owner' || r.data.can_see_money === true };
       $('[data-me-role]').textContent = me.role;
       $$('[data-edit-only]').forEach(function (el) { el.hidden = !canEdit(); });
       $$('[data-owner-only]').forEach(function (el) { el.hidden = !isOwner(); });
+      $$('[data-money-only]').forEach(function (el) { el.hidden = !canMoney(); });
       $$('[data-env]').forEach(function (el) { el.hidden = !DEV; });
       show('app');
       refreshBadges();
-      loadSkills().then(openTab);
+      Promise.all([loadSkills().catch(fail), ready]).then(function () {
+        signedIn.forEach(function (fn) { fn(me); });
+        openTab();
+      });
     });
   }
   sb.auth.onAuthStateChange(function (event, session) {
     if (event === 'PASSWORD_RECOVERY') { recovering = true; show('reset'); return; }
-    if (event === 'SIGNED_OUT') { recovering = false; me = null; show('login'); return; }
+    // a fresh page after signing out: nothing one person loaded stays in memory or on the page for the next
+    if (event === 'SIGNED_OUT') { recovering = false; var was = me; me = null; show('login'); if (was) location.reload(); return; }
     // the reset link's own sign-in must not swap the reset form for the dashboard
     if (recovering && session) { show('reset'); return; }
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') route(session);
   });
 
   // ---------- sections (sidebar) ----------
-  // #tab or #tab/<record id>. Sections that aren't built yet get an honest page, never a dead link.
+  // #tab or #tab/<record id>; old addresses keep working
   var loaders = {}, openers = {}, actions = {};
-  var TITLES = { overview: 'Overview', portfolio: 'Website & Portfolio', inquiries: 'Leads & Clients', applicants: 'Applicants',
-    network: 'Creative network', jobs: 'Open roles', team: 'Settings', projects: 'Projects', finance: 'Finance',
-    documents: 'Documents', reports: 'Reports' };
-  var SOON = {
-    projects: 'Projects aren\u2019t tracked in the admin yet. This module (stages, PIC, deadlines, next actions) is planned for a later phase. Until then the Overview shows no project numbers rather than made-up ones.',
-    finance: 'Finance (quotes, invoices, payments) is planned for a later phase, with its own permission so only the right people see money. Nothing financial is stored here yet.',
-    documents: 'Documents (contracts, briefs, call sheets) are planned for a later phase. Nothing is stored here yet.',
-    reports: 'Reports are planned once Projects and Finance hold real data. Nothing is calculated here yet.'
-  };
+  var TITLES = { overview: 'Overview', leads: 'Leads', clients: 'Clients', projects: 'Projects', crew: 'Crew & Vendors', network: 'Crew & Vendors',
+    documents: 'Documents', finance: 'Finance', reports: 'Reports', portfolio: 'Website & Portfolio', applicants: 'Careers', jobs: 'Careers',
+    settings: 'Settings' };
+  var ALIAS = { inquiries: 'leads', team: 'settings', careers: 'applicants' };
+  // a page inside another sidebar item (its tabs show at the top of the page)
+  var UNDER = { applicants: 'careers', jobs: 'careers', network: 'crew' };
   var SUBS = {
-    portfolio: 'Projects for the Work page. Drafts stay private until you publish.',
-    inquiries: 'Messages from the Contact form.',
-    applicants: 'Careers applications: team and internship.',
+    leads: 'Contact form messages and the leads you add, in one list.',
+    clients: 'Clients from the Sheet, with their projects, leads and documents.',
+    projects: 'Every project in the Sheet and every brief, most urgent first.',
+    crew: 'The crew list from the Sheet: rates and what each person is owed.',
     network: 'Collaborators and vendors who want to work with us.',
+    documents: function () { return canMoney() ? 'Quotes, invoices, receipts, contracts and briefs, kept in Google Drive.' : 'Contracts, briefs and other project files, kept in Google Drive.'; },
+    finance: 'What to collect and the Kas, from the Sheet.',
+    reports: function () { return canMoney() ? 'The year from the Sheet\u2019s Keuangan tab, checked against each project, and the lead pipeline.' : 'The lead pipeline. Money figures need money access.'; },
+    portfolio: 'Projects for the Work page. Drafts stay private until you publish.',
+    applicants: 'Careers applications: team and internship.',
     jobs: 'Roles shown on the Careers pages.',
-    team: 'Who can use the admin, backups and integrations.'
+    settings: 'Who can use the admin, the Google Sheet connection and backups.'
   };
   var side = $('[data-side]'), sideScrim = $('[data-side-scrim]'), menuBtn = $('[data-action="menu"]');
   function sideOpen(on) {
@@ -189,15 +203,21 @@
   sideScrim.addEventListener('click', function () { sideOpen(false); });
   function openTab() {
     var parts = (location.hash || '#overview').slice(1).split('/');
-    var tab = TITLES[parts[0]] ? parts[0] : 'overview', id = parts[1] || null;
-    $$('[data-tab]').forEach(function (a) { if (a.getAttribute('data-tab') === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    var panel = SOON[tab] ? 'soon' : tab;
-    $$('[data-panel]').forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== panel; });
+    var tab = ALIAS[parts[0]] || parts[0], id = parts[1] || null;
+    if (!TITLES[tab]) { tab = 'overview'; id = null; }
+    if (tab === 'crew' && !canMoney()) { tab = 'network'; id = null; } // the crew list holds rates and amounts
+    // one address per page: an old or partial one is rewritten in place
+    var want = '#' + tab + (id ? '/' + id : '');
+    if (location.hash !== want) history.replaceState(null, '', want);
+    var item = UNDER[tab] || tab;
+    $$('[data-tab]').forEach(function (a) { if (a.getAttribute('data-tab') === item) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    $$('[data-sub]').forEach(function (a) { if (a.getAttribute('data-sub') === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    $$('[data-panel]').forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== tab; });
     $('[data-page-title]').textContent = TITLES[tab];
-    $('[data-page-sub]').textContent = tab === 'overview' ? overviewSub() : SOON[tab] ? 'Coming soon' : (SUBS[tab] || '');
+    var sub = SUBS[tab];
+    $('[data-page-sub]').textContent = tab === 'overview' ? overviewSub() : typeof sub === 'function' ? sub() : (sub || '');
     var act = $('[data-page-actions]'); act.innerHTML = '';
     if (actions[tab]) add(act, actions[tab]());
-    if (SOON[tab]) $('[data-soon-text]').textContent = SOON[tab];
     document.title = TITLES[tab] + ' \u00b7 CCC Admin';
     sideOpen(false);
     closeDrawer(true);
@@ -218,14 +238,24 @@
     openTab();
   });
 
-  // new items waiting, next to their place in the menu (a failed count shows nothing rather than 0)
+  // waiting items next to their place in the menu (a count that fails shows nothing rather than 0)
+  function badge(key, r, word) {
+    var el = $('[data-badge="' + key + '"]');
+    if (!el) return;
+    el.hidden = !!r.error || !r.count; el.textContent = r.error ? '' : r.count || '';
+    if (!r.error) el.setAttribute('aria-label', r.count + ' ' + word);
+  }
   function refreshBadges() {
-    [['inquiries', 'inquiries'], ['applicants', 'applicants'], ['network', 'network_profiles']].forEach(function (b) {
-      sb.from(b[1]).select('id', { count: 'exact', head: true }).eq('status', 'new').then(function (r) {
-        var el = $('[data-badge="' + b[0] + '"]');
-        el.hidden = !!r.error || !r.count; el.textContent = r.count || '';
-        if (!r.error) el.setAttribute('aria-label', r.count + ' new');
-      });
+    [['leads', 'lead_inbox'], ['applicants', 'applicants'], ['network', 'network_profiles']].forEach(function (b) {
+      sb.from(b[1]).select('id', { count: 'exact', head: true }).eq('status', 'new').then(function (r) { badge(b[0], r, 'new'); });
+    });
+    // Settings: Sheet issues still open and Sheet writes that failed, for the people who can act on them
+    if (!canEdit()) { badge('settings', { count: 0 }, ''); return; }
+    Promise.all([
+      sb.from('sync_issues').select('id', { count: 'exact', head: true }).is('resolved_at', null),
+      sb.from('sync_outbox').select('id', { count: 'exact', head: true }).eq('status', 'failed')
+    ]).then(function (r) {
+      badge('settings', r[0].error || r[1].error ? { error: true } : { count: (r[0].count || 0) + (r[1].count || 0) }, 'to look at');
     });
   }
 
@@ -473,54 +503,6 @@
   people('applicants');
   people('network');
 
-  // ================= INQUIRIES (contact form) =================
-  var inq = { panel: $('[data-panel="inquiries"]') };
-  function inqLoad() {
-    var st = $('[data-filter="status"]', inq.panel).value;
-    var q = sb.from('inquiries').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(300);
-    if (st) q = q.eq('status', st);
-    q.then(function (r) {
-      if (r.error) return fail(r.error);
-      var tbody = $('[data-rows]', inq.panel); tbody.innerHTML = '';
-      (r.data || []).forEach(function (m) {
-        tbody.appendChild(h('tr', { onclick: function () { inqOpen(m); } },
-          h('td', {}, date(m.created_at)), h('td', {}, m.name, h('span', { class: 'sub', text: m.email })), h('td', {}, m.company || ''),
-          h('td', {}, m.inquiry_type), h('td', {}, m.budget || ''), h('td', {}, h('span', { class: 'adm-pill' + (m.status === 'new' ? ' is-new' : ''), text: m.status }))));
-      });
-      if (!tbody.children.length) tbody.appendChild(h('tr', { class: 'empty' }, h('td', { colspan: 6, text: 'No messages yet.' })));
-      $('[data-count]', inq.panel).textContent = (r.count || 0) + ' messages';
-    });
-  }
-  loaders.inquiries = inqLoad;
-  openers.inquiries = function (id) {
-    sb.from('inquiries').select('*').eq('id', id).maybeSingle().then(function (r) {
-      if (r.error) return fail(r.error);
-      if (!r.data) return toast('That message isn\u2019t there any more.', true);
-      inqOpen(r.data);
-    });
-  };
-  $('[data-filter="status"]', inq.panel).addEventListener('change', inqLoad);
-  function inqOpen(m) {
-    var ro = !canEdit();
-    var status = select(INQ_STATUS, m.status, { disabled: ro });
-    var notes = h('textarea', { value: m.notes || '', placeholder: 'Notes for the team', disabled: ro });
-    openDrawer([
-      h('h2', { text: m.name }),
-      h('p', { class: 'lead-line', text: m.inquiry_type + ' · ' + dateTime(m.created_at) }),
-      sec('Status', h('div', { class: 'adm-controls' }, h('label', {}, 'Status', status), h('label', { class: 'wide' }, 'Notes', notes)),
-        h('div', { class: 'adm-row' }, h('button', { class: 'btn', type: 'button', disabled: ro, onclick: function () {
-          sb.from('inquiries').update({ status: status.value, notes: notes.value.trim() || null }).eq('id', m.id).then(function (r) {
-            if (r.error) return fail(r.error); toast('Saved.'); inqLoad(); refreshBadges();
-          });
-        } }, 'Save'))),
-      sec('From', kv([
-        ['Email', h('a', { href: 'mailto:' + m.email, text: m.email })], ['Company', m.company], ['Reach them via', m.preferred_contact],
-        ['Timeline', m.timeline], ['Budget', m.budget], ['Sent from', m.page]
-      ])),
-      sec('Message', h('div', { class: 'adm-text', text: m.description }))
-    ]);
-  }
-
   // ================= ROLES (jobs on the Careers page) =================
   var jobsP = { panel: $('[data-panel="jobs"]') };
   var EMP = [['full-time', 'Full-time'], ['contract', 'Contract'], ['part-time', 'Part-time'], ['internship', 'Internship']];
@@ -582,124 +564,11 @@
     ]);
   }
 
-  // ================= OVERVIEW =================
-  // Only real numbers: a count that can't be loaded says so instead of showing 0, and modules that don't
-  // exist yet (projects, deadlines, invoices) are marked as not tracked.
+  // ================= OVERVIEW (built by admin/eco/overview.js) =================
   var overviewSub = function () {
     var d = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-    return d + ' \u00b7 Jakarta time \u00b7 signed in as ' + (me ? me.email + ' (' + me.role + ')' : '');
+    return d + ' \u00b7 Jakarta time';
   };
-  var count = function (table, col, val) {
-    var q = sb.from(table).select('id', { count: 'exact', head: true });
-    if (col) q = q.eq(col, val);
-    return q.then(function (r) { if (r.error) throw r.error; return r.count || 0; });
-  };
-  actions.overview = function () {
-    return [
-      canEdit() ? h('a', { class: 'btn', href: '#portfolio/new' }, 'New portfolio item') : null,
-      h('a', { class: 'btn ghost', href: '#inquiries' }, 'Open leads'),
-      h('a', { class: 'btn ghost', href: '/work', target: '_blank', rel: 'noopener' }, 'View website')
-    ];
-  };
-  loaders.overview = function () {
-    var cards = $('[data-ov-cards]'); cards.innerHTML = '';
-    var card = function (k, link, sub) {
-      var c = h(link ? 'a' : 'div', { class: 'ov-card', href: link || null }, h('span', { class: 'k', text: k }), h('span', { class: 'v', text: '\u2026' }), h('span', { class: 's', text: sub || '' }));
-      cards.appendChild(c); return c;
-    };
-    var fill = function (c, p, subOf, valOf) {
-      p.then(function (v) { $('.v', c).textContent = valOf ? valOf(v) : Array.isArray(v) ? v[0] : v; if (subOf) $('.s', c).textContent = subOf(v); })
-        .catch(function () { c.classList.add('is-error'); $('.v', c).textContent = 'Couldn\u2019t load'; $('.s', c).textContent = 'Reload the page to try again.'; });
-    };
-    fill(card('New leads', '#inquiries', 'Contact messages not handled yet'), count('inquiries', 'status', 'new'));
-    fill(card('New applications', '#applicants'), Promise.all([count('applicants', 'status', 'new'), count('network_profiles', 'status', 'new')]),
-      function (v) { return v[0] + ' careers \u00b7 ' + v[1] + ' network'; }, function (v) { return v[0] + v[1]; });
-    fill(card('Portfolio live', '#portfolio'), Promise.all([count('portfolio_items', 'status', 'published'), count('portfolio_items', 'status', 'draft')]),
-      function (v) { return v[1] + ' draft' + (v[1] === 1 ? '' : 's') + ' waiting'; });
-    var off = function (k, link, why) {
-      var c = card(k, link, why); c.classList.add('is-off'); $('.v', c).textContent = 'Not tracked yet';
-    };
-    off('Active projects', '#projects', 'Projects module coming soon');
-    off('Deadlines, next 7 days', '#projects', 'Comes with the Projects module');
-    // outstanding invoices only ever show to people with a finance permission; nobody has one until Finance exists
-
-    attention(); activity(); loadIntegrations();
-  };
-
-  function listInto(ul, rows, emptyText) {
-    ul.innerHTML = '';
-    rows.forEach(function (r) {
-      ul.appendChild(h('li', {}, h(r.href ? 'a' : 'div', { class: r.href ? null : 'row', href: r.href || null },
-        h('span', { class: 't', text: r.text }), h('span', { class: 'w', text: ago(r.at), title: dateTime(r.at) }))));
-    });
-    if (!rows.length) ul.appendChild(h('li', { class: 'ov-empty', text: emptyText }));
-  }
-  function settle(ps) { return Promise.all(ps.map(function (p) { return p.then(function (r) { return r; }, function (e) { return { error: e }; }); })); }
-
-  function attention() {
-    var ul = $('[data-ov-attention]');
-    var wk = new Date(Date.now() - 7 * 864e5).toISOString();
-    settle([
-      sb.from('inquiries').select('id, name, inquiry_type, created_at').eq('status', 'new').order('created_at').limit(6),
-      sb.from('applicants').select('id, name, track, created_at').eq('status', 'new').order('created_at').limit(6),
-      sb.from('network_profiles').select('id, name, company_name, created_at').eq('status', 'new').order('created_at').limit(6),
-      sb.from('portfolio_items').select('id, title, updated_at').eq('status', 'draft').lt('updated_at', wk).order('updated_at').limit(4)
-    ]).then(function (res) {
-      var rows = [], broken = 0;
-      var each = function (r, fn) { if (r.error) { broken++; return; } (r.data || []).forEach(function (x) { rows.push(fn(x)); }); };
-      each(res[0], function (m) { return { at: m.created_at, href: '#inquiries/' + m.id, text: 'Reply to ' + m.name + ' (' + m.inquiry_type + ')' }; });
-      each(res[1], function (a) { return { at: a.created_at, href: '#applicants/' + a.id, text: 'Review ' + a.name + '\u2019s ' + (TRACK[a.track] || '').toLowerCase() + ' application' }; });
-      each(res[2], function (n) { return { at: n.created_at, href: '#network/' + n.id, text: 'Review ' + (n.company_name || n.name) + ' for the network' }; });
-      each(res[3], function (p) { return { at: p.updated_at, href: '#portfolio/' + p.id, text: 'Finish or archive the draft \u201c' + p.title + '\u201d' }; });
-      rows.sort(function (a, b) { return new Date(a.at) - new Date(b.at); });
-      listInto(ul, rows.slice(0, 10), 'Nothing is waiting on you.');
-      if (broken) ul.appendChild(h('li', { class: 'ov-err', text: broken + ' of 4 lists couldn\u2019t be checked. Reload to try again.' }));
-    });
-  }
-
-  var ACT = { created: 'created', edited: 'edited', published: 'published', unpublished: 'unpublished', archived: 'archived', restored: 'restored' };
-  function activity() {
-    var ul = $('[data-ov-activity]');
-    settle([
-      sb.from('activity_log').select('at, actor_email, action, entity, entity_id, label').order('at', { ascending: false }).limit(15),
-      sb.from('inquiries').select('id, name, created_at').order('created_at', { ascending: false }).limit(8),
-      sb.from('applicants').select('id, name, track, created_at').order('created_at', { ascending: false }).limit(8),
-      sb.from('network_profiles').select('id, name, company_name, created_at').order('created_at', { ascending: false }).limit(8)
-    ]).then(function (res) {
-      var rows = [], broken = 0;
-      var each = function (r, fn) { if (r.error) { broken++; return; } (r.data || []).forEach(function (x) { rows.push(fn(x)); }); };
-      each(res[0], function (a) {
-        return { at: a.at, href: a.entity === 'portfolio' && a.entity_id ? '#portfolio/' + a.entity_id : null,
-          text: (a.actor_email || 'Someone') + ' ' + (ACT[a.action] || a.action) + ' \u201c' + (a.label || 'an item') + '\u201d' };
-      });
-      each(res[1], function (m) { return { at: m.created_at, href: '#inquiries/' + m.id, text: 'New message from ' + m.name }; });
-      each(res[2], function (a) { return { at: a.created_at, href: '#applicants/' + a.id, text: 'New ' + (TRACK[a.track] || '').toLowerCase() + ' application from ' + a.name }; });
-      each(res[3], function (n) { return { at: n.created_at, href: '#network/' + n.id, text: (n.company_name || n.name) + ' joined the network list' }; });
-      rows.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
-      listInto(ul, rows.slice(0, 12), 'No activity yet.');
-      if (broken) ul.appendChild(h('li', { class: 'ov-err', text: 'Part of the activity couldn\u2019t be loaded. Reload to try again.' }));
-    });
-  }
-
-  // Integrations: a row appears only once a server-side sync reports in. Nothing here pretends to sync.
-  var INTEGRATIONS = [{ key: 'google_sheets', name: 'Google Sheets', plan: 'Planned: one way, admin to Sheets. Nothing is sent to Sheets yet.' }];
-  function loadIntegrations() {
-    sb.from('integration_status').select('key, status, last_success_at, last_error').then(function (r) {
-      $$('[data-integrations]').forEach(function (box) {
-        box.innerHTML = '';
-        if (r.error) { box.appendChild(h('p', { class: 'ov-err', text: 'Couldn\u2019t check integrations. Reload to try again.' })); return; }
-        INTEGRATIONS.forEach(function (it) {
-          var row = (r.data || []).filter(function (x) { return x.key === it.key; })[0];
-          var pill = !row ? h('span', { class: 'adm-pill is-off', text: 'Not connected' })
-            : row.status === 'connected' ? h('span', { class: 'adm-pill is-live', text: 'Connected' }) : h('span', { class: 'adm-pill is-err', text: 'Error' });
-          var detail = !row ? it.plan
-            : (row.last_success_at ? 'Last successful sync ' + dateTime(row.last_success_at) + '.' : 'No successful sync yet.')
-              + (row.status === 'error' && row.last_error ? ' Last error: ' + row.last_error : '');
-          box.appendChild(h('div', { class: 'int-row' }, h('span', { class: 'n', text: it.name }), pill, h('span', { class: 'd', text: detail })));
-        });
-      });
-    });
-  }
 
   // ================= WEBSITE & PORTFOLIO =================
   var SERVICES = [['creative-direction', 'Creative Direction'], ['branding', 'Branding'], ['visual-identity', 'Visual Identity'], ['campaign', 'Campaign'],
@@ -1172,25 +1041,12 @@
     if (isNew) f.title.focus();
   }
 
-  // ================= TEAM =================
-  var teamP = { panel: $('[data-panel="team"]') };
-  loaders.team = function () {
-    loadIntegrations();
-    sb.from('team_members').select('email, full_name, role, created_at').order('created_at').then(function (r) {
-      if (r.error) return fail(r.error);
-      var tbody = $('[data-rows]', teamP.panel); tbody.innerHTML = '';
-      (r.data || []).forEach(function (m) {
-        var tr = h('tr', {}, h('td', {}, m.email), h('td', {}, m.full_name || ''), h('td', {}, h('span', { class: 'adm-pill', text: m.role })), h('td', {}, date(m.created_at)));
-        tr.style.cursor = 'default'; tbody.appendChild(tr);
-      });
-    });
-  };
-
   // Full copy of every table as one JSON file (the free backup: download it regularly and keep it somewhere safe)
   var BACKUP = ['inquiries', 'applicants', 'applicant_skills', 'applicant_files', 'applicant_notes',
     'network_profiles', 'network_profile_skills', 'network_profile_files', 'network_profile_notes', 'jobs', 'skills', 'team_members',
-    'portfolio_items', 'activity_log'];
-  $('[data-action="backup"]', teamP.panel).addEventListener('click', function (e) {
+    'portfolio_items', 'activity_log', 'clients', 'projects', 'project_money', 'crew', 'kas_entries', 'documents', 'manual_leads',
+    'sheet_values', 'sync_outbox', 'sync_changes', 'sync_issues'];
+  $('[data-action="backup"]', $('[data-panel="settings"]')).addEventListener('click', function (e) {
     var btn = e.currentTarget, out = { made_at: new Date().toISOString(), tables: {} };
     var grab = function (table, from) {
       return sb.from(table).select('*').range(from, from + 999).then(function (r) {
@@ -1208,4 +1064,13 @@
       toast('Backup downloaded: ' + n + ' records.');
     }).catch(fail).then(function () { btn.disabled = false; });
   });
+
+  // for the pages in admin/eco/
+  window.cccAdmin = {
+    sb: sb, DEV: DEV, SB_URL: SB_URL, $: $, $$: $$, h: h, add: add, sec: sec, kv: kv, select: select, ask: ask, toast: toast, fail: fail,
+    date: date, dateTime: dateTime, ago: ago, safeUrl: safeUrl, openDrawer: openDrawer, closeDrawer: closeDrawer,
+    guard: function (fn) { drawerGuard = fn; }, onSignedIn: function (fn) { signedIn.push(fn); },
+    loaders: loaders, openers: openers, actions: actions, me: function () { return me; },
+    canEdit: canEdit, isOwner: isOwner, canMoney: canMoney, refreshBadges: refreshBadges, badge: badge
+  };
 })();

@@ -11,6 +11,7 @@
   <link rel="preload" href="/fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/admin/admin.css" />
+  <link rel="stylesheet" href="/admin/eco.css" />
 </head>
 <body class="adm">
   <!-- Signed out: sign in, or set a new password from a reset link -->
@@ -54,19 +55,19 @@
       </div>
       <nav class="adm-nav" aria-label="Admin">
         <a href="#overview" data-tab="overview">Overview</a>
+        <a href="#leads" data-tab="leads">Leads <span class="adm-badge" data-badge="leads" hidden></span></a>
+        <a href="#clients" data-tab="clients">Clients</a>
+        <a href="#projects" data-tab="projects">Projects</a>
+        <a href="#crew" data-tab="crew">Crew &amp; Vendors <span class="adm-badge" data-badge="network" hidden></span></a>
+        <a href="#documents" data-tab="documents">Documents</a>
+        <a href="#finance" data-tab="finance" data-money-only hidden>Finance <span class="adm-badge" data-badge="finance" hidden></span></a>
+        <a href="#reports" data-tab="reports">Reports</a>
         <a href="#portfolio" data-tab="portfolio">Website &amp; Portfolio</a>
-        <a href="#inquiries" data-tab="inquiries">Leads &amp; Clients <span class="adm-badge" data-badge="inquiries" hidden></span></a>
-        <a href="#projects" data-tab="projects" class="is-soon">Projects <span class="adm-soon">Soon</span></a>
-        <a href="#finance" data-tab="finance" class="is-soon">Finance <span class="adm-soon">Soon</span></a>
-        <p class="adm-nav-group">Crew &amp; Vendors</p>
-        <a href="#applicants" data-tab="applicants" class="is-sub">Applicants <span class="adm-badge" data-badge="applicants" hidden></span></a>
-        <a href="#network" data-tab="network" class="is-sub">Creative network <span class="adm-badge" data-badge="network" hidden></span></a>
-        <a href="#jobs" data-tab="jobs" class="is-sub">Open roles</a>
-        <a href="#documents" data-tab="documents" class="is-soon">Documents <span class="adm-soon">Soon</span></a>
-        <a href="#reports" data-tab="reports" class="is-soon">Reports <span class="adm-soon">Soon</span></a>
-        <a href="#team" data-tab="team">Settings</a>
+        <a href="#applicants" data-tab="careers">Careers <span class="adm-badge" data-badge="applicants" hidden></span></a>
+        <a href="#settings" data-tab="settings">Settings <span class="adm-badge" data-badge="settings" hidden></span></a>
       </nav>
       <div class="adm-me">
+        <span class="eco-sheet" data-sheet-line></span>
         <span class="adm-me-mail" data-me-email></span>
         <span class="adm-role" data-me-role></span>
         <button class="adm-link" type="button" data-action="signout">Sign out</button>
@@ -85,30 +86,17 @@
         <div class="adm-head-actions" data-page-actions></div>
       </header>
 
-      <section class="adm-panel" data-panel="overview" hidden>
-        <div class="ov-cards" data-ov-cards></div>
-        <div class="ov-grid">
-          <section class="ov-box">
-            <h2 class="ov-h">Needs attention</h2>
-            <ul class="ov-list" data-ov-attention><li class="ov-wait">Loading…</li></ul>
-          </section>
-          <section class="ov-box">
-            <h2 class="ov-h">Recent activity</h2>
-            <ul class="ov-list" data-ov-activity><li class="ov-wait">Loading…</li></ul>
-          </section>
-          <section class="ov-box ov-wide">
-            <h2 class="ov-h">Active projects</h2>
-            <div class="adm-table-wrap"><table class="adm-table">
-              <thead><tr><th>Project</th><th>Client</th><th>Stage</th><th>PIC</th><th>Deadline</th><th>Next action</th></tr></thead>
-              <tbody><tr class="empty"><td colspan="6">Projects aren&rsquo;t tracked in the admin yet. This list fills in once the Projects module is built.</td></tr></tbody>
-            </table></div>
-          </section>
-          <section class="ov-box">
-            <h2 class="ov-h">Integrations</h2>
-            <div data-integrations><p class="ov-wait">Checking…</p></div>
-          </section>
-        </div>
+      <!-- built by admin/eco/*.js -->
+      <section class="adm-panel" data-panel="overview" hidden></section>
+      <section class="adm-panel" data-panel="leads" hidden></section>
+      <section class="adm-panel" data-panel="clients" hidden></section>
+      <section class="adm-panel" data-panel="projects" hidden></section>
+      <section class="adm-panel" data-panel="crew" hidden>
+        <nav class="eco-subnav" aria-label="Crew &amp; Vendors"><a href="#crew" data-sub="crew">Crew list</a><a href="#network" data-sub="network">Network</a></nav>
       </section>
+      <section class="adm-panel" data-panel="documents" hidden></section>
+      <section class="adm-panel" data-panel="finance" hidden></section>
+      <section class="adm-panel" data-panel="reports" hidden></section>
 
       <section class="adm-panel" data-panel="portfolio" hidden>
         <div class="adm-bar">
@@ -134,6 +122,7 @@
       </section>
 
       <section class="adm-panel" data-panel="applicants" hidden>
+        <nav class="eco-subnav" aria-label="Careers"><a href="#applicants" data-sub="applicants">Applicants</a><a href="#jobs" data-sub="jobs">Open roles</a></nav>
         <div class="adm-bar">
           <input type="search" placeholder="Search name, email, city" data-filter="q" aria-label="Search applicants" />
           <select data-filter="track" aria-label="Track"><option value="">All tracks</option><option value="team">Team</option><option value="internship">Internship</option></select>
@@ -150,6 +139,7 @@
       </section>
 
       <section class="adm-panel" data-panel="network" hidden>
+        <nav class="eco-subnav" aria-label="Crew &amp; Vendors" data-money-only hidden><a href="#crew" data-sub="crew">Crew list</a><a href="#network" data-sub="network">Network</a></nav>
         <div class="adm-bar">
           <input type="search" placeholder="Search name, email, city, company" data-filter="q" aria-label="Search network" />
           <select data-filter="entity_type" aria-label="Type"><option value="">Everyone</option><option value="individual">Individuals</option><option value="company">Companies</option></select>
@@ -165,18 +155,8 @@
         <button class="btn ghost adm-more" type="button" data-action="more" hidden>Load more</button>
       </section>
 
-      <section class="adm-panel" data-panel="inquiries" hidden>
-        <div class="adm-bar">
-          <select data-filter="status" aria-label="Status"><option value="">Any status</option><option>new</option><option>replied</option><option>in progress</option><option>won</option><option>lost</option><option>spam</option></select>
-          <span class="adm-count" data-count></span>
-        </div>
-        <div class="adm-table-wrap"><table class="adm-table">
-          <thead><tr><th>Date</th><th>Name</th><th>Company</th><th>About</th><th>Budget</th><th>Status</th></tr></thead>
-          <tbody data-rows></tbody>
-        </table></div>
-      </section>
-
       <section class="adm-panel" data-panel="jobs" hidden>
+        <nav class="eco-subnav" aria-label="Careers"><a href="#applicants" data-sub="applicants">Applicants</a><a href="#jobs" data-sub="jobs">Open roles</a></nav>
         <div class="adm-bar">
           <span class="adm-count" data-count></span>
         </div>
@@ -186,28 +166,16 @@
         </table></div>
       </section>
 
-      <section class="adm-panel" data-panel="team" hidden>
-        <h2 class="ov-h">Team</h2>
-        <div class="adm-table-wrap"><table class="adm-table">
-          <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Since</th></tr></thead>
-          <tbody data-rows></tbody>
-        </table></div>
-        <p class="adm-note">Owners and admins can edit; viewers can only read. New team members are added in Supabase for now.</p>
-        <div class="set-block" data-owner-only hidden>
-          <h2 class="ov-h">Backup</h2>
+      <section class="adm-panel" data-panel="settings" hidden>
+        <div class="eco-block" data-set-team></div>
+        <div class="eco-block" data-set-sheet></div>
+        <div class="eco-block" data-owner-only hidden>
+          <h2 class="eco-h">Backup</h2>
           <div class="adm-bar">
             <span class="adm-count">Every record in one file. Uploaded files stay in Supabase.</span>
             <button class="btn ghost" type="button" data-action="backup">Download backup</button>
           </div>
         </div>
-        <div class="set-block">
-          <h2 class="ov-h">Integrations</h2>
-          <div data-integrations><p class="ov-wait">Checking…</p></div>
-        </div>
-      </section>
-
-      <section class="adm-panel adm-soon-panel" data-panel="soon" hidden>
-        <p class="adm-soon-text" data-soon-text></p>
       </section>
     </div>
 
@@ -231,5 +199,15 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
   <script src="/admin/admin.js"></script>
+  <script src="/admin/eco/core.js"></script>
+  <script src="/admin/eco/overview.js"></script>
+  <script src="/admin/eco/leads.js"></script>
+  <script src="/admin/eco/clients.js"></script>
+  <script src="/admin/eco/projects.js"></script>
+  <script src="/admin/eco/crew.js"></script>
+  <script src="/admin/eco/documents.js"></script>
+  <script src="/admin/eco/finance.js"></script>
+  <script src="/admin/eco/reports.js"></script>
+  <script src="/admin/eco/settings.js"></script>
 </body>
 </html>

@@ -1,0 +1,213 @@
+/* CCC admin ecosystem pages (overview flow, leads, clients, projects, crew, documents, finance, reports,
+   settings). Site tokens only; one extra token for losses and failures. */
+:root { --eco-danger: #E5484D; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adm-table th.num { text-align: right; }
+.muted { color: var(--graphite); }
+.neg { color: var(--eco-danger); }
+.only-s, .show-s { display: none; }
+.eco-h { font-size: 14px; font-weight: 400; color: var(--graphite); margin-bottom: 10px; }
+.eco-wait, .eco-empty { padding: 12px 0; color: var(--graphite); font-size: var(--t-body-sm); }
+.eco-err { padding: 12px 0; color: var(--eco-danger); font-size: var(--t-body-sm); }
+.adm-table td.eco-err, .adm-table td.eco-wait { cursor: default; }
+.eco-note { font-size: var(--t-caption); color: var(--graphite); line-height: 1.5; margin-top: 10px; }
+.eco-warn { color: var(--ink); }
+.eco-block { margin-top: 40px; }
+.eco-block:first-child { margin-top: 0; }
+.eco-bar-note { margin: -6px 0 14px; }
+.eco-block-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.eco-block-h .eco-h { margin-bottom: 0; }
+.adm-table tr.is-zero td { color: var(--graphite); }
+.adm-table td.d { white-space: nowrap; }
+.eco-sort { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; text-align: inherit; cursor: pointer; }
+.eco-sort:hover, th[aria-sort] > .eco-sort { color: var(--ink); }
+.adm-pill.is-brief { border-style: dashed; }
+.adm-pill.is-sent { color: var(--ink); }
+
+/* sidebar footer: the Sheet connection in one line */
+.eco-sheet { width: 100%; }
+.eco-sheet a { color: var(--graphite); border-bottom: 1px solid var(--line); }
+.eco-sheet a.is-ink { color: var(--ink); }
+.eco-sheet a.is-err { color: var(--eco-danger); border-color: var(--eco-danger); }
+
+/* sub pages under one sidebar item (Careers, Crew & Vendors) */
+.eco-subnav { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.eco-subnav a { padding: 10px 12px; margin-bottom: -1px; border-bottom: 1px solid transparent; color: var(--graphite); font-size: var(--t-body-sm); white-space: nowrap; }
+.eco-subnav a:hover { color: var(--ink); }
+.eco-subnav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
+
+/* Panels and the drawer are size containers: the flow strip and the figure tiles take only as many columns as
+   leave room for a whole amount, and the amount's type steps down a little before anything would be cut off. */
+.adm-panel, .adm-drawer-body { container-type: inline-size; }
+
+/* overview: the flow strip, eight stages in sidebar order (hairlines are the 1px gaps) */
+.eco-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; padding: 1px 0; background: var(--line); margin-bottom: 40px; }
+@container (min-width: 880px) { .eco-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (min-width: 1500px) { .eco-flow { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+.eco-stage { container-type: inline-size; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 16px 16px 18px; background: var(--bg); color: var(--ink); }
+a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04), rgba(234, 237, 241, 0.04)); }
+.eco-stage .n { font-size: 14px; color: var(--graphite); }
+.eco-stage .v { font-size: min(24px, 12.5cqi); line-height: 1.1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eco-stage .v.is-quiet { font-size: var(--t-body); line-height: 1.6; color: var(--graphite); }
+.eco-stage .v.is-err { font-size: var(--t-body); line-height: 1.6; color: var(--eco-danger); }
+.eco-stage .c { font-size: 12px; line-height: 1.45; color: var(--graphite); }
+.eco-cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 3fr); gap: 40px 48px; }
+.eco-cols .wide { grid-column: 1 / -1; }
+
+/* lists with one action per line */
+.eco-list { list-style: none; border-top: 1px solid var(--line); }
+.eco-list > li { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: var(--t-body-sm); }
+.eco-list > li.eco-wait, .eco-list > li.eco-empty, .eco-list > li.eco-err { display: block; }
+.eco-list .t { flex: 1 1 auto; min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.eco-list a.t { color: var(--ink); }
+.eco-list a.t:hover { text-decoration: underline; text-decoration-color: var(--ash); text-underline-offset: 3px; }
+.eco-list .t .sub { display: block; margin-top: 2px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-list .w { flex: none; font-size: var(--t-caption); color: var(--graphite); white-space: nowrap; }
+.eco-more { margin-top: 12px; }
+.eco-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 14px; border-radius: var(--pill); border: 1px solid var(--ash); background: none; color: var(--ink); font: inherit; font-size: var(--t-caption); cursor: pointer; white-space: nowrap; }
+.eco-btn:hover { border-color: var(--ink); }
+.eco-btn.is-primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.eco-btn[disabled] { opacity: .45; pointer-events: none; }
+
+/* segmented control */
+.eco-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--ash); border-radius: var(--pill); }
+.eco-seg button { min-height: 32px; padding: 6px 14px; border: 0; border-radius: var(--pill); background: none; color: var(--graphite); font: inherit; font-size: var(--t-body-sm); cursor: pointer; }
+.eco-seg button:hover { color: var(--ink); }
+.eco-seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.eco-seg button[disabled] { cursor: default; }
+.eco-seg button[disabled]:not([aria-pressed="true"]):hover { color: var(--graphite); }
+.adm-bar .eco-seg { flex: none; }
+
+/* drawer sections */
+.eco-top-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.eco-top-actions .btn { padding: 8px 16px; font-size: var(--t-body-sm); }
+.eco-lead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.eco-from { margin-top: 12px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-next { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; }
+.eco-next .t { flex: 1 1 auto; min-width: 0; }
+.eco-next .k { display: block; margin-bottom: 4px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-next .s { font-size: var(--t-body); }
+.eco-sec { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
+.eco-sec > h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; font-size: 14px; font-weight: 400; color: var(--graphite); }
+.eco-sec > h3 .r { font-size: var(--t-caption); text-align: right; }
+.eco-sec > h3 a { color: inherit; border-bottom: 1px solid var(--line); }
+.eco-kv { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 8px 16px; font-size: var(--t-body-sm); }
+.eco-kv dt { color: var(--graphite); }
+.eco-kv dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.eco-kv a { color: var(--ink); border-bottom: 1px solid var(--ash); }
+.eco-kv input[type="date"] { max-width: 220px; padding: 4px 0; color-scheme: dark; }
+.eco-saved { margin-left: 10px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-saved.is-err { color: var(--eco-danger); }
+.eco-figs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.eco-figs.is-6 { margin-bottom: 28px; }
+@container (min-width: 760px) { .eco-figs { grid-template-columns: repeat(4, minmax(0, 1fr)); } .eco-figs.is-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (min-width: 1160px) { .eco-figs.is-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.eco-fig { container-type: inline-size; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; }
+.eco-fig .k { font-size: var(--t-caption); color: var(--graphite); }
+.eco-fig .v { margin-top: 6px; font-size: min(20px, 12.5cqi); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eco-fig .v.is-quiet { font-size: var(--t-body-sm); line-height: 1.9; color: var(--graphite); white-space: normal; }
+.eco-fig .s { margin-top: 4px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-table { width: 100%; border-collapse: collapse; font-size: var(--t-body-sm); }
+.eco-table th { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; font-size: var(--t-caption); color: var(--graphite); }
+.eco-table td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.eco-table th:last-child, .eco-table td:last-child { padding-right: 0; }
+.eco-table tr.is-zero td { color: var(--graphite); }
+.eco-table tfoot td { padding-top: 12px; border-bottom: 0; }
+.eco-table .sub { display: block; margin-top: 2px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-table td.eco-group { padding-top: 16px; font-size: var(--t-caption); color: var(--graphite); }
+.eco-table a, .adm-table a.eco-open { color: var(--ink); border-bottom: 1px solid var(--ash); }
+.eco-actionbar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 32px -28px 0; padding: 14px 28px; background: var(--bg-soft); border-top: 1px solid var(--line); }
+.eco-actionbar .s { margin-right: auto; font-size: var(--t-caption); color: var(--graphite); }
+.eco-actionbar .btn { padding: 8px 16px; font-size: var(--t-body-sm); }
+.eco-drawer-end { height: 28px; }
+.adm-drawer .eco-form textarea { min-height: 96px; }
+/* a form field whose control is a segmented choice (a div, so a tap on the label can't press the first button) */
+.eco-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--t-caption); color: var(--graphite); text-transform: uppercase; letter-spacing: 0.02em; }
+.eco-field > .eco-seg { align-self: flex-start; text-transform: none; letter-spacing: 0; }
+.adm-controls .eco-new { grid-column: 1 / -1; text-transform: none; letter-spacing: 0; font-size: var(--t-body-sm); color: var(--ink); }
+.adm-controls .eco-new[hidden] { display: none; }
+/* one action at the end of a table row (Mark paid) */
+.adm-table td.act { width: 1%; padding-right: 0; text-align: right; white-space: nowrap; }
+.adm-table td.act .eco-btn { margin: -6px 0; }
+/* phones: the page's main action at the bottom of the screen */
+.eco-sticky { display: none; }
+
+/* a project's split of the price (Allocation) */
+.eco-alloc td { vertical-align: middle; }
+.eco-alloc td.pc { width: 84px; }
+.eco-alloc tr.is-sub td { border-top: 1px solid var(--ash); }
+.eco-alloc tr.is-total td { color: var(--ink); font-size: var(--t-body); }
+.eco-alloc select { width: auto; min-width: 72px; padding: 2px 0; border: 0; border-bottom: 1px solid var(--ash); background: transparent; color: var(--ink); font: inherit; text-align: right; }
+.eco-alloc tfoot td { padding-top: 9px; border-bottom: 1px solid var(--line); }
+
+/* money access switch (Settings, owners) */
+.eco-switch { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font-size: var(--t-body-sm); }
+.eco-switch input { width: 34px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 1px solid var(--ash); border-radius: var(--pill); background: none; position: relative; cursor: pointer; transition: background .2s, border-color .2s; }
+.eco-switch input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--graphite); transition: transform .2s, background .2s; }
+.eco-switch input:checked { background: var(--ink); border-color: var(--ink); }
+.eco-switch input:checked::after { transform: translateX(14px); background: var(--bg); }
+.eco-switch input:disabled { opacity: .45; cursor: default; }
+
+/* the Sheet card in Settings */
+.eco-card { padding: 18px 20px; border: 1px solid var(--line); border-radius: 8px; }
+.eco-card .eco-kv { margin-top: 14px; }
+.eco-card .eco-top-actions { margin-top: 18px; }
+.eco-status { font-size: var(--t-body); }
+.eco-status.is-err { color: var(--eco-danger); }
+
+@media (max-width: 1024px) {
+  .eco-cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .eco-flow { grid-template-columns: minmax(0, 1fr); margin-bottom: 32px; }
+  .eco-stage { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; min-height: 56px; padding: 12px 0; }
+  .eco-stage .n { align-self: center; color: var(--ink); }
+  .eco-stage .v { font-size: 20px; text-align: right; }
+  .eco-stage .v.is-quiet, .eco-stage .v.is-err { font-size: var(--t-body-sm); }
+  .eco-stage .c { grid-column: 1 / -1; }
+  .eco-list > li { flex-wrap: wrap; gap: 6px 12px; }
+  .eco-list .t { flex-basis: calc(100% - 80px); }
+  .eco-list .eco-btn { min-height: 44px; }
+  .adm-head-actions { width: 100%; }
+  .adm-bar .eco-seg { width: 100%; }
+  .eco-seg button { min-height: 40px; flex: 1 1 auto; }
+  .adm-table.is-stack thead { display: none; }
+  .adm-table.is-stack tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .adm-table.is-stack td { padding: 0; border: 0; }
+  .adm-table.is-stack td.hide-s { display: none; }
+  .adm-table.is-stack td.only-s, .adm-table.is-stack td.l2 { display: block; grid-column: 1 / -1; font-size: var(--t-caption); color: var(--graphite); }
+  .adm-table.is-stack tr.empty { display: block; }
+  .eco-kv { grid-template-columns: 1fr; gap: 2px; }
+  .eco-kv dd { margin-bottom: 8px; }
+  .eco-figs, .eco-figs.is-6 { grid-template-columns: minmax(0, 1fr); gap: 0; border-top: 1px solid var(--line); }
+  .eco-fig { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 12px; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+  .eco-fig .k { font-size: var(--t-body-sm); color: var(--ink); }
+  .eco-fig .v { margin-top: 0; font-size: 18px; text-align: right; }
+  .eco-fig .s { grid-column: 1 / -1; }
+  .eco-table .hide-s { display: none; }
+  .show-s { display: inline; }
+  .eco-next { flex-wrap: wrap; }
+  .eco-actionbar { margin: 28px -18px 0; padding: 12px 18px; }
+  .eco-actionbar .btn { flex: 1 1 auto; justify-content: center; }
+  .eco-top-actions .btn, .eco-btn { min-height: 44px; }
+  .eco-switch { min-height: 44px; }
+  .adm-head-actions .is-wide-only { display: none; }
+  .eco-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-soft); border-top: 1px solid var(--line); }
+  .eco-sticky .btn { flex: 1 1 auto; justify-content: center; }
+  .adm-panel.has-sticky { padding-bottom: 96px; }
+  .adm-table.is-stack tr.has-act td.only-s { grid-column: 1; grid-row: 2; align-self: center; }
+  .adm-table.is-stack tr.has-act td.act { grid-column: 2; grid-row: 2; }
+  .adm-table td.act .eco-btn { margin: 0; }
+}
+
+/* phones and touch screens: every tap target is at least 44px; links inside text and tables get a taller hit area
+   without moving the text */
+@media (max-width: 760px), (pointer: coarse) {
+  .adm .btn, .adm-menu, .eco-seg button, .eco-btn, .eco-switch, .pf-checks label,
+  .adm input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .adm select { min-height: 44px; }
+  .eco-subnav a { display: inline-flex; align-items: center; min-height: 44px; }
+  .adm-nav a { min-height: 44px; }
+  .adm-brand, .eco-sheet a, .adm-me .adm-link { display: inline-flex; align-items: center; min-height: 44px; }
+  .adm-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; top: 6px; right: 4px; }
+  .adm-table td a, .eco-table td a, .eco-kv a, .eco-list a.t, .eco-list .t a, .pf-builtin-list a { padding: 12px 6px; margin: -12px -6px; }
+}

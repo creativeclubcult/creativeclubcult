@@ -1,0 +1,121 @@
+{
+  "last_snapshot_seq": 100,
+  "digests": {
+    "rekap": "rekap-101",
+    "kas": "kas-101",
+    "client": "client-101",
+    "crew": "crew-101",
+    "keuangan": "keu-101",
+    "tab:1001": "tab-1001-a",
+    "tab:1003": "tab-1003-a"
+  },
+  "projects": [
+    {
+      "id": "00000000-0000-4000-9000-000000000001",
+      "sheet_gid": 1001,
+      "tab_name": "001 ACME - Lookbook",
+      "seq": 1,
+      "sheet_state": "present",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-9000-000000000002",
+      "sheet_gid": 1002,
+      "tab_name": "002 BETA - Campaign",
+      "seq": 2,
+      "sheet_state": "present",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-9000-000000000003",
+      "sheet_gid": 1003,
+      "tab_name": "003 TST - Test Shoot",
+      "seq": 3,
+      "sheet_state": "present",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-9000-000000000004",
+      "sheet_gid": 1004,
+      "tab_name": "004 ACME - Catalog",
+      "seq": 4,
+      "sheet_state": "present",
+      "sheet_seq": 90
+    }
+  ],
+  "kas": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "sheet_row": 9,
+      "row_hash": "59e558eeef53ead25272716c9170f417",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "sheet_row": 10,
+      "row_hash": "df1d82d5a34f9ae55b245c79182fa37f",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "sheet_row": 11,
+      "row_hash": "c5a14aee8981487622c9926e36312393",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "sheet_row": 12,
+      "row_hash": "b26d2cb34c3a7747c287711551a8cc87",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "sheet_row": 13,
+      "row_hash": "f2621f008725ca83683c9dc1ee37f62e",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "sheet_row": 14,
+      "row_hash": "f2621f008725ca83683c9dc1ee37f62e",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "sheet_row": 15,
+      "row_hash": "238b921541b6650d1438026a7b6facb0",
+      "sheet_seq": 90
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "sheet_row": 16,
+      "row_hash": "05680ac4311adac40d8745859b0bb758",
+      "sheet_seq": 90
+    }
+  ],
+  "open_issues": [],
+  "values": {
+    "meta": {
+      "sheet": "TEST_SHEET_ID_0000000000000000000000000000",
+      "env": "dev",
+      "tz": "Asia/Jakarta",
+      "version": "1.0.0"
+    },
+    "labels": {
+      "status": [
+        "Draft",
+        "Dikirim",
+        "Deal",
+        "Lunas",
+        "Batal"
+      ],
+      "kas_categories": [
+        "Fee Crew",
+        "Sewa Alat",
+        "Transport",
+        "Pemasukan Project",
+        "Pemasukan Lain"
+      ]
+    }
+  }
+}

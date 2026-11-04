@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "sheet": "TEST_SHEET_ID_0000000000000000000000000000",
+    "env": "dev",
+    "tz": "Asia/Jakarta",
+    "version": "1.0.0",
+    "seq": 101,
+    "read_at": "2026-11-04T03:00:00.000Z",
+    "tabs": [
+      { "name": "001 ACME - Lookbook", "gid": 1001 },
+      { "name": "002 BETA - Campaign", "gid": 1002 },
+      { "name": "003 TST - Test Shoot", "gid": 1003 },
+      { "name": "004 ACME - Catalog", "gid": 1004 }
+    ],
+    "unknown_tabs": [],
+    "labels": {
+      "status": ["Draft", "Dikirim", "Deal", "Lunas", "Batal"],
+      "kas_categories": ["Fee Crew", "Sewa Alat", "Transport", "Pemasukan Project", "Pemasukan Lain"]
+    },
+    "tabs_mode": "none"
+  },
+  "rekap": {
+    "digest": "rekap-102",
+    "data": {
+      "summary": {
+        "count": 4, "next_invoice": "005", "deal_value": 45000000,
+        "status_counts": { "Draft": 1, "Dikirim": 1, "Deal": 1, "Lunas": 1, "Batal": 0 },
+        "tempo_days": 14, "receivable": 12500000, "profit_deal": 9000000, "seq_seed": 4
+      },
+      "rows": [
+        {
+          "row": 6, "tab_name": "001 ACME - Lookbook", "b_link": "#gid=1001", "invoice_no": "001/ACME/261001",
+          "client_label": "PT Acme Indonesia", "title": "Lookbook", "quote_date": "2026-10-01", "grand_total": 15000000,
+          "dp_amount": 7500000, "final_amount": 7500000, "status": "Lunas", "note_text": "Folder", "drive_folder_url": "https://drive.google.com/drive/folders/test1",
+          "final_file_date": "2026-10-20", "payment_due": "2026-11-03", "dp_received": 7500000, "dp_date": "2026-10-02",
+          "final_received": 7500000, "final_date": "2026-10-25", "paid_total": 15000000, "outstanding": 0,
+          "pay_status": "Lunas", "cost_override": null, "revenue": 15000000, "cost": 9000000, "profit": 6000000,
+          "margin": 0.4, "gear_note": null
+        },
+        {
+          "row": 7, "tab_name": "002 BETA - Campaign", "b_link": "#gid=1002", "invoice_no": "002/BETA/261010",
+          "client_label": "Beta Studio", "title": "Campaign", "quote_date": "2026-10-10", "grand_total": 20000000,
+          "dp_amount": 10000000, "final_amount": 10000000, "status": "Deal", "note_text": null, "drive_folder_url": null,
+          "final_file_date": null, "payment_due": null, "dp_received": 10000000, "dp_date": "2026-10-11",
+          "final_received": null, "final_date": null, "paid_total": 10000000, "outstanding": 10000000,
+          "pay_status": "DP", "cost_override": null, "revenue": 20000000, "cost": 11000000, "profit": 9000000,
+          "margin": 0.45, "gear_note": "2 alat belum dikunci"
+        },
+        {
+          "row": 8, "tab_name": "003 TST - Test Shoot", "b_link": "#gid=1003", "invoice_no": "003/TST/261015",
+          "client_label": "Test Client", "title": "Test Shoot", "quote_date": "2026-10-15", "grand_total": 5000000,
+          "dp_amount": 2500000, "final_amount": 2500000, "status": "Dikirim", "note_text": null, "drive_folder_url": null,
+          "final_file_date": null, "payment_due": null, "dp_received": null, "dp_date": null,
+          "final_received": null, "final_date": null, "paid_total": 0, "outstanding": 2500000,
+          "pay_status": "Belum", "cost_override": null, "revenue": 5000000, "cost": 0, "profit": 5000000,
+          "margin": 1, "gear_note": null
+        },
+        {
+          "row": 9, "tab_name": "004 ACME - Catalog", "b_link": "#gid=1004", "invoice_no": "004/ACME/261101",
+          "client_label": "PT Acme Indonesia", "title": "Catalog", "quote_date": "2026-11-01", "grand_total": 5000000,
+          "dp_amount": 2500000, "final_amount": 2500000, "status": "Draft", "note_text": null, "drive_folder_url": null,
+          "final_file_date": null, "payment_due": null, "dp_received": null, "dp_date": null,
+          "final_received": null, "final_date": null, "paid_total": 0, "outstanding": 0,
+          "pay_status": null, "cost_override": null, "revenue": 5000000, "cost": 0, "profit": 5000000,
+          "margin": 1, "gear_note": null
+        }
+      ]
+    }
+  },
+  "kas": {
+    "digest": "kas-102",
+    "data": {
+      "summary": { "start_date": "2026-01-01", "opening": 10000000, "in": 25000000, "out": 4100000, "cash": 30900000, "owed": 1500000 },
+      "rows": [
+        { "row": 9, "entry_date": "2026-10-02", "kind": "Masuk", "category": "Pemasukan Project", "project_tab": "001 ACME - Lookbook", "description": "DP Lookbook", "counterparty": "PT Acme Indonesia", "amount": 7500000, "paid": "Sudah", "method": "Transfer", "proof_url": null, "note": null },
+        { "row": 10, "entry_date": "2026-10-05", "kind": "Keluar", "category": "Fee Crew", "project_tab": "001 ACME - Lookbook", "description": "Fee DOP", "counterparty": "Andi", "amount": 1500000, "paid": "Sudah", "method": "Transfer", "proof_url": null, "note": null },
+        { "row": 11, "entry_date": "2026-10-05", "kind": "Keluar", "category": "Sewa Alat", "project_tab": "001 ACME - Lookbook", "description": "Sewa lighting", "counterparty": "Rental X", "amount": 800000, "paid": "Sudah", "method": "Cash", "proof_url": null, "note": null },
+        { "row": 12, "entry_date": "2026-10-11", "kind": "Masuk", "category": "Pemasukan Project", "project_tab": "002 BETA - Campaign", "description": "DP Campaign", "counterparty": "Beta Studio", "amount": 10000000, "paid": "Sudah", "method": "Transfer", "proof_url": null, "note": null },
+        { "row": 13, "entry_date": "2026-10-12", "kind": "Keluar", "category": "Transport", "project_tab": null, "description": "Bensin", "counterparty": null, "amount": 150000, "paid": "Sudah", "method": "Cash", "proof_url": null, "note": null },
+        { "row": 14, "entry_date": "2026-10-12", "kind": "Keluar", "category": "Transport", "project_tab": null, "description": "Bensin", "counterparty": null, "amount": 150000, "paid": "Sudah", "method": "Cash", "proof_url": null, "note": null },
+        { "row": 15, "entry_date": "2026-10-20", "kind": "Keluar", "category": "Fee Crew", "project_tab": "002 BETA - Campaign", "description": "Fee Stylist", "counterparty": "Budi", "amount": 1500000, "paid": "Belum", "method": null, "proof_url": null, "note": "via Admin" },
+        { "row": 16, "entry_date": "2026-10-25", "kind": "Masuk", "category": "Pemasukan Project", "project_tab": "001 ACME - Lookbook", "description": "Pelunasan Lookbook", "counterparty": "PT Acme Indonesia", "amount": 7500000, "paid": "Sudah", "method": "Transfer", "proof_url": null, "note": null }
+      ]
+    }
+  },
+  "client": {
+    "digest": "client-102",
+    "data": {
+      "rows": [
+        { "row": 5, "name": "PT Acme Indonesia", "code": "ACME", "pic": "Rina", "phone": "0811000001", "email": "rina@acme.test", "npwp": null, "address": "Jakarta", "note": null },
+        { "row": 6, "name": "Beta Studio", "code": "BETA", "pic": null, "phone": null, "email": null, "npwp": null, "address": null, "note": null },
+        { "row": 7, "name": "Test Client", "code": "TST", "pic": null, "phone": null, "email": null, "npwp": null, "address": null, "note": "test rows" },
+        { "row": 8, "name": null, "code": null, "pic": null, "phone": null, "email": null, "npwp": null, "address": null, "note": null }
+      ]
+    }
+  },
+  "crew": {
+    "digest": "crew-102",
+    "data": {
+      "rows": [
+        { "row": 5, "role": "DOP", "name": "Andi", "rate": 1500000, "rate_unit": "per hari", "phone": null, "note": null, "unpaid": 0, "paid_this_year": 1500000 },
+        { "row": 6, "role": "Stylist", "name": "Budi", "rate": 1500000, "rate_unit": "per hari", "phone": null, "note": null, "unpaid": 1500000, "paid_this_year": 0 },
+        { "row": 7, "role": null, "name": null, "rate": null, "rate_unit": null, "phone": null, "note": null, "unpaid": null, "paid_this_year": null }
+      ]
+    }
+  },
+  "keuangan": { "digest": "keu-101", "same": true },
+  "tabs": [],
+  "scanned": ["rekap", "kas", "client", "crew", "keuangan"],
+  "errors": [],
+  "form_missing": null
+}
