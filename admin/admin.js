@@ -9,6 +9,9 @@
   var DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   var SB_URL = DEV ? 'https://jvhhcehzhgpcphtpynnx.supabase.co' : 'https://zneckeqsvwbavqxpolri.supabase.co';
   var SB_KEY = DEV ? 'sb_publishable_4h3nPS3LkYpy8xOe2vEM_A_y9ffqKEY' : 'sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU';
+  // A password-reset link signs the person in as well. Note it before the auth library reads and clears the
+  // address, so the reset form stays up until the new password is saved.
+  var recovering = /type=recovery/.test(location.hash + location.search);
   var sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   Array.prototype.forEach.call(document.querySelectorAll('[data-env]'), function (el) { el.hidden = !DEV; });
 
@@ -122,6 +125,7 @@
     sb.auth.updateUser({ password: pw }).then(function (r) {
       if (r.error) { resetMsg.textContent = r.error.message; resetMsg.classList.add('is-error'); return; }
       resetForm.password.value = ''; toast('Password saved.');
+      recovering = false;
       sb.auth.getSession().then(function (s) { route(s.data.session); });
     });
   });
@@ -136,6 +140,7 @@
     if (routing) return; routing = true;
     sb.from('team_members').select('role, full_name, email').eq('user_id', session.user.id).maybeSingle().then(function (r) {
       routing = false;
+      if (recovering) return; // a reset link turned up meanwhile: the reset form stays
       $$('[data-me-email]').forEach(function (el) { el.textContent = session.user.email; });
       if (r.error || !r.data) { show('denied'); return; }
       me = { id: session.user.id, email: session.user.email, role: r.data.role, name: r.data.full_name };
@@ -149,8 +154,10 @@
     });
   }
   sb.auth.onAuthStateChange(function (event, session) {
-    if (event === 'PASSWORD_RECOVERY') { show('reset'); return; }
-    if (event === 'SIGNED_OUT') { me = null; show('login'); return; }
+    if (event === 'PASSWORD_RECOVERY') { recovering = true; show('reset'); return; }
+    if (event === 'SIGNED_OUT') { recovering = false; me = null; show('login'); return; }
+    // the reset link's own sign-in must not swap the reset form for the dashboard
+    if (recovering && session) { show('reset'); return; }
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') route(session);
   });
 
@@ -705,7 +712,9 @@
   var MAX_MB = 15;
   var PF_STATUS = { draft: 'Draft', published: 'Published', archived: 'Archived' };
   var SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-  var VIDEO_RE = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=[A-Za-z0-9_-]{6,20}|youtu\.be\/[A-Za-z0-9_-]{6,20}|vimeo\.com\/[0-9]{4,12})([?&#][A-Za-z0-9_=&.-]*)?$/;
+  // YouTube and Vimeo, including unlisted Vimeo links (vimeo.com/<id>/<hash>) and Vimeo embed links
+  // (player.vimeo.com/video/<id>?h=<hash>). The database checks the same pattern.
+  var VIDEO_RE = /^https:\/\/((www\.)?(youtube\.com\/watch\?v=[A-Za-z0-9_-]{6,20}|youtu\.be\/[A-Za-z0-9_-]{6,20}|vimeo\.com\/[0-9]{4,12}(\/[0-9a-f]{6,20})?)|player\.vimeo\.com\/video\/[0-9]{4,12})([?&#][A-Za-z0-9_=&.%-]*)?$/;
   var slugify = function (t) { return (t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, ''); };
   var pathsOf = function (it) { return [it.cover_path].concat((it.gallery || []).map(function (g) { return g.path; })).filter(Boolean); };
   var viewUrl = function (slug, preview) { return '/work/view' + (DEV ? '.html' : '') + '?p=' + encodeURIComponent(slug) + (preview ? '&preview=1' : ''); };
@@ -1032,7 +1041,10 @@
       }
       return go();
     }
-    var saveFirst = function () { return dirty() || isNew ? save(true) : Promise.resolve(); };
+    // Unsaved edits are saved before a preview or a status change. On a published item that would put them on
+    // the website, so it asks first, the same way Save does; a draft saves quietly.
+    var isLive = function () { return !!(saved && saved.status === 'published'); };
+    var saveFirst = function () { return dirty() || isNew ? save(!isLive()) : Promise.resolve(); };
 
     function setStatus(next, confirmText, okLabel, danger) {
       var title = (collect().title || 'this item');
@@ -1055,6 +1067,14 @@
           });
         }).catch(function (e) { toast(e.message, true); }).then(function () { setBusy(false); });
       };
+      // Taking a live page down: confirm first, then keep any unsaved edits in the draft, so they never go live
+      // (and Cancel leaves the live page exactly as it was).
+      if (isLive() && next !== 'published') {
+        var body = confirmText[1] + (dirty() ? ' Your unsaved changes are kept in the draft.' : '');
+        return ask(confirmText[0].replace('%', title), body, okLabel, danger)
+          .then(function (ok) { if (ok) return steps().then(function () { if (!isLive() && dirty()) return save(true); }); })
+          .catch(function () {});
+      }
       return saveFirst().then(function () { return ask(confirmText[0].replace('%', title), confirmText[1], okLabel, danger); })
         .then(function (ok) { if (ok) return steps(); }).catch(function () {});
     }
@@ -1132,7 +1152,7 @@
         h('div', { class: 'adm-row' }, coverBtn)))),
       sec('Gallery', h('div', { class: 'adm-row' }, galBtn), gal),
       sec('Film', h('div', { class: 'adm-controls' }, h('label', { class: 'wide' }, 'Video link (optional)', f.video_url,
-        h('span', { class: 'pf-hint', text: 'YouTube or Vimeo. Shown above the gallery.' })))),
+        h('span', { class: 'pf-hint', text: 'YouTube or Vimeo, unlisted Vimeo links included. Shown above the gallery.' })))),
       sec('Credits', crBox, h('div', { class: 'adm-row' }, addCredit)),
       sec('Search & sharing', h('div', { class: 'adm-controls' },
         h('label', { class: 'wide' }, 'SEO title (optional)', f.seo_title, counter(f.seo_title, 70)),

@@ -123,8 +123,12 @@
   function videoEmbed(u) {
     var m = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,20})/.exec(u || '');
     if (m) return 'https://www.youtube-nocookie.com/embed/' + m[1];
-    m = /vimeo\.com\/([0-9]{4,12})/.exec(u || '');
-    return m ? 'https://player.vimeo.com/video/' + m[1] + '?dnt=1' : null;
+    // vimeo.com/<id>, vimeo.com/<id>/<hash> (unlisted) or player.vimeo.com/video/<id>?h=<hash>;
+    // an unlisted video only plays when the hash travels with it
+    m = /vimeo\.com\/(?:video\/)?([0-9]{4,12})(?:\/([0-9a-f]{6,20}))?/.exec(u || '');
+    if (!m) return null;
+    var hash = m[2] || (/[?&]h=([0-9a-f]{6,20})/.exec(u) || [])[1];
+    return 'https://player.vimeo.com/video/' + m[1] + '?' + (hash ? 'h=' + hash + '&' : '') + 'dnt=1';
   }
 
   function render(p, src) {
@@ -171,7 +175,7 @@
     if (embed) {
       var vrow = el('div', 'pfull pvideo reveal'), frame = document.createElement('iframe');
       frame.src = embed; frame.title = p.title + ' film'; frame.loading = 'lazy';
-      frame.allow = 'fullscreen; picture-in-picture'; frame.setAttribute('allowfullscreen', '');
+      frame.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
       vrow.appendChild(frame); gallery.appendChild(vrow);
     }
     // images in the order set in the admin; neighbours of the same size share a row (one, two or three across)
