@@ -81,7 +81,7 @@ Tested on DEV, 2026-11-06:
 - Through the DEV functions and web app version 5, on tab 012: a Pre-Production line was added and its cost changed, a Lens item was added at its catalog price (2 × 25.000), an actual cost and Biaya lain were saved, then both lines were removed and the amounts emptied. Every op was done on its first attempt, the totals followed (3.000.000 to 3.300.000 and back to 3.000.000), and there were no sync issues and no failed ops.
 - The admin screens were checked against the local harness at 1440 and 390 px with a clean console. They have not been used against DEV signed in yet, which needs a DEV sign in.
 
-Rollout on PROD, waiting for the owner's go-ahead:
+Rollout on PROD, approved by the owner ("oke rilis") and done on 2026-11-05 between 20:50 and 21:05 UTC (03:50 to 04:05 WIB on 2026-11-06):
 
 | # | Step | Check | Rollback |
 | --- | --- | --- | --- |
@@ -91,6 +91,13 @@ Rollout on PROD, waiting for the owner's go-ahead:
 | 4 | Release: `admin-ecosystem` into `site`, `site` to `main` | a project page at 390 and 1440 px, console clean; the gear list loads; the owner's first real edit shows in the Sheet | push `190eaaf` to `main` again |
 
 Each step is harmless on its own: Sync.gs 1.3.0 only adds ops that the older functions never send, and the older Sync.gs answers them with "not switched on yet". To stop all writes at any point: `syncWritesOff` in the live script and `writes_enabled` false.
+
+Status:
+
+1. Pushed: `admin-ecosystem` at `6dd7712`.
+2. Live script: the `Sync` file holds Sync.gs 1.3.0 (SHA-256 `d147dadf5c33…`), deployed as web app version 3 "Sync 1.3.0" at 20:53 UTC with the same `/exec` URL. `syncSelfTest` is `ok` with version 1.3.0: every header, the template, all 12 RAB tabs (001 to 009 v1; 010 to 012 v2 with every section and Equipment), the Code.gs symbols, the mirrors and the three triggers; `SYNC_WRITES` stays `on`. `Kode.gs` has the same SHA-256 (`1426d907ab38…`).
+3. Functions deployed from `6dd7712` at 20:58 UTC (each is version 5). Without credentials all three answer 401, the catalog read included. The database functions M6 uses equal DEV's once comments are left out, so the schema needed nothing. The pull at 21:00 UTC read web app 1.3.0 and was `connected`, with no changes and no warnings; the `webapp_version_mismatch` issue closed by itself at 21:04 UTC.
+4. Released: `site` and `main` at `6dd7712` (Vercel production ready at 21:01 UTC; the previous `main` is `190eaaf`). The live `/admin` page is byte for byte the commit's, and `ops/` and `supabase/` still answer 404. Signed in as the owner, project 010 shows the Budget editor at 1440 and 390 px with no console errors and no sideways scroll. Editing a gear line loaded Katalog Alat (308 items) and showed the line's locked price; the form was cancelled, so nothing was written. Still to see: the owner's first real edit arriving in the Sheet.
 
 ## What the owner does
 
