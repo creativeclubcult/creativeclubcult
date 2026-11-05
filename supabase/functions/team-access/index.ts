@@ -2,7 +2,7 @@
 import { accessState, signedIn } from '../_shared/auth.ts';
 import { DbError, insert, rpc } from '../_shared/db.ts';
 import { env, loadConfig, missingConfig } from '../_shared/env.ts';
-import { gate, json, originAllowed, readJson } from '../_shared/http.ts';
+import { gate, json, readJson } from '../_shared/http.ts';
 import { mailConfig, sendMail } from '../_shared/mail.ts';
 import { type Deps, handle, type Link } from './handler.ts';
 
@@ -46,7 +46,8 @@ const live: Deps = {
     const rt = (globalThis as any).EdgeRuntime;
     if (rt && typeof rt.waitUntil === 'function') rt.waitUntil(p);
   },
-  originOk: originAllowed,
+  // links in emails go only to an origin listed exactly in admin_origins, never one a wildcard (https://*.vercel.app) lets in
+  originOk: (origin) => env.origins.includes(origin),
 };
 
 Deno.serve(async (req) => {
