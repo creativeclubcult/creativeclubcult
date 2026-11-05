@@ -30,7 +30,11 @@ DEV keeps its own schedules. Its pulls can be paused (`pull_enabled: false` on D
 6. Schedules applied. Run 1 read 12 projects, 13 clients and the summaries, with no issues.
 7. Parity 2026: `report_check` matches (10 Deal or Lunas projects, omset, cost and profit). Rekap 12 rows, Client 13, Kas 0 and Crew 0, the same as the Sheet (its Kas and Crew tabs have no rows yet).
 8. Released: see the commit that moves `main` past `6ef14d2`.
-9. Writes stay off until 2026-11-07, after the daily parity checks.
+9. Writes on since 16:09 UTC (23:09 WIB), two days early at the owner's request, together with the admin's editing screens (commit `190eaaf` on `site` and `main`; the previous `main` is `ba1f40e`).
+   - Right before: parity 2026 matched (10 Deal or Lunas projects, omset 29.399.200, cost 3.000.000, profit 0; Rekap 12, Client 13, Kas 0, Crew 0). `report_check` returns null without a signed-in money user, so the same comparison was run as SQL.
+   - `syncWritesOn` ran in the live script editor (Sheet, Extensions, Apps Script; log "Writes from the admin: on"), then `flags.writes_enabled` went to true. The next pull kept it.
+   - First real write at 17:14 UTC: `client_upsert` for DRV (PIC and phone) was done in 7 seconds. Row 10 of the Client tab shows it, the activity log has "edited client", and there are no sync issues.
+   - Rollback: `syncWritesOff` in the live script and `writes_enabled: false`; for the code, push `ba1f40e` to `main` again.
 
 ## Security audit on 2026-11-05
 

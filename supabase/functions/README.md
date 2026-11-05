@@ -45,7 +45,7 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 - All three are deployed from commit `ba1f40e` of this repo (version 3; before that `833c780`, then `071465e`, which keeps amounts out of write replies for people without money access; `ba1f40e` adds the sign in code check). `team-access` is deployed from the same commit. Each function is a one-line entry that imports `https://raw.githubusercontent.com/creativeclubcult/creativeclubcult/<commit>/supabase/functions/<name>/index.ts`; the bundle is built at deploy time, so the code that runs is this folder at that commit. To ship a change, push it, then deploy the same entry with the new commit hash. With the CLI installed, `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt` does the same from a checkout.
 - Paired with the live Sheet (env `prod`), whose web app runs Sync.gs 1.2.1 (deployment version 2). `admin_origins` is `https://creativeclubcult.com`.
 - `GMAIL_APP_PASSWORD` is set, and codes are on (`private.access_rules.two_step`) since 2026-11-05 10:46 UTC. What to do when email stops is in `ops/PRODUCTION.md`.
-- Reading is on and writing is off: `sheet_values.flags` has `pull_enabled` true and `writes_enabled` false, and the live script's `SYNC_WRITES` is `off`. Writing goes on after two days of matching figures (`ops/PRODUCTION.md`, step 9).
+- Reading and writing are on since 2026-11-05 16:09 UTC: `sheet_values.flags` has `pull_enabled` and `writes_enabled` true, and the live script's `SYNC_WRITES` is `on` (`ops/PRODUCTION.md`, step 9). To pause writing: `syncWritesOff` in the live script and `writes_enabled` false.
 - The pg_cron schedules are the same as on DEV.
 
 ## Tests
