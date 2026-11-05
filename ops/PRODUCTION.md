@@ -97,7 +97,21 @@ Status:
 1. Pushed: `admin-ecosystem` at `6dd7712`.
 2. Live script: the `Sync` file holds Sync.gs 1.3.0 (SHA-256 `d147dadf5c33…`), deployed as web app version 3 "Sync 1.3.0" at 20:53 UTC with the same `/exec` URL. `syncSelfTest` is `ok` with version 1.3.0: every header, the template, all 12 RAB tabs (001 to 009 v1; 010 to 012 v2 with every section and Equipment), the Code.gs symbols, the mirrors and the three triggers; `SYNC_WRITES` stays `on`. `Kode.gs` has the same SHA-256 (`1426d907ab38…`).
 3. Functions deployed from `6dd7712` at 20:58 UTC (each is version 5). Without credentials all three answer 401, the catalog read included. The database functions M6 uses equal DEV's once comments are left out, so the schema needed nothing. The pull at 21:00 UTC read web app 1.3.0 and was `connected`, with no changes and no warnings; the `webapp_version_mismatch` issue closed by itself at 21:04 UTC.
-4. Released: `site` and `main` at `6dd7712` (Vercel production ready at 21:01 UTC; the previous `main` is `190eaaf`). The live `/admin` page is byte for byte the commit's, and `ops/` and `supabase/` still answer 404. Signed in as the owner, project 010 shows the Budget editor at 1440 and 390 px with no console errors and no sideways scroll. Editing a gear line loaded Katalog Alat (308 items) and showed the line's locked price; the form was cancelled, so nothing was written. Still to see: the owner's first real edit arriving in the Sheet.
+4. Released: `site` and `main` at `6dd7712` (Vercel production ready at 21:01 UTC; the previous `main` is `190eaaf`). The live `/admin` page is byte for byte the commit's, and `ops/` and `supabase/` still answer 404. Signed in as the owner, project 010 shows the Budget editor at 1440 and 390 px with no console errors and no sideways scroll. Editing a gear line loaded Katalog Alat (308 items) and showed the line's locked price; the form was cancelled, so nothing was written. The owner's first real edit (010, row 99, the lens item) arrived in the Sheet at 22:30 UTC.
+
+### Tested on PROD, fixes released 2026-11-05 23:08 UTC (06:08 WIB on 2026-11-06)
+
+At the owner's request ("coba lu yang ngetes sendiri"), every M6 write was tried on the live admin against 011, and each change was undone the same way, with the Sheet read back after each step: editing a line, adding and removing a line in a plain section and in Equipment, changing a quantity, locking and unlocking a gear price, and saving actual costs and Biaya lain. The Sheet's totals, PPN BSM and terbilang followed each time. 011 is back to its starting state (GRAND TOTAL 14.800.750, Equipment 4.800.750, TOTAL BIAYA KELUAR 18.300.750 both columns).
+
+Found and fixed in `6da90b2` (front end only; no function, script or schema change):
+
+- On a line with a locked price, picking other equipment kept the old price. The owner's edit on 010 left Tamron 20mm (catalog 50.000) at Sony's locked 300.000. Now the price follows the picked equipment (its catalog price, still locked; empty when the catalog has none) unless a price was typed in the form, and the item the line had brings its own price back.
+- The actual costs total added up only the typed actuals (570.000 against the Sheet's 18.370.750 during the test). It now shows TOTAL BIAYA KELUAR, where an empty actual counts as its estimate, and an empty actual shows its estimate as the placeholder instead of 0. The read only cost table also lists Biaya lain.
+- Margins were the stored ratio, rounded to four places, which showed −23,7% where Rekap Project shows −23,6%. They are now profit over omset.
+
+Release: `site` and `main` at `6da90b2` (the previous `main` is `6dd7712`; the owner approved the push to `main` in chat). The four live admin files are byte for byte the commit's. Checked signed in at 1440 and 390 px with a clean console and no sideways scroll: on 010 the gear form took another lens's catalog price and gave the locked price back for the line's own item, without saving; 011 shows margin −23,6% and totals 18.300.750 and 18.300.750; Reports and 012 show their margins.
+
+At the owner's choice, 010 row 99 was put back to Sony FE 24-70mm F2.8 GM II Lens (BSM) at the locked 300.000 through the fixed form (one op, only the item written). The Sheet row is the original again (vendor BSM, 29 Okt 26), Equipment is 1.953.600 again with PPN BSM, and `project_money` followed. Afterwards: 15 ops all `done`, 0 open sync issues.
 
 ## What the owner does
 
