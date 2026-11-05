@@ -41,6 +41,8 @@ Done after the release, before anyone else joins the team. Two gaps were closed 
 
 Checked after both: without credentials the three functions answer 401, the publishable key alone gets "Sign in to the admin first.", and `activity_log` and `sync_outbox` refuse anonymous reads. Advisors are unchanged.
 
+3. Crew accounts. The owner chose to keep people's details and lead budgets from crew: `20261105_people_editors.sql` (applied as `people_editors`) limits applicants, network sign-ups, leads, their files and lead events to owners and admins, and `overview_flow` sends null (not 0) for the counts a viewer can't read. Read as the owner, every count was the same before and after; a signed-in account outside the team reads nothing. The admin pages that follow it (menu, overview, client and project details, Reports) are commit `cb689a8` on `admin-ecosystem` and go live with the next release.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
