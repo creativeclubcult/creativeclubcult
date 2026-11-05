@@ -19,7 +19,7 @@
  *  Pairing (the only unsigned calls): here → bridge {kind:'pair', v:1, sheet, env, r}; the bridge asks this web
  *  app {v:1, op:'pair_check'} for SHA-256(r) and only then answers with a new SYNC_SECRET. Nobody types the secret.
  */
-const SYNC_VERSION = '1.2.1';
+const SYNC_VERSION = '1.3.0';
 // the live Sheet: "CCC - RAB & Keuangan" in the Shared Drive "CCC" of hello@creativeclubcult.com (since 2026-11-04)
 const SYNC_PROD_SHEET = '1a5bRCaYtcTrhDyJtpaeCAQeKV58-kvd3NOfuJWGkVtM';
 // the live Sheet before 2026-11-04, kept in the personal Drive as an archive
@@ -106,6 +106,11 @@ const SYNC_SECTIONS = [
   ['LAIN-LAIN (OTHERS)', 'others', [1, 2, 4, 5, 6, 7]],
 ];
 const SYNC_EQ_GROUPS = ['CAMERA', 'LENS', 'CAMERA SUPPORT', 'BACKGROUND', 'LIGHTING', 'LIGHTING SUPPORT', 'AUDIO', 'LAINNYA'];
+// RAB line fields (M6): field → [column, value type]. A section writes only the columns SYNC_SECTIONS lists for it.
+const SYNC_LINE_FIELDS = { no: [1, 'int'], desc: [2, 'text'], person: [3, 'text'], cost: [4, 'money'], qty: [5, 'num'],
+  unit: [6, 'text'], days: [7, 'num'] };
+// equipment: I the item (Katalog N "Name (Vendor)" or typed), J qty and K days (the Sheet's lists 1 to 30), L manual price
+const SYNC_EQ_FIELDS = { item: [9, 'text'], qty: [10, 'n30'], days: [11, 'n30'], manual_price: [12, 'money'] };
 const SYNC_DOC_TYPES = ['PENAWARAN', 'INVOICE', 'KWITANSI'];
 const SYNC_KAS_KEYS = ['entry_date', 'kind', 'category', 'project_tab', 'description', 'counterparty', 'amount', 'paid',
   'method', 'proof_url', 'note'];
@@ -330,11 +335,11 @@ function syncAlokasiTab_(sh) {
 // =====================================================================================================
 
 function syncOps_() {
-  const nope = function () { throw syncErr_('not_enabled', "Editing RAB lines from the admin isn't switched on yet. Edit them in the Sheet."); };
   return {
     ping: { fn: api_ping },
     snapshot: { fn: api_snapshot },
     rab: { fn: api_rab },
+    catalog: { fn: api_catalog },
     scan_docs: { fn: api_scan_docs },
     selftest: { fn: api_selftest },
     formula_fingerprint: { fn: api_formula_fingerprint, devOnly: true },
@@ -348,10 +353,10 @@ function syncOps_() {
     kas_delete: { fn: api_kas_delete, write: true },
     client_upsert: { fn: api_client_upsert, write: true },
     crew_upsert: { fn: api_crew_upsert, write: true },
-    rab_line_set: { fn: nope, write: true },
-    rab_line_add: { fn: nope, write: true },
-    rab_line_clear: { fn: nope, write: true },
-    rab_internal: { fn: nope, write: true },
+    rab_line_set: { fn: api_rab_line_set, write: true },
+    rab_line_add: { fn: api_rab_line_add, write: true },
+    rab_line_clear: { fn: api_rab_line_clear, write: true },
+    rab_internal: { fn: api_rab_internal, write: true },
   };
 }
 
@@ -414,6 +419,9 @@ function syncNextSeq_() {                       // call only while holding the s
 }
 
 // The only function that writes cells. All checks run before the first write; a bad result undoes everything.
+// opts: force (skip the expect check), watch (more sheets to guard), skipFormulaRows, check (a function giving '' when
+// the block adds up, else what's wrong: run before the write, which is then refused, and after it, which is then
+// undone like a formula-guard trip).
 function syncWrite_(ctx, writes, opts) {
   opts = opts || {};
   const rekap = ctx.ss.getSheetByName(REKAP);
@@ -434,9 +442,13 @@ function syncWrite_(ctx, writes, opts) {
       throw syncErr_('conflict', 'Changed in the Sheet: ' + w.field, { field: w.field, sheet_value: syncCell_(cur, ctx.tz), you_saw: w.expect });
     todo.push([cell, val]); undo.push([cell, cur]);
   });
+  // a block that already doesn't add up is the Sheet's problem, not this write's: refuse without tripping the guard
+  // (needs_sheet: the admin shows this sentence as it is)
+  const pre = todo.length && opts.check ? opts.check() : '';
+  if (pre) throw syncErr_('needs_sheet', pre + '. Nothing was written: fix that in the Sheet first.');
   todo.forEach(t => t[0].setValue(t[1]));
   SpreadsheetApp.flush();
-  const broken = syncBroken_(watch, before, opts.skipFormulaRows);
+  const broken = syncBroken_(watch, before, opts.skipFormulaRows) || (todo.length && opts.check ? opts.check() : '');
   if (broken) {
     undo.forEach(u => u[0].setValue(u[1]));
     SpreadsheetApp.flush();
@@ -704,6 +716,14 @@ function syncValue_(field, v, tz, list, type) {
       return v;
     case 'int':
       if (typeof v !== 'number' || v !== Math.round(v) || v < 0 || v > 1e6) throw syncErr_('invalid', field + ' must be a whole number');
+      return v;
+    case 'num':                                                            // RAB qty and days: up to 2 decimals
+      if (typeof v !== 'number' || !(v >= 0 && v <= 1e6) || Math.abs(Math.round(v * 100) - v * 100) > 1e-6) {
+        throw syncErr_('invalid', field + ' must be a number with at most 2 decimals');
+      }
+      return v;
+    case 'n30':                                                            // gear qty and days: the Sheet's list 1 to 30
+      if (typeof v !== 'number' || v !== Math.round(v) || v < 1 || v > 30) throw syncErr_('invalid', field + ' must be a whole number from 1 to 30');
       return v;
     case 'pct':
       if (typeof v !== 'number' || !(v >= 0 && v <= 1)) throw syncErr_('invalid', field + ' must be between 0% and 100%');
@@ -1849,4 +1869,463 @@ function api_crew_upsert(ctx, a) {
   const name = String(a.name || '').trim();
   if (!name || name.length > 120) throw syncErr_('invalid', 'A crew member needs a name');
   return syncUpsert_(ctx, 'crew', name, a);
+}
+
+// =====================================================================================================
+// RAB lines (M6): breakdown lines, equipment lines and the internal actual costs (DESIGN.md §3.6, §3.8.5)
+// =====================================================================================================
+
+/** The "Date:" row (G, from row 40). Above it: the header, the summary, GRAND TOTAL and the internal block. */
+function syncDateRow_(sh) {
+  const g = sh.getRange(1, 7, Math.max(sh.getLastRow(), 1), 1).getDisplayValues();
+  for (let r = 40; r <= g.length; r++) if (String(g[r - 1][0]).trim().toUpperCase() === 'DATE:') return r;
+  throw syncErr_('layout', 'RAB anchor missing: G "Date:"');
+}
+
+/** A breakdown section as syncRabRead_ reads it, found again inside the lock: its title in A below the "Date:" row,
+ *  the NO header within 3 rows, item rows down to the first E holding TOTAL (TOTAL CREW or SUB TOTAL). */
+function syncSectionAt_(sh, key) {
+  const def = SYNC_SECTIONS.filter(function (s) { return s[1] === key; })[0];
+  if (!def) throw syncErr_('invalid', 'Pick a section');
+  const date = syncDateRow_(sh), last = sh.getLastRow();
+  const v = sh.getRange(1, 1, last, 5).getDisplayValues();
+  const U = function (r, c) { return String(v[r - 1][c - 1]).trim().toUpperCase(); };
+  for (let r = date + 1; r <= last; r++) {
+    if (U(r, 1).replace(/^[0-9.\s]+/, '') !== def[0]) continue;
+    let head = 0;
+    for (let x = r + 1; x <= Math.min(r + 3, last) && !head; x++) if (U(x, 1) === 'NO') head = x;
+    if (!head) throw syncErr_('layout', def[0] + ' has no NO | DESCRIPTION header');
+    let end = 0, sub = 0;
+    for (let x = head + 1; x <= last && !sub; x++) {
+      const e = U(x, 5);
+      if (e.indexOf('TOTAL') < 0) continue;
+      if (!end) end = x;
+      if (e.indexOf('SUB TOTAL') >= 0) sub = x;
+    }
+    if (!sub) throw syncErr_('layout', def[0] + ' has no SUB TOTAL');
+    if (end < head + 2) throw syncErr_('needs_sheet', def[0] + ' has no item rows. Add one in the Sheet.');
+    return { key: key, title: def[0], cols: def[2], date: date, row: r, head: head, first: head + 1, last: end - 1, end: end, sub: sub };
+  }
+  throw syncErr_('layout', def[0] + ' is not in this RAB');
+}
+
+/** The equipment block as equipmentRows_ (Code.gs) finds it, by group (A = CAMERA, LENS, ...). Item rows are the rows
+ *  with the Sheet's equipment dropdown in I: the rows rapikanAlat_ gives formulas. */
+function syncEquipmentAt_(sh) {
+  const eq = equipmentRows_(sh);
+  if (!eq) throw syncErr_('layout', 'This RAB has no equipment block');
+  const n = eq.end - eq.start + 1;
+  const a = sh.getRange(eq.start, 1, n, 1).getDisplayValues();
+  const dv = sh.getRange(eq.start, 9, n, 1).getDataValidations();
+  const groups = [];
+  let g = null;
+  for (let i = 0; i < n; i++) {
+    const name = String(a[i][0]).trim().toUpperCase();
+    if (SYNC_EQ_GROUPS.indexOf(name) >= 0) { g = { name: name, row: eq.start + i, rows: [] }; groups.push(g); continue; }
+    if (g && dv[i][0]) g.rows.push(eq.start + i);
+  }
+  return { head: eq.start - 1, start: eq.start, end: eq.end, sub: eq.end + 1, groups: groups };
+}
+
+/** What a line op may touch: the section's fields (or the equipment's), its item rows, the field that names a line,
+ *  its header row and its SUB TOTAL row. */
+function syncLineTarget_(sh, section) {
+  const rows = [];
+  if (section === 'equipment') {
+    const eq = syncEquipmentAt_(sh);
+    eq.groups.forEach(function (g) { g.rows.forEach(function (r) { rows.push(r); }); });
+    return { title: 'Equipment', equipment: true, eq: eq, fields: SYNC_EQ_FIELDS, idKey: 'item', spill: null, rows: rows,
+      isItem: function (r) { return rows.indexOf(r) >= 0; }, head: eq.head, sub: eq.sub };
+  }
+  const sec = syncSectionAt_(sh, section);
+  for (let r = sec.first; r <= sec.last; r++) rows.push(r);
+  const fields = {};
+  Object.keys(SYNC_LINE_FIELDS).forEach(function (f) { if (sec.cols.indexOf(SYNC_LINE_FIELDS[f][0]) >= 0) fields[f] = SYNC_LINE_FIELDS[f]; });
+  return { title: sec.title, equipment: false, sec: sec, fields: fields, idKey: 'desc', spill: { first: sec.first }, rows: rows,
+    isItem: function (r) { return r >= sec.first && r <= sec.last; }, head: sec.head, sub: sec.sub };
+}
+
+/** A check for syncWrite_: the block's SUB TOTAL (H) equals the sum of the numbers in H between its header row and
+ *  it, which is what the template's SUB TOTAL adds up (=SUM(H65:INDEX(H:H;ROW()-1))). It fails when a tab's formula
+ *  covers fewer rows, like a fixed range that a new row falls outside of. */
+function syncSumCheck_(sh, t) {
+  const head = t.head, sub = t.sub;
+  return function () {
+    if (String(sh.getRange(sub, 5).getDisplayValue()).trim().toUpperCase() !== 'SUB TOTAL') return sh.getName() + ': SUB TOTAL is not on row ' + sub;
+    if (sub - head < 2) return '';
+    let sum = 0;
+    sh.getRange(head + 1, 8, sub - head - 1, 1).getValues().forEach(function (r) { if (typeof r[0] === 'number') sum += r[0]; });
+    const st = sh.getRange(sub, 8).getValue();
+    return typeof st === 'number' && Math.abs(st - sum) < 0.5 ? '' : sh.getName() + ': SUB TOTAL H' + sub + ' shows ' + st + ' but its lines add up to ' + sum;
+  };
+}
+
+/** Refuses a change to a line that isn't the one the admin showed (DESIGN.md §3.6, line_moved): each field in
+ *  `expect` must still read the same, except the fields being changed (syncWrite_ checks those one by one, a
+ *  conflict). The description (equipment: the item) names the line, so it is checked even when it is being changed.
+ *  A field that already holds its new value (a retry after a lost answer) passes. */
+function syncLineSame_(ctx, sh, row, t, expect, set) {
+  const moved = [];
+  Object.keys(expect || {}).forEach(function (f) {
+    const d = t.fields[f];
+    if (!d) throw syncErr_('invalid', f + ' is not a field of ' + t.title);
+    const has = Object.prototype.hasOwnProperty.call(set, f);
+    const cur = sh.getRange(row, d[0]).getValue();
+    if (has && syncSame_(cur, syncValue_(f, set[f], ctx.tz, null, d[1]), ctx.tz)) return;
+    if (has && f !== t.idKey) return;
+    if (!syncSame_(cur, expect[f], ctx.tz)) moved.push(f);
+  });
+  if (moved.length) {
+    throw syncErr_('line_moved', 'Row ' + row + ' of ' + t.title + ' changed or moved in the Sheet (' + moved.join(', ') + ').',
+      { row: row, fields: moved });
+  }
+}
+
+function syncLineReply_(ctx, sh, res, extra) {
+  return Object.assign({ rab: syncTabSection_(ctx, sh), project: syncProjectReply_(ctx, sh), tab: { name: sh.getName(), gid: sh.getSheetId() },
+    written: res.written, noop: res.noop }, extra || {});
+}
+
+/** Op rab_line_set {tab_gid, section, lines: [{row, set, expect}], force}: changes lines of one section (section
+ *  'equipment' for the gear) in one guarded write. Row numbers come from the admin's copy and are checked here. */
+function api_rab_line_set(ctx, a) {
+  const sh = syncSheetByGid_(ctx, a.tab_gid);
+  syncV2_(sh);
+  const lines = Array.isArray(a.lines) ? a.lines : [];
+  if (!lines.length || lines.length > 40) throw syncErr_('invalid', 'Send 1 to 40 lines');
+  if (a.section === 'equipment') { rapikanAlat_(sh); SpreadsheetApp.flush(); }   // before any hash: gear typed in the Sheet gets its formulas
+  const t = syncLineTarget_(sh, a.section);
+  const seen = {}, writes = [];
+  lines.forEach(function (l) {
+    const row = Number(l.row), set = l.set || {}, expect = l.expect || {};
+    if (!t.isItem(row)) throw syncErr_('line_moved', 'Row ' + row + ' is not a line of ' + t.title + ' anymore.', { row: row });
+    if (seen[row]) throw syncErr_('invalid', 'Row ' + row + ' is sent twice');
+    seen[row] = true;
+    if (!Object.keys(set).length) throw syncErr_('invalid', 'Nothing to change');
+    if (Object.prototype.hasOwnProperty.call(set, t.idKey) && (set[t.idKey] === null || String(set[t.idKey]).trim() === '')) {
+      throw syncErr_('invalid', 'Use Remove line to take a line out');
+    }
+    syncLineSame_(ctx, sh, row, t, expect, set);
+    Object.keys(set).forEach(function (f) {
+      const d = t.fields[f];
+      if (!d) throw syncErr_('invalid', f + " can't be changed in " + t.title);
+      writes.push({ sh: sh, r: row, c: d[0], v: set[f], type: d[1], field: f + '@' + row, spillCheck: t.spill,
+        expect: Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined });
+    });
+  });
+  const res = syncWrite_(ctx, writes, { force: a.force === true, check: syncSumCheck_(sh, t) });
+  return syncLineReply_(ctx, sh, res);
+}
+
+/** Op rab_line_add {tab_gid, section, group (equipment), set}: a new line in the section's (gear: the group's) first
+ *  empty item row, or in a row inserted after its last item row (syncInsertLine_). Every field of the line is
+ *  written, the ones not sent as empty. The op id stays on the row as developer metadata (ccc_op), so a retry whose
+ *  first answer was lost finds the line instead of adding it twice. */
+function api_rab_line_add(ctx, a, run) {
+  const sh = syncSheetByGid_(ctx, a.tab_gid);
+  syncV2_(sh);
+  const key = String((run && run.key) || '');
+  const set = a.set || {};
+  if (a.section === 'equipment') { rapikanAlat_(sh); SpreadsheetApp.flush(); }
+  const t = syncLineTarget_(sh, a.section);
+  Object.keys(set).forEach(function (f) {                                 // every value is checked before a row goes in
+    if (!t.fields[f]) throw syncErr_('invalid', f + " can't be set in " + t.title);
+    syncValue_(f, set[f], ctx.tz, null, t.fields[f][1]);
+  });
+  if (set[t.idKey] === undefined || set[t.idKey] === null || String(set[t.idKey]).trim() === '') {
+    throw syncErr_('invalid', t.equipment ? 'Pick or type the equipment' : 'A line needs a description');
+  }
+  const again = syncOpRow_(sh, key);
+  if (again) return syncLineReply_(ctx, sh, { written: [], noop: Object.keys(set) }, { row: again, replayed: true });
+  let rows = [];
+  if (t.equipment) {
+    const g = t.eq.groups.filter(function (x) { return x.name === a.group; })[0];
+    if (!g) throw syncErr_('invalid', 'Pick an equipment group');
+    if (!g.rows.length) throw syncErr_('needs_sheet', g.name + ' has no item rows. Add one in the Sheet.');
+    rows = g.rows;
+  } else {
+    for (let r = t.sec.first; r <= t.sec.last; r++) rows.push(r);
+  }
+  // a free row: gear with I empty and its formulas in place; a breakdown row with B, C and D empty (syncRabRead_'s rule)
+  const vals = sh.getRange(rows[0], 1, rows[rows.length - 1] - rows[0] + 1, 12).getValues();
+  let row = 0;
+  rows.some(function (r) {
+    const v = vals[r - rows[0]];
+    if (t.equipment ? v[8] === '' && !!sh.getRange(r, 2).getFormula() : v[1] === '' && v[2] === '' && v[3] === '') row = r;
+    return !!row;
+  });
+  const inserted = row ? 0 : syncInsertLine_(ctx, sh, t, rows[rows.length - 1]);
+  if (inserted) row = inserted;
+  // fields left out stay empty: what an earlier line left in them is cleared, but a spill column's output is not input
+  const cur = sh.getRange(row, 1, 1, 12).getValues()[0];
+  const writes = [];
+  Object.keys(t.fields).forEach(function (f) {
+    const c = t.fields[f][0], sent = Object.prototype.hasOwnProperty.call(set, f);
+    if (!sent && (cur[c - 1] === '' || (t.spill && syncSpillColumn_(sh, t.spill, c)))) return;
+    writes.push({ sh: sh, r: row, c: c, v: sent ? set[f] : null, type: t.fields[f][1], field: f + '@' + row, spillCheck: t.spill });
+  });
+  let res;
+  try {
+    res = syncWrite_(ctx, writes, { check: syncSumCheck_(sh, inserted ? syncLineTarget_(sh, a.section) : t) });
+  } catch (err) {
+    if (inserted) { sh.deleteRow(inserted); SpreadsheetApp.flush(); }
+    throw err;
+  }
+  if (key) sh.getRange(row + ':' + row).addDeveloperMetadata('ccc_op', key + '@' + Date.now());
+  return syncLineReply_(ctx, sh, res, { row: row, inserted: !!inserted });
+}
+
+/** The row an earlier attempt of this add wrote its line to (row metadata ccc_op "<op id>@<ms>"), or 0. Tags older
+ *  than a day are removed on the way (by then the op is settled or failed for good). */
+function syncOpRow_(sh, key) {
+  if (!key) return 0;
+  let row = 0;
+  const now = Date.now();
+  sh.createDeveloperMetadataFinder().withKey('ccc_op').find().forEach(function (m) {
+    const v = String(m.getValue() || '').split('@');
+    if (v[0] === key) row = m.getLocation().getRow().getRow();
+    else if (!(now - Number(v[1] || 0) < 86400000)) m.remove();
+  });
+  return row;
+}
+
+/** The guarded row insert (DESIGN.md §3.8.5): one row after `after`, the block's last item row, with that row's
+ *  format and dropdowns, and for gear its formulas (rapikanAlat_). Then: everything from the top of the tab down to the
+ *  "Date:" row (header, summary, GRAND TOTAL, internal block) reads as before, Rekap's formulas are unchanged, no new
+ *  error appeared, the new row is an empty item row of the block and SUB TOTAL still adds up. Otherwise the row goes. */
+function syncInsertLine_(ctx, sh, t, after) {
+  const rekap = ctx.ss.getSheetByName(REKAP);
+  const date = syncDateRow_(sh);
+  const top = function () {
+    return syncDigest_(sh.getRange(1, 1, date, 14).getValues().map(function (r) { return r.map(function (x) { return syncCell_(x, ctx.tz); }); }));
+  };
+  const before = { top: top(), rekap: syncFormulaHash_(rekap), errs: syncErrorCells_(sh).length, rekapErrs: syncErrorCells_(rekap) };
+  sh.insertRowAfter(after);
+  const row = after + 1, width = sh.getMaxColumns();
+  const src = sh.getRange(after, 1, 1, width), dst = sh.getRange(row, 1, 1, width);
+  src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+  if (t.equipment) rapikanAlat_(sh, row);
+  SpreadsheetApp.flush();
+  const what = [];
+  try {
+    if (top() !== before.top) what.push('the values above the breakdown changed');
+    if (syncFormulaHash_(rekap) !== before.rekap) what.push('Rekap Project formulas changed');
+    if (syncErrorCells_(sh).length !== before.errs) what.push('new errors in the tab');
+    const re = syncNewErrors_(before.rekapErrs, syncErrorCells_(rekap));
+    if (re.length) what.push('new errors in Rekap Project ' + re.slice(0, 5).join(' '));
+    const t2 = syncLineTarget_(sh, t.equipment ? 'equipment' : t.sec.key);
+    if (!t2.isItem(row)) what.push('row ' + row + ' is not a line of ' + t.title);
+    if (t2.sub !== t.sub + 1) what.push('SUB TOTAL did not move down one row');
+    if (t.equipment) {
+      if (!sh.getRange(row, 2).getFormula() || !sh.getRange(row, 8).getFormula()) what.push('the new gear row has no formulas');
+    } else if (!sh.getRange(t.sec.first, 8).getFormula()) {
+      what.push('the line total formula on row ' + t.sec.first + ' is gone');
+    }
+    const v = sh.getRange(row, 1, 1, 12).getValues()[0];
+    if (Object.keys(t.fields).some(function (f) { return v[t.fields[f][0] - 1] !== ''; })) what.push('the new row is not empty');
+    const sum = syncSumCheck_(sh, t2)();
+    if (sum) what.push(sum);
+  } catch (err) {
+    what.push(String(err.message || err));
+  }
+  if (what.length) {
+    sh.deleteRow(row);
+    SpreadsheetApp.flush();
+    syncGuardTrip_();
+    throw syncGuardErr_(sh.getName() + ', new row after ' + after + ': ' + what.join('; '));
+  }
+  return row;
+}
+
+/** Op rab_line_clear {tab_gid, section, row, expect}: empties a line's input cells. The row stays as an empty spare
+ *  row, like the template's. Already empty (a retry) → nothing to do. */
+function api_rab_line_clear(ctx, a) {
+  const sh = syncSheetByGid_(ctx, a.tab_gid);
+  syncV2_(sh);
+  if (a.section === 'equipment') { rapikanAlat_(sh); SpreadsheetApp.flush(); }
+  const t = syncLineTarget_(sh, a.section);
+  const row = Number(a.row);
+  if (!t.isItem(row)) throw syncErr_('line_moved', 'Row ' + row + ' is not a line of ' + t.title + ' anymore.', { row: row });
+  const cur = sh.getRange(row, 1, 1, 12).getValues()[0];
+  // the input cells that hold something (a spill column's output is not input)
+  const fields = Object.keys(t.fields).filter(function (f) {
+    const c = t.fields[f][0];
+    return cur[c - 1] !== '' && !(t.spill && syncSpillColumn_(sh, t.spill, c));
+  });
+  if (!fields.length) return syncLineReply_(ctx, sh, { written: [], noop: [] });
+  const expect = a.expect || {};
+  if (!Object.keys(expect).length) throw syncErr_('invalid', 'expect is missing');
+  syncLineSame_(ctx, sh, row, t, expect, {});
+  const writes = fields.map(function (f) {
+    return { sh: sh, r: row, c: t.fields[f][0], v: null, type: t.fields[f][1], field: f + '@' + row, spillCheck: t.spill,
+      expect: Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined };
+  });
+  const res = syncWrite_(ctx, writes, { check: syncSumCheck_(sh, t) });
+  return syncLineReply_(ctx, sh, res);
+}
+
+/** Op rab_internal {tab_gid, set, expect, force}: the internal costs beside the summary. actual_1 .. actual_10 are M
+ *  of the ten category rows (empty: the Sheet uses the estimate in L); other_estimate and other_actual are L and M of
+ *  "Biaya lain di luar RAB", which the template puts on the SUB TOTAL row, above TOTAL BIAYA KELUAR. */
+function api_rab_internal(ctx, a) {
+  const sh = syncSheetByGid_(ctx, a.tab_gid);
+  syncV2_(sh);
+  const v = sh.getRange(20, 6, 41, 4).getDisplayValues();                   // F..I, rows 20 to 60
+  const at = function (c, label, prefix) {
+    for (let i = 0; i < v.length; i++) {
+      const u = String(v[i][c]).trim().toUpperCase();
+      if (u === label || (prefix && u.indexOf(label) === 0)) return 20 + i;
+    }
+    return 0;
+  };
+  const sub = at(0, 'SUB TOTAL'), other = at(3, 'BIAYA LAIN', true), cost = at(3, 'TOTAL BIAYA KELUAR');
+  if (!sub || sub < 31 || other !== sub || cost !== sub + 1) {
+    throw syncErr_('needs_sheet', 'The internal cost rows are not where the template has them. Edit them in the Sheet.');
+  }
+  const set = a.set || {}, expect = a.expect || {};
+  const writes = Object.keys(set).map(function (f) {
+    const m = /^actual_(\d{1,2})$/.exec(f);
+    let r = 0, c = 13;
+    if (m && Number(m[1]) >= 1 && Number(m[1]) <= 10) r = sub - 11 + Number(m[1]);
+    else if (f === 'other_estimate') { r = other; c = 12; }
+    else if (f === 'other_actual') r = other;
+    else throw syncErr_('invalid', f + " can't be changed from the admin");
+    return { sh: sh, r: r, c: c, v: set[f], type: 'money', field: f, expect: Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined };
+  });
+  if (!writes.length) throw syncErr_('invalid', 'Nothing to change');
+  const res = syncWrite_(ctx, writes, { force: a.force === true });
+  return syncLineReply_(ctx, sh, res);
+}
+
+/** Op catalog (read only): Katalog Alat from row 5 for the admin's gear picker, each as [key, category, price per day,
+ *  unit]. The key is N, the "Name (Vendor)" text the RAB's dropdown in I offers; an empty price means "by call". */
+function api_catalog(ctx) {
+  const sh = ctx.ss.getSheetByName('Katalog Alat');
+  if (!sh) throw syncErr_('layout', 'Katalog Alat is missing');
+  syncHead_(sh, 4, 1, ['Kategori RAB', 'Nama Alat', 'Vendor'], 'Katalog Alat');
+  const n = sh.getLastRow() - 4;
+  if (n < 1) return { items: [] };
+  const items = [];
+  sh.getRange(5, 1, Math.min(n, 5000), 14).getValues().forEach(function (r) {
+    const key = String(r[13] || '').trim();
+    if (!key || !String(r[1] || '').trim()) return;
+    items.push([key, String(r[0] || '').trim().toUpperCase(), typeof r[3] === 'number' ? r[3] : null, String(r[4] || '').trim()]);
+  });
+  return { items: items };
+}
+
+/** DEV copy only, run from the editor: the M6 checks (DESIGN.md §10, T20 to T22) on a copy of the template, which it
+ *  deletes afterwards. Logs a report; a line starting with FAIL is a failed check. SYNC_WRITES and the guard counter
+ *  are put back as they were. */
+function syncDevLineTest() {
+  const ss = SpreadsheetApp.getActive();
+  const props = PropertiesService.getScriptProperties();
+  if (ss.getId() === SYNC_PROD_SHEET || ss.getId() !== props.getProperty('SYNC_SHEET_ID')) throw new Error('Run this in the DEV copy only.');
+  const ctx = syncCtx_(ss.getId());
+  if (ctx.env !== 'dev') throw new Error('Run this in the DEV copy only.');
+  const keep = { writes: props.getProperty('SYNC_WRITES'), trips: props.getProperty('SYNC_GUARD_TRIPS') };
+  const hashes = ss.getSheets().map(function (s) { return [s.getName(), syncFormulaHash_(s)]; });
+  const sh = ss.getSheetByName(TEMPLATE).copyTo(ss).setName('998 M6 TEST');
+  const gid = sh.getSheetId(), report = [];
+  let fails = 0;
+  const ok = function (cond, what) { if (!cond) fails++; report.push((cond ? 'ok   ' : 'FAIL ') + what); };
+  const run = function (op, args, key) {
+    try { return syncRun_(ctx, key || Utilities.getUuid(), 1, syncOps_()[op], Object.assign({ tab_gid: gid }, args)); }
+    catch (err) { return { error: err.code || 'error', message: String(err.message || err), current: err.current || null }; }
+  };
+  const sec = function (r, key) { return r.rab.data.sections.filter(function (x) { return x.key === key; })[0]; };
+  const lineOf = function (r, key, desc) { return sec(r, key).lines.filter(function (l) { return l.desc === desc; })[0]; };
+  const view = function (l, keys) { const o = {}; keys.forEach(function (k) { o[k] = l[k]; }); return o; };
+  props.setProperty('SYNC_WRITES', 'on');
+  try {
+    // T20: every section takes 3 lines; its 2 template rows fill first, the third gets an inserted row
+    let last = null;
+    SYNC_SECTIONS.forEach(function (d) {
+      const key = d[1];
+      for (let i = 1; i <= 3; i++) {
+        const set = { no: i, desc: 'M6 ' + key + ' ' + i, cost: 1000 * i, qty: 1, days: 2 };
+        if (d[2].indexOf(3) >= 0) set.person = 'Test Person ' + i;
+        if (d[2].indexOf(6) >= 0) set.unit = 'pcs';
+        const r = run('rab_line_add', { section: key, set: set });
+        if (r.error) { ok(false, key + ' add ' + i + ': ' + r.error + ' ' + r.message); return; }
+        if (i === 3) {
+          ok(r.inserted === true, key + ': the third line went into an inserted row ' + r.row);
+          ok(sec(r, key).lines.length === 3, key + ': 3 lines');
+          ok(sec(r, key).subtotal === 12000, key + ': SUB TOTAL 12000 (' + sec(r, key).subtotal + ')');
+        }
+        last = r;
+      }
+    });
+    const cats = last.rab.data.summary.categories, sumCats = cats.reduce(function (t, c) { return t + (Number(c.total) || 0); }, 0);
+    ok(last.rab.data.summary.subtotal === sumCats, 'summary SUB TOTAL = the categories (' + sumCats + ')');
+    // T20 equipment: 4 lines into CAMERA and into LAINNYA (3 template rows each)
+    ['CAMERA', 'LAINNYA'].forEach(function (g) {
+      for (let i = 1; i <= 4; i++) {
+        const r = run('rab_line_add', { section: 'equipment', group: g, set: { item: 'M6 gear ' + g + ' ' + i, manual_price: 10000 * i, qty: 1, days: 1 } });
+        if (r.error) { ok(false, g + ' add ' + i + ': ' + r.error + ' ' + r.message); return; }
+        if (i === 4) {
+          const grp = r.rab.data.equipment.groups.filter(function (x) { return x.name === g; })[0];
+          ok(r.inserted === true && grp.lines.length === 4, g + ': 4 lines, the fourth in an inserted row ' + r.row);
+          last = r;
+        }
+      }
+    });
+    ok(last.rab.data.equipment.subtotal === 200000, 'equipment SUB TOTAL 200000 (' + last.rab.data.equipment.subtotal + ')');
+    // set: days of pre 1 from 2 to 3
+    const p1 = lineOf(last, 'pre', 'M6 pre 1');
+    let r = run('rab_line_set', { section: 'pre', lines: [{ row: p1.row, set: { days: 3 }, expect: view(p1, ['no', 'desc', 'cost', 'qty', 'unit', 'days']) }] });
+    ok(!r.error && sec(r, 'pre').subtotal === 13000, 'set pre 1 days 3: SUB TOTAL 13000 (' + (r.error ? r.message : sec(r, 'pre').subtotal) + ')');
+    // conflict on a changed field, then forced
+    const p3 = lineOf(r, 'pre', 'M6 pre 3');
+    r = run('rab_line_set', { section: 'pre', lines: [{ row: p3.row, set: { cost: 5000 }, expect: { desc: 'M6 pre 3', cost: 999 } }] });
+    ok(r.error === 'conflict', 'stale cost: conflict (' + (r.error || 'saved') + ')');
+    r = run('rab_line_set', { section: 'pre', force: true, lines: [{ row: p3.row, set: { cost: 5000 }, expect: { desc: 'M6 pre 3', cost: 999 } }] });
+    ok(!r.error && sec(r, 'pre').subtotal === 17000, 'forced: SUB TOTAL 17000 (' + (r.error ? r.message : sec(r, 'pre').subtotal) + ')');
+    // T21: a row inserted above the section in the Sheet → the admin's row numbers are off by one → line_moved
+    const p2 = lineOf(r, 'pre', 'M6 pre 2'), title = syncSectionAt_(sh, 'pre').row;
+    sh.insertRowBefore(title);
+    SpreadsheetApp.flush();
+    r = run('rab_line_set', { section: 'pre', lines: [{ row: p2.row, set: { cost: 2500 }, expect: view(p2, ['no', 'desc', 'cost', 'qty', 'unit', 'days']) }] });
+    ok(r.error === 'line_moved', 'row inserted above: line_moved (' + (r.error || 'saved') + ')');
+    sh.deleteRow(title);
+    SpreadsheetApp.flush();
+    // clear, clear again (nothing to do), then an add fills the emptied row instead of inserting
+    r = run('rab_line_clear', { section: 'pre', row: p2.row, expect: view(p2, ['no', 'desc', 'cost', 'qty', 'unit', 'days']) });
+    ok(!r.error && sec(r, 'pre').lines.length === 2, 'clear pre 2: 2 lines left');
+    r = run('rab_line_clear', { section: 'pre', row: p2.row, expect: view(p2, ['no', 'desc', 'cost', 'qty', 'unit', 'days']) });
+    ok(!r.error && r.written.length === 0, 'clear again: nothing written');
+    r = run('rab_line_add', { section: 'pre', set: { no: 2, desc: 'M6 pre 2b', cost: 2000, qty: 1, days: 2 } });
+    ok(!r.error && r.inserted === false && r.row === p2.row, 'add after clear: reuses row ' + p2.row);
+    // a lost answer: the same op id again with its cached answer gone → found through ccc_op, not added twice
+    const key = Utilities.getUuid(), set = { no: 4, desc: 'M6 replay', cost: 100, qty: 1, days: 1 };
+    const a1 = run('rab_line_add', { section: 'others', set: set }, key);
+    CacheService.getScriptCache().remove('op:' + key);
+    const a2 = run('rab_line_add', { section: 'others', set: set }, key);
+    ok(!a1.error && a2.replayed === true && a2.row === a1.row && sec(a2, 'others').lines.length === 4, 'replayed add: same row, 4 lines');
+    // internal actual costs
+    r = run('rab_internal', { set: { actual_1: 50000, other_estimate: 7000, other_actual: 8000 }, expect: { actual_1: null, other_estimate: null, other_actual: null } });
+    ok(!r.error && r.rab.data.summary.categories[0].actual === 50000 && r.rab.data.internal.other_actual === 8000, 'internal: actual 1 and Biaya lain saved'
+      + (r.error ? ' (' + r.message + ')' : ''));
+    // T20 forced failure: a SUB TOTAL with a fixed range (like an old tab) leaves the inserted row out → undone, row gone
+    const post = syncSectionAt_(sh, 'post');
+    sh.getRange(post.sub, 8).setFormula('=SUM(H' + post.head + ':H' + post.last + ')');
+    SpreadsheetApp.flush();
+    const rows = sh.getLastRow();
+    r = run('rab_line_add', { section: 'post', set: { no: 4, desc: 'M6 post 4', cost: 4000, qty: 1, days: 1 } });
+    ok(r.error === 'formula_guard' && sh.getLastRow() === rows && syncSectionAt_(sh, 'post').last === post.last,
+      'fixed SUB TOTAL: refused and the row removed (' + (r.error || 'saved') + ')');
+    // T22: no other sheet's formulas changed
+    const changed = hashes.filter(function (h) { const s = ss.getSheetByName(h[0]); return !s || syncFormulaHash_(s) !== h[1]; }).map(function (h) { return h[0]; });
+    ok(!changed.length, 'other sheets unchanged' + (changed.length ? ': ' + changed.join(', ') : ''));
+  } catch (err) {
+    ok(false, 'stopped: ' + (err.stack || err.message || err));
+  } finally {
+    ss.deleteSheet(sh);
+    if (keep.writes) props.setProperty('SYNC_WRITES', keep.writes); else props.deleteProperty('SYNC_WRITES');
+    if (keep.trips) props.setProperty('SYNC_GUARD_TRIPS', keep.trips); else props.deleteProperty('SYNC_GUARD_TRIPS');
+  }
+  report.unshift('Sync ' + SYNC_VERSION + ' M6 test: ' + (fails ? fails + ' failed' : 'all passed'));
+  Logger.log(report.join('\n'));
+  return report;
 }

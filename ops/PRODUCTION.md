@@ -66,6 +66,32 @@ If email stops, nobody can sign in: changing hello@'s Google password, turning i
 
 Tested on DEV inside rolled back transactions: with the switch on, a sign in without a pass reads 0 rows and all four helpers say false; after a pass it reads as before; another sign in of the same person, someone else's session id, a signed out session and a token without `session_id` all read nothing. Codes: a wait of 60 seconds between two, wrong tries counting down from 4 left, the 5th wrong try spends the code (the right one is refused after it), expiry, a used code is gone, the 6th code in 15 minutes is refused, a viewer's pass does not turn codes on and an owner's does. The team can't lose its last owner (update or delete), and handing over first works.
 
+## RAB lines from the admin (M6), 2026-11-06
+
+The owner asked to edit RAB lines from the admin. On a project page (RABs from 010 on, for editors with money access):
+
+- Budget: edit, add and remove lines in every breakdown section and in Equipment. Gear comes from Katalog Alat; a price typed in the admin is locked, an empty one follows the catalog. Removing a line empties its row, and the row stays in the tab.
+- Costs and profit: the ten actual costs and "Biaya lain di luar RAB" (estimate and actual).
+
+Each change is one op through `sheets-write`. The Sheet works the totals out again and its reply refreshes the admin. A line that moved in the Sheet meanwhile is refused (`line_moved`) instead of written to the wrong row. RABs 001 to 009 stay read only. The database schema does not change.
+
+Tested on DEV, 2026-11-06:
+
+- `syncDevLineTest` in the DEV copy: all 41 checks passed. Every section took a third line in an inserted row and two gear groups a fourth; a stale value gave a conflict and a forced save went through; a row inserted above the section gave `line_moved`; a removed row was reused by the next add; a replayed add was not added twice; actual costs and Biaya lain saved; a SUB TOTAL with a fixed range was refused and the inserted row undone; no other sheet's formulas changed.
+- Through the DEV functions and web app version 5, on tab 012: a Pre-Production line was added and its cost changed, a Lens item was added at its catalog price (2 × 25.000), an actual cost and Biaya lain were saved, then both lines were removed and the amounts emptied. Every op was done on its first attempt, the totals followed (3.000.000 to 3.300.000 and back to 3.000.000), and there were no sync issues and no failed ops.
+- The admin screens were checked against the local harness at 1440 and 390 px with a clean console. They have not been used against DEV signed in yet, which needs a DEV sign in.
+
+Rollout on PROD, waiting for the owner's go-ahead:
+
+| # | Step | Check | Rollback |
+| --- | --- | --- | --- |
+| 1 | Commit on `admin-ecosystem` and push the branch | `git ls-remote` shows the commit | none needed |
+| 2 | Live script: replace the `Sync` file with Sync.gs 1.3.0 (SHA-256 `d147dadf5c33…` checked before saving), then Deploy, Manage deployments, Edit, New version, and run `syncSelfTest` | self test `ok` with version 1.3.0; `Kode.gs` has the same SHA-256; the `webapp_version_mismatch` issue closes on the next pull | paste Sync.gs 1.2.1 (`291c0bd4dd23…`) back and deploy a new version |
+| 3 | Functions `sheets-write`, `sheets-sync`, `sheets-bridge` from the pushed commit | without credentials 401; the next pull is `connected` | deploy the three from `ba1f40e` again |
+| 4 | Release: `admin-ecosystem` into `site`, `site` to `main` | a project page at 390 and 1440 px, console clean; the gear list loads; the owner's first real edit shows in the Sheet | push `190eaaf` to `main` again |
+
+Each step is harmless on its own: Sync.gs 1.3.0 only adds ops that the older functions never send, and the older Sync.gs answers them with "not switched on yet". To stop all writes at any point: `syncWritesOff` in the live script and `writes_enabled` false.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).

@@ -21,7 +21,7 @@ function isObj(v: unknown): v is Args {
 
 type FieldRule = { kind: 'text'; max: number; required?: boolean } | { kind: 'money' } | { kind: 'date' } |
   { kind: 'pct'; min?: number; max?: number; required?: boolean } | { kind: 'enum'; values: string[]; nullable?: boolean } |
-  { kind: 'url' };
+  { kind: 'url' } | { kind: 'int'; min: number; max: number } | { kind: 'num'; max: number };
 
 function checkField(name: string, rule: FieldRule, v: unknown): { ok: true; v: unknown } | { ok: false; error: string } {
   if (v === null || v === '') {
@@ -33,6 +33,7 @@ function checkField(name: string, rule: FieldRule, v: unknown): { ok: true; v: u
     case 'text': {
       if (typeof v !== 'string' && typeof v !== 'number') return { ok: false, error: `${name} must be text.` };
       const s = String(v).trim();
+      if (s === '') return rule.required ? { ok: false, error: `${name} can't be empty.` } : { ok: true, v: null };   // only spaces: empty
       if (s.length > rule.max) return { ok: false, error: `${name} is longer than ${rule.max} characters.` };
       return { ok: true, v: s };
     }
@@ -56,6 +57,16 @@ function checkField(name: string, rule: FieldRule, v: unknown): { ok: true; v: u
       return { ok: true, v };
     case 'url':
       if (typeof v !== 'string' || !/^https:\/\/\S{4,990}$/.test(v)) return { ok: false, error: `${name} must be an https link.` };
+      return { ok: true, v };
+    case 'int':
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < rule.min || v > rule.max) {
+        return { ok: false, error: `${name} must be a whole number from ${rule.min} to ${rule.max}.` };
+      }
+      return { ok: true, v };
+    case 'num':                                             // RAB qty and days: up to 2 decimals, like the Sheet takes them
+      if (typeof v !== 'number' || !(v >= 0 && v <= rule.max) || Math.abs(Math.round(v * 100) - v * 100) > 1e-6) {
+        return { ok: false, error: `${name} must be a number with at most 2 decimals.` };
+      }
       return { ok: true, v };
   }
 }
@@ -137,6 +148,36 @@ const CREW_SET: Record<string, FieldRule> = {
   phone: { kind: 'text', max: 60 }, note: { kind: 'text', max: 1000 },
 };
 
+// RAB lines (M6): a breakdown section writes only its own columns (Sync.gs SYNC_SECTIONS), the gear its four inputs
+// (I item, J qty and K days from the Sheet's 1 to 30 lists, L manual price). The Sheet checks each line again.
+const LINE: Record<string, FieldRule> = {
+  no: { kind: 'int', min: 0, max: 999 }, desc: { kind: 'text', max: 500 }, person: { kind: 'text', max: 200 },
+  cost: { kind: 'money' }, qty: { kind: 'num', max: 100000 }, unit: { kind: 'text', max: 60 }, days: { kind: 'num', max: 100000 },
+};
+const pickRules = (keys: string[]) => Object.fromEntries(keys.map((k) => [k, LINE[k]]));
+const PLAIN_SECTION = ['no', 'desc', 'cost', 'qty', 'unit', 'days'];
+export const SECTION_RULES: Record<string, Record<string, FieldRule>> = {
+  pre: pickRules(PLAIN_SECTION), talent: pickRules(['no', 'desc', 'cost', 'qty', 'days']),
+  crew: pickRules(['no', 'desc', 'person', 'cost', 'qty', 'days']), location: pickRules(PLAIN_SECTION),
+  art: pickRules(PLAIN_SECTION), transport: pickRules(PLAIN_SECTION), catering: pickRules(PLAIN_SECTION),
+  post: pickRules(PLAIN_SECTION), others: pickRules(PLAIN_SECTION),
+  equipment: {
+    item: { kind: 'text', max: 300 }, qty: { kind: 'int', min: 1, max: 30 }, days: { kind: 'int', min: 1, max: 30 },
+    manual_price: { kind: 'money' },
+  },
+};
+export const EQ_GROUPS = ['CAMERA', 'LENS', 'CAMERA SUPPORT', 'BACKGROUND', 'LIGHTING', 'LIGHTING SUPPORT', 'AUDIO', 'LAINNYA'];
+const INTERNAL: Record<string, FieldRule> = {
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`actual_${i + 1}`, { kind: 'money' } as FieldRule])),
+  other_estimate: { kind: 'money' }, other_actual: { kind: 'money' },
+};
+
+function lineSection(v: unknown): { key: string; rules: Record<string, FieldRule>; id: string } | null {
+  const key = typeof v === 'string' ? v : '';
+  return Object.prototype.hasOwnProperty.call(SECTION_RULES, key) ? { key, rules: SECTION_RULES[key], id: key === 'equipment' ? 'item' : 'desc' } : null;
+}
+const lineRow = (v: unknown) => Number.isInteger(v) && (v as number) >= 41 && (v as number) <= 20000;
+
 function projectId(a: Args): string | null {
   return typeof a.project_id === 'string' && UUID_RE.test(a.project_id) ? a.project_id.toLowerCase() : null;
 }
@@ -158,8 +199,6 @@ export interface OpDef {
   enabled: boolean;
   check(a: Args, opId: string): Checked;
 }
-
-const notEnabled: OpDef['check'] = () => bad("Editing RAB lines from the admin isn't switched on yet. Edit them in the Sheet.", 'not_enabled');
 
 export const OPS: Record<string, OpDef> = {
   project_set: {
@@ -290,10 +329,72 @@ export const OPS: Record<string, OpDef> = {
       };
     },
   },
-  rab_line_set: { perm: 'edit', milestone: 'M6', enabled: false, check: notEnabled },
-  rab_line_add: { perm: 'edit', milestone: 'M6', enabled: false, check: notEnabled },
-  rab_line_clear: { perm: 'edit', milestone: 'M6', enabled: false, check: notEnabled },
-  rab_internal: { perm: 'edit', milestone: 'M6', enabled: false, check: notEnabled },
+  rab_line_set: {
+    perm: 'edit', milestone: 'M6', enabled: true,
+    check(a) {
+      const pid = projectId(a);
+      if (!pid) return bad('Pick a project.');
+      const sec = lineSection(a.section);
+      if (!sec) return bad('Pick a section.');
+      if (!Array.isArray(a.lines) || a.lines.length < 1 || a.lines.length > 40) return bad('Send 1 to 40 lines.');
+      const seen = new Set<number>();
+      const lines: Args[] = [];
+      for (const l of a.lines) {
+        if (!isObj(l) || !lineRow(l.row)) return bad('A line has no row.');
+        const row = l.row as number;
+        if (seen.has(row)) return bad(`Row ${row} is sent twice.`);
+        seen.add(row);
+        const s = checkSet(l.set, sec.rules, 'set');
+        if (!s.ok) return bad(s.error);
+        if (s.v[sec.id] === null) return bad('Use Remove line to take a line out.');
+        const e = checkExpect(l.expect, sec.rules);
+        if (!e.ok) return bad(e.error);
+        lines.push({ row, set: s.v, expect: e.v ?? {} });
+      }
+      return { ok: true, args: { project_id: pid, section: sec.key, lines, force: a.force === true }, target: `project:${pid}`, projectId: pid, money: true };
+    },
+  },
+  rab_line_add: {
+    perm: 'edit', milestone: 'M6', enabled: true,
+    check(a) {
+      const pid = projectId(a);
+      if (!pid) return bad('Pick a project.');
+      const sec = lineSection(a.section);
+      if (!sec) return bad('Pick a section.');
+      const group = sec.key === 'equipment' && typeof a.group === 'string' ? a.group.trim().toUpperCase() : null;
+      if (sec.key === 'equipment' && !EQ_GROUPS.includes(group ?? '')) return bad('Pick an equipment group.');
+      const s = checkSet(a.set, sec.rules, 'set');
+      if (!s.ok) return bad(s.error);
+      if (s.v[sec.id] === undefined || s.v[sec.id] === null) return bad(sec.key === 'equipment' ? 'Pick or type the equipment.' : 'A line needs a description.');
+      return { ok: true, args: { project_id: pid, section: sec.key, group, set: s.v }, target: `project:${pid}`, projectId: pid, money: true };
+    },
+  },
+  rab_line_clear: {
+    perm: 'edit', milestone: 'M6', enabled: true,
+    check(a) {
+      const pid = projectId(a);
+      if (!pid) return bad('Pick a project.');
+      const sec = lineSection(a.section);
+      if (!sec) return bad('Pick a section.');
+      if (!lineRow(a.row)) return bad('A line has no row.');
+      const e = checkExpect(a.expect, sec.rules);
+      if (!e.ok) return bad(e.error);
+      if (!e.v || !Object.keys(e.v).length) return bad('expect is missing.');
+      return { ok: true, args: { project_id: pid, section: sec.key, row: a.row, expect: e.v }, target: `project:${pid}`, projectId: pid, money: true };
+    },
+  },
+  rab_internal: {
+    perm: 'edit', milestone: 'M6', enabled: true,
+    check(a) {
+      const pid = projectId(a);
+      if (!pid) return bad('Pick a project.');
+      const s = checkSet(a.set, INTERNAL, 'set');
+      if (!s.ok) return bad(s.error);
+      const e = checkExpect(a.expect, INTERNAL);
+      if (!e.ok) return bad(e.error);
+      return { ok: true, args: { project_id: pid, set: s.v, expect: e.v, force: a.force === true }, target: `project:${pid}`, projectId: pid, money: true };
+    },
+  },
 };
 
 export const CONTROL_OPS = ['outbox_retry', 'outbox_discard', 'outbox_force', 'issue_action'];
@@ -306,7 +407,8 @@ const MESSAGES: Record<string, string> = {
   not_found: "This isn't in the Sheet anymore.",
   writes_off: 'Sheet writes are paused.',
   no_invoice_no: "The invoice number isn't complete yet: fill in the date, number and client code in the RAB.",
-  not_enabled: "Editing RAB lines from the admin isn't switched on yet. Edit them in the Sheet.",
+  not_enabled: "This can't be done from the admin yet. Do it in the Sheet.",
+  line_moved: 'This line changed or moved in the Sheet. Check it and try again.',
   bad_sig: "The Sheet and the admin don't recognise each other (key changed).",
   wrong_sheet: "The Sheet and the admin don't recognise each other (different Sheet).",
   stale: "The Sheet and the admin clocks disagree. Try again in a minute.",

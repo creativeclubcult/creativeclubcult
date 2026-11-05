@@ -618,6 +618,11 @@ const NULLS_BY_OP: Record<string, string[]> = {
   kas_delete: ['kas', 'rekap', 'crew', 'keuangan'],
   client_upsert: ['client'],
   crew_upsert: ['crew'],
+  // a RAB line or an internal cost moves the tab's totals, so Rekap (grand total, cost, profit) and Keuangan follow
+  rab_line_set: ['rekap', 'keuangan'],
+  rab_line_add: ['rekap', 'keuangan'],
+  rab_line_clear: ['rekap', 'keuangan'],
+  rab_internal: ['rekap', 'keuangan'],
 };
 
 export function buildWriteCommit(reply: WriteReply, ctx: WriteCtx): CommitPayload {

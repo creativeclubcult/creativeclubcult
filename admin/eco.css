@@ -151,6 +151,19 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
 .eco-alloc select { width: auto; min-width: 72px; padding: 2px 0; border: 0; border-bottom: 1px solid var(--ash); background: transparent; color: var(--ink); font: inherit; text-align: right; }
 .eco-alloc tfoot td { padding-top: 9px; border-bottom: 1px solid var(--line); }
 
+/* a RAB's lines, each changed in place (Budget), and its actual costs (Costs and profit) */
+.eco-lines th.act, .eco-lines td.act { width: 1%; padding-right: 0; text-align: right; white-space: nowrap; }
+.eco-lines tr.is-open td { border-bottom-color: transparent; }
+.eco-lines tr.eco-edit > td { padding: 0 0 22px; }
+.eco-lineform .eco-note { margin-top: 10px; }
+.eco-lineform .eco-formbar .is-remove { margin-right: auto; }
+.eco-lineform .eco-formbar .is-remove ~ .eco-saved { margin: 0; }
+.eco-lineadd { margin-top: 16px; }
+.eco-actuals td { vertical-align: middle; }
+.eco-actuals td.eco-in { width: 136px; padding-top: 2px; padding-bottom: 2px; }
+.eco-actuals td.eco-in input { padding: 6px 0; text-align: right; }
+.eco-actuals tr.eco-other td { border-top: 1px solid var(--ash); }
+
 /* money access switch (Settings, owners) */
 .eco-switch { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font-size: var(--t-body-sm); }
 .eco-switch input { width: 34px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 1px solid var(--ash); border-radius: var(--pill); background: none; position: relative; cursor: pointer; transition: background .2s, border-color .2s; }
@@ -231,6 +244,9 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
   .adm-table.is-stack tr.has-act td.only-s { grid-column: 1; grid-row: 2; align-self: center; }
   .adm-table.is-stack tr.has-act td.act { grid-column: 2; grid-row: 2; }
   .adm-table td.act .eco-btn { margin: 0; }
+  .eco-actuals td.eco-in { width: 116px; }
+  /* a line's form keeps two short fields per row; the description and the equipment take the whole row */
+  .eco-lineform .adm-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 /* phones and touch screens: every tap target is at least 44px; links inside text and tables get a taller hit area
@@ -244,5 +260,7 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
   .adm-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; top: 6px; right: 4px; }
   .adm-table td a, .eco-table td a, .eco-kv a, .eco-list a.t, .eco-list .t a, .pf-builtin-list a { padding: 12px 6px; margin: -12px -6px; }
   .eco-team td.c-act .adm-link { min-height: 44px; padding: 0 6px; }
+  /* Edit keeps its 44px target without making the line taller: centred on the line's first row of text */
+  .eco-lines td.act .adm-link { min-width: 44px; min-height: 44px; margin: -12px 0; padding: 0 6px; }
   .adm-gate-links .adm-link { min-height: 44px; }
 }

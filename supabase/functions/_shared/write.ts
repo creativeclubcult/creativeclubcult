@@ -97,7 +97,7 @@ export async function settle(row: OutboxRow, res: SheetResult): Promise<Outcome>
 
 function pickRecord(d: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of ['project', 'rab', 'kas', 'client', 'crew', 'file', 'tab', 'written', 'noop', 'locked', 'replayed', 'invoice_no', 'doc_type', 'folder_url', 'removed']) {
+  for (const k of ['project', 'rab', 'kas', 'client', 'crew', 'file', 'tab', 'written', 'noop', 'locked', 'replayed', 'invoice_no', 'doc_type', 'folder_url', 'removed', 'row', 'inserted']) {
     if (d[k] !== undefined) out[k] = d[k];
   }
   return out;

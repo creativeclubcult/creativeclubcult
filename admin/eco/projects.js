@@ -1,8 +1,9 @@
 /* Projects: every RAB in the Sheet (a Rekap Project row and its tab) and the Briefs not in the Sheet yet, sorted by
    what needs doing. The drawer shows one project end to end. What the admin keeps itself (shoot and deliver dates,
-   notes) saves to the database. The status, the delivery date, payments, the quote settings, locking gear prices and
-   the PDFs are written to the Sheet through sheets-write, which checks the role and every value again; a new RAB is
-   made in the Sheet from a Brief. RAB 001 to 009 (the old tabs) and the line items stay read only. */
+   notes) saves to the database. The status, the delivery date, payments, the quote settings, locking gear prices,
+   the PDFs, the RAB's lines and its actual costs (rab.js) are written to the Sheet through sheets-write, which checks
+   the role and every value again; a new RAB is made in the Sheet from a Brief. RAB 001 to 009 (the old tabs) stay
+   read only. */
 (function () {
   'use strict';
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
@@ -102,6 +103,12 @@
     E.forget();
     open(id, true);
     if (ui && !panel.hidden) A.loaders.projects();
+  }
+  // a change that wasn't written because its line changed in the Sheet: the RAB tab is read again (a refresh that is
+  // busy or fails leaves the next scheduled read to it), then the drawer shows it as the Sheet has it
+  function reread(p, text) {
+    var again = function () { A.toast(text, true); E.forget(); open(p.id, true); };
+    sb.functions.invoke('sheets-sync', { body: { tabs: [p.sheet_gid] } }).then(again, again);
   }
   var DOC_TYPES = [['PENAWARAN', 'Penawaran'], ['INVOICE', 'Invoice'], ['KWITANSI', 'Kwitansi']];
   var docType = function (v) { v = String(v || '').trim().toUpperCase(); return DOC_TYPES.some(function (o) { return o[0] === v; }) ? v : ''; };
@@ -322,7 +329,10 @@
         var sum = function (k) { var any = false, t = 0; cats.forEach(function (c) { var v = E.n(c[k]); if (v != null) { any = true; t += v; } }); return any ? t : null; };
         var unbilled = cats.filter(function (c) { return !(E.n(c.total) > 0) && E.n(c.estimate) > 0; });
         var gap = unbilled.reduce(function (t, c) { return t + E.n(c.estimate); }, 0);
-        var catTable = cats.length ? h('table', { class: 'eco-table' }, E.thead(['Category', ['Billed', 'num'], ['Estimate', 'num'], ['Actual', 'num hide-s']]),
+        // the actual costs are typed here when the RAB can be written to (the ten categories of the v2 summary)
+        var act = writeMoney && p.layout === 'v2' && rab && cats.length === 10
+          ? E.rabActuals({ p: p, rab: rab, cats: cats, forms: forms, saved: function (r, t) { saved(p.id, r, t); } }) : null;
+        var catTable = act ? act.table : cats.length ? h('table', { class: 'eco-table' }, E.thead(['Category', ['Billed', 'num'], ['Estimate', 'num'], ['Actual', 'num hide-s']]),
           h('tbody', {}, cats.map(function (c) {
             var billed = E.n(c.total), est = E.n(c.estimate);
             return h('tr', { class: billed || est || E.n(c.actual) ? null : 'is-zero' }, h('td', { text: c.label || '' }),
@@ -335,7 +345,7 @@
           : blank(p.layout === 'v1' ? 'This RAB uses the old layout, so its cost breakdown is only in the Sheet.' : 'The cost breakdown of this RAB isn\u2019t in the admin yet.');
         costs = E.section('Costs and profit', rab ? 'RAB internal summary' : 'Rekap Project',
           h('div', { class: 'eco-figs' }, E.money('Omset', m.revenue), E.money('Cost', m.cost), E.money('Profit', m.profit), E.money('Margin', m.margin, { fmt: E.pct })),
-          catTable,
+          catTable, act ? act.bar : null,
           unbilled.length ? h('p', { class: 'eco-note' }, h('span', { class: 'eco-warn', text: unbilled.map(function (c) { return c.label + ' costs ' + E.rp(c.estimate); }).join(', ')
             + (unbilled.length === 1 ? ' but isn\u2019t' : ' but aren\u2019t') + ' billed to the client.' }),
             E.n(m.profit) < 0 && gap >= -E.n(m.profit) ? ' That\u2019s where the loss comes from.' : '') : null,
@@ -462,7 +472,11 @@
           ['Diskon \u00b7 PPN \u00b7 DP \u00b7 PPh 23', [m.discount_pct, m.ppn_pct, m.dp_pct, m.pph23_pct].map(pc).join(' \u00b7 ')]
         ]));
       }
-      if (rab && Array.isArray(rab.sections)) {
+      if (rab && Array.isArray(rab.sections) && writeMoney && p.layout === 'v2') {
+        // line by line: change, add and remove lines in the RAB tab (rab.js)
+        budget = E.rabBudget({ p: p, rab: rab, link: url ? newTab(url, 'Open RAB') : null, forms: forms,
+          saved: function (r, t) { saved(p.id, r, t); }, refresh: function (t) { reread(p, t); } });
+      } else if (rab && Array.isArray(rab.sections)) {
         var tb = h('tbody');
         var group = function (t) { tb.appendChild(h('tr', {}, h('td', { class: 'eco-group', colspan: 3, text: t }))); };
         var line = function (desc, sub, qd, total, quietDesc) {

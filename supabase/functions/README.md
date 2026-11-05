@@ -4,7 +4,7 @@ Three edge functions keep the admin database and the Sheet "CCC - RAB & Keuangan
 
 | Function | Called by | Who is let in | Job |
 | --- | --- | --- | --- |
-| `sheets-sync` | pg_cron, and the admin's Refresh / Sync now | `x-sync-key` equal to `SHEETS_CRON_KEY`, or a team member's JWT | Sheet → admin pull: snapshot, diff, commit through `sheets_commit` |
+| `sheets-sync` | pg_cron, and the admin's Refresh / Sync now | `x-sync-key` equal to `SHEETS_CRON_KEY`, or a team member's JWT | Sheet → admin pull: snapshot, diff, commit through `sheets_commit`. `{"kind": "catalog"}` reads Katalog Alat for the admin's gear picker (editors with money access) |
 | `sheets-bridge` | `syncTick` in Sync.gs, every 10 minutes | HMAC headers `x-ccc-time` and `x-ccc-sig` signed with `SHEETS_SECRET` | Fallback path: snapshot pull and running waiting ops from the Sheet side |
 | `sheets-write` | The admin, for one change at a time | A team member's JWT; viewers cannot write, and money changes need money access | Admin → Sheet write-through via `sync_outbox` and the Apps Script web app |
 
@@ -29,15 +29,15 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 - Once codes are on, `private.is_team`, `can_edit`, `can_see_money` and `is_owner` also need this sign in (the JWT's `session_id`) to have passed a code, so every table, RPC and storage rule follows. The sheets functions ask the same through `access_state` and answer 403 `needs_code`. Signing out ends the pass.
 - Links in emails are `<origin>/admin/#set=<token>&t=invite|recovery`, from Supabase Auth's `generate_link`. The admin redeems them with `verifyOtp`, so no Site URL or redirect list is involved. Only an origin written exactly in `admin_origins` gets a link; a wildcard there never does.
 
-## DEV status (2026-11-05, project `jvhhcehzhgpcphtpynnx`)
+## DEV status (2026-11-06, project `jvhhcehzhgpcphtpynnx`)
 
 - All three are deployed. Without credentials they answer 401 (`unauthenticated`, `bad_key` or `unsigned`).
-- Paired with the DEV copy "CCC - RAB & Keuangan (DEV)" (`1LMFQr-bDAgj0RwXnjkCRRALiJcj5pMm7v6QGdRCewBo`), whose web app runs Sync.gs 1.2.1 (deployment version 4).
-- Reading and writing are on: `sheet_values.flags` has `pull_enabled` and `writes_enabled` true, and the copy's `SYNC_WRITES` is `on`.
+- Paired with the DEV copy "CCC - RAB & Keuangan (DEV)" (`1LMFQr-bDAgj0RwXnjkCRRALiJcj5pMm7v6QGdRCewBo`), whose web app runs Sync.gs 1.3.0 (deployment version 5, the RAB line ops of M6).
+- Writing is on (`writes_enabled` true, the copy's `SYNC_WRITES` is `on`). Pulls are paused between tests (`pull_enabled` false); set it to true before testing.
 - The pg_cron schedules are applied: `sheets-sync-day` every minute 06:00 to 23:59 Jakarta time, `sheets-sync-night` every 10 minutes 00:00 to 05:59, `sheets-housekeeping` every 5 minutes.
 - The Supabase CLI is not installed on this machine, so DEV runs minified builds. Each function is a small loader that reads its build `<name>@<first 12 hex of the source SHA-256>` from the DEV only table `public.deploy_bundles_dev` (server key only) and runs it only when the SHA-256 matches the pin.
-- Builds reach that table through `deploy-relay-dev`: a row is registered in SQL with the expected hash, and the relay stores only an upload with that hash. Between uploads the relay is a 410 stub. The same relay can hand a registered Apps Script file (`sync-gs@<sha12>`) back to the script editor, so Sync.gs reaches a copy's editor without being typed. Pins on 2026-11-05: `sheets-write@51539e0ddf2e`, `sheets-sync@5fb5ea22dd63`, `sheets-bridge@104bfc70164f`.
-- `team-access` is a one-line entry from commit `ba1f40e`, like PROD. `two_step_sign_in` is applied. DEV has no Gmail secret, so codes stay off there; the sheets builds pinned above predate the code check, which makes no difference while codes are off.
+- Builds reach that table through `deploy-relay-dev`: a row is registered in SQL with the expected hash, and the relay stores only an upload with that hash. Between uploads the relay is a 410 stub. The same relay can hand a registered Apps Script file (`sync-gs@<sha12>`) back to the script editor, so Sync.gs reaches a copy's editor without being typed. Pins on 2026-11-06: `sheets-write@f40baac1831f`, `sheets-sync@51d19b507e64`, `sheets-bridge@7196f85e97b4`.
+- `team-access` is a one-line entry from commit `ba1f40e`, like PROD. `two_step_sign_in` is applied. DEV has no Gmail secret, so codes stay off there.
 - Production never gets the DEV builds; see below.
 
 ## PROD status (2026-11-05, project `zneckeqsvwbavqxpolri`)
@@ -54,4 +54,4 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 deno test --no-check --allow-read --allow-env --allow-net=127.0.0.1 supabase/tests/
 ```
 
-67 tests. `diff_test.ts` (49): diff, commit payloads, HMAC, MD5, and the filter that keeps amounts out of write replies for people without money access. `access_test.ts` (18): codes and their hash, email checks, the message format, a fake SMTP server (sent, refused without leaking the password, too slow), and every team-access action. The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local.
+76 tests. `diff_test.ts` (49): diff, commit payloads, HMAC, MD5, and the filter that keeps amounts out of write replies for people without money access. `access_test.ts` (18): codes and their hash, email checks, the message format, a fake SMTP server (sent, refused without leaking the password, too slow), and every team-access action. `ops_test.ts` (9): the RAB line ops (M6), each section's own columns, values the way the Sheet takes them, rows and `expect`, and what a reply commits. The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local. On a DEV copy, `syncDevLineTest` in Sync.gs runs the RAB line checks on a temporary copy of the template.

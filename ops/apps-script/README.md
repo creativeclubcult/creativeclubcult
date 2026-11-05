@@ -65,6 +65,7 @@ Same steps without the copy, in the live Sheet's own script as hello@. Leave `DR
 1. Paste the new file, then bump `SYNC_VERSION`.
 2. Choose **Deploy > Manage deployments > Edit > Version: New version**. This keeps the same `/exec` URL.
 3. Run `syncSelfTest`.
+4. On the DEV copy only, also run `syncDevLineTest` (the RAB line ops). It works on a copy of the template named `998 M6 TEST`, deletes it at the end and puts `SYNC_WRITES` back; it takes about 7 minutes. It refuses to run in the live Sheet.
 
 The bridge compares the `hello` version with the last version seen through the web app. On a mismatch it opens a `webapp_version_mismatch` issue, which means the trigger code and the deployed web app differ. The next pull after the new version closes it by itself.
 

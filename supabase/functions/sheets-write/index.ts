@@ -178,14 +178,16 @@ Deno.serve(async (req) => {
     if (recent.length >= 30) return json(req, 429, { error: 'Too many changes in a minute. Wait a moment.', code: 'too_many' });
 
     if (c.projectId) {
-      const pr = (await select<{ sheet_gid: number | null; sheet_state: string }>(
-        'projects', `id=eq.${q(c.projectId)}&select=sheet_gid,sheet_state`,
+      const pr = (await select<{ sheet_gid: number | null; sheet_state: string; seq: number | null }>(
+        'projects', `id=eq.${q(c.projectId)}&select=sheet_gid,sheet_state,seq`,
       ))[0];
       if (!pr) return json(req, 422, { error: 'This project no longer exists.', code: 'not_found' });
       if (op === 'create_rab') {
         if (pr.sheet_state !== 'none') return json(req, 422, { error: 'This project already has a RAB.', code: 'invalid' });
       } else {
         if (pr.sheet_state !== 'present' || pr.sheet_gid === null) return json(req, 422, { error: friendly('not_found'), code: 'not_found' });
+        // the old RABs 001 to 009 stay as they are (the admin shows them read only; this holds without the admin too)
+        if (pr.seq !== null && pr.seq <= 9) return json(req, 422, { error: 'An old RAB (001 to 009): change it in the Sheet.', code: 'frozen' });
         c.args.tab_gid = Number(pr.sheet_gid);
       }
     }
