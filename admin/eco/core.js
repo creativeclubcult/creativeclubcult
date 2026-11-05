@@ -268,6 +268,86 @@
   }
   // after a write, a pull brings the Sheet's own totals (Kas, Rekap) up to date; a busy or failed pull is left for the next one
   var pullSoon = function () { return sb.functions.invoke('sheets-sync', { body: {} }).then(function (r) { return !r.error; }, function () { return false; }); };
+  // a form's sender: the same change sent again after a lost answer keeps its op id, so the Sheet never gets it twice
+  function writer() {
+    var opId = null, opKey = null;
+    return function (op, args) {
+      var key = op + JSON.stringify(args);
+      if (key !== opKey) { opKey = key; opId = uuid(); }
+      return sheetWrite(op, args, opId).then(function (r) {
+        if (r.status !== 500 && r.status !== 502 && r.status !== 503) opKey = null;    // settled: the next attempt is a new change
+        return r;
+      });
+    };
+  }
+  // the switch every write checks (sheet_values.flags); flags that couldn't be read count as off
+  var writesOn = function (values) { var f = values && values.flags && values.flags.value; return !!(f && f.writes_enabled === true); };
+  // RAB 001 to 009 are the old tabs: the admin shows them and never writes to them
+  var frozen = function (p) { return p.sheet_state === 'present' && p.seq != null && p.seq <= 9; };
+
+  // ---------- forms over Sheet values ----------
+  var same = function (a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
+  var plain = function (el) { return el.value.trim() || null; };
+  // Rupiah typed as 1.500.000 or 1500000: a whole amount, or null when empty
+  var rupiah = function (s) { var d = String(s == null ? '' : s).split(',')[0].replace(/\D/g, ''); return d ? Number(d) : null; };
+  var amount = function (el) { return rupiah(el.value); };
+  function amountInput(v, label) {
+    var el = h('input', { type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '0', value: n(v) != null ? NUM.format(n(v)) : '', 'aria-label': label });
+    el.addEventListener('blur', function () { var x = rupiah(el.value); el.value = x == null ? '' : NUM.format(x); });
+    return el;
+  }
+  // a share typed as a whole percent (11 or 11,5) and kept as a fraction (0.11); NaN when it isn't a number
+  var share = function (el) {
+    var s = el.value.trim().replace('%', '').replace(',', '.').trim();
+    if (!s) return null;
+    return /^\d{1,3}(\.\d{1,2})?$/.test(s) ? Math.round(Number(s) * 100) / 10000 : NaN;
+  };
+  function shareInput(v, label) {
+    var x = n(v);
+    return h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', class: 'eco-pct', 'aria-label': label,
+      value: x == null ? '' : String(Math.round(x * 10000) / 100).replace('.', ',') });
+  }
+  // a Sheet date as yyyy-mm-dd for a date field: ISO, 28/10/2026 (a date typed as text) or a day number (46291)
+  function isoDay(v) {
+    if (typeof v === 'number' && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5).toISOString().slice(0, 10);
+    var s = String(v == null ? '' : v).trim(), m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+    if (m) return m[1];
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
+  }
+  var dayOf = function (el) { return el.value || null; };
+  /* A form whose values live in the Sheet. Each field remembers what it showed and the Sheet's value behind it, so
+     only what changed is sent, with the old value as `expect`: the Sheet refuses the change when that cell changed
+     meanwhile. o = {label, op, args(set, expect), check(set) → '' or a problem, done(answer)} */
+  function sheetForm(o) {
+    var fields = [], send = writer();
+    var msg = h('span', { class: 'eco-saved', role: 'status' });
+    var btn = h('button', { class: 'eco-btn is-primary', type: 'button' }, o.label);
+    var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+    var busy = function (on) { btn.disabled = on; fields.forEach(function (x) { x.el.disabled = on; }); };
+    btn.addEventListener('click', function () {
+      var set = {}, expect = {};
+      fields.forEach(function (x) { var v = x.read(x.el); if (!same(v, x.was)) { set[x.key] = v; expect[x.key] = x.raw; } });
+      if (!Object.keys(set).length) return say('Nothing changed.');
+      var bad = o.check ? o.check(set) : '';
+      if (bad) return say(bad, true);
+      busy(true); say('Saving to the Sheet…');
+      send(o.op, o.args(set, expect)).then(function (r) {
+        if (r.status === 200 || r.status === 202) { o.done(r); return; }
+        busy(false); say(writeText(r), true);
+      }, function (e) { busy(false); say(ecoError(e), true); });
+    });
+    return {
+      // raw: the value as the Sheet holds it (sent back as `expect`); read: the field's value as it would be written
+      field: function (key, el, raw, read) {
+        var x = { key: key, el: el, raw: raw === undefined ? null : raw, read: read || plain };
+        x.was = x.read(el); fields.push(x);
+        return el;
+      },
+      dirty: function () { return fields.some(function (x) { return !same(x.read(x.el), x.was); }); },
+      bar: h('div', { class: 'eco-formbar' }, msg, btn)
+    };
+  }
 
   // ---------- small UI pieces ----------
   var SOURCES = { website: 'Website', whatsapp: 'WhatsApp', instagram: 'Instagram', referral: 'Referral', email: 'Email', phone: 'Phone', event: 'Event', other: 'Other' };
@@ -339,10 +419,13 @@
     return handle ? h('a', { href: 'https://instagram.com/' + handle, target: '_blank', rel: 'noopener noreferrer', text: '@' + handle }) : null;
   };
   var setHash = function (tab, id) { history.replaceState(null, '', '#' + tab + (id ? '/' + id : '')); };
-  // the drawer, wide, with the address pointing at the record (so a reload or a shared link opens it again)
-  function drawer(tab, id, content) {
+  // the drawer, wide, with the address pointing at the record (so a reload or a shared link opens it again);
+  // keep: the same record drawn again after a save stays where it was scrolled to
+  function drawer(tab, id, content, keep) {
+    var box = A.$('[data-drawer]'), y = keep && box && !box.hidden ? box.scrollTop : 0;
     if (tab && id) setHash(tab, id);
     A.openDrawer(content.concat([h('div', { class: 'eco-drawer-end' })]), true);
+    if (y && box) box.scrollTop = y;
   }
   // Tab stays inside an open drawer; the rest of the page is behind the scrim
   document.addEventListener('keydown', function (e) {
@@ -375,7 +458,8 @@
     pad3: pad3, phase: phase, isActive: isActive, short: short, pname: pname, pill: pill, nextStep: nextStep, stepContext: stepContext,
     byUrgency: byUrgency, shootText: shootText, projectRow: projectRow, projectCols: projectCols,
     data: data, forget: forget, rows: rows, settle: settle, sheetState: sheetState, paintSheet: paintSheet, sheetUrl: sheetUrl, fromSheet: fromSheet,
-    uuid: uuid, sheetWrite: sheetWrite, writeText: writeText, pullSoon: pullSoon,
+    uuid: uuid, sheetWrite: sheetWrite, writeText: writeText, pullSoon: pullSoon, writer: writer, writesOn: writesOn, frozen: frozen,
+    rupiah: rupiah, amount: amount, amountInput: amountInput, share: share, shareInput: shareInput, isoDay: isoDay, dayOf: dayOf, sheetForm: sheetForm,
     SOURCES: SOURCES, isId: isId, ecoError: ecoError, failed: failed, fullRow: fullRow, waitRow: waitRow, errRow: errRow, thead: thead,
     fig: fig, money: money, quiet: quiet, section: section, kv: kv, seg: seg, ext: ext, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
     setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search

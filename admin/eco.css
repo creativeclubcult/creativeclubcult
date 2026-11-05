@@ -126,6 +126,17 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
 .eco-field > .eco-seg { align-self: flex-start; text-transform: none; letter-spacing: 0; }
 .adm-controls .eco-new { grid-column: 1 / -1; text-transform: none; letter-spacing: 0; font-size: var(--t-body-sm); color: var(--ink); }
 .adm-controls .eco-new[hidden] { display: none; }
+/* a form inside a drawer section (details, payments, quote settings): its message and Save button under the fields */
+.adm-controls > [hidden] { display: none; }
+.eco-kv + .eco-form { margin-top: 20px; }
+.adm-controls > .eco-note { margin-top: 0; }
+.eco-formbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.eco-formbar .eco-saved { margin: 0 auto 0 0; }
+.eco-formbar .eco-saved:empty { display: none; }
+/* a choice and its button on one line (Make PDF) */
+.eco-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.eco-row select { width: auto; flex: 0 1 200px; }
+.eco-row .eco-saved { margin-left: 0; }
 /* one action at the end of a table row (Mark paid) */
 .adm-table td.act { width: 1%; padding-right: 0; text-align: right; white-space: nowrap; }
 .adm-table td.act .eco-btn { margin: -6px 0; }
@@ -199,7 +210,11 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
   .eco-next { flex-wrap: wrap; }
   .eco-actionbar { margin: 28px -18px 0; padding: 12px 18px; }
   .eco-actionbar .btn { flex: 1 1 auto; justify-content: center; }
+  .eco-actionbar .s:empty { display: none; }
   .eco-top-actions .btn, .eco-btn { min-height: 44px; }
+  .eco-formbar .eco-btn, .eco-row .eco-btn { flex: 1 1 auto; }
+  .eco-formbar .eco-saved { flex-basis: 100%; }
+  .eco-row select { flex: 1 1 100%; }
   .eco-switch { min-height: 44px; }
   .adm-head-actions .is-wide-only { display: none; }
   .eco-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-soft); border-top: 1px solid var(--line); }

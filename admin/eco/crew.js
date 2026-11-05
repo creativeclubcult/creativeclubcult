@@ -1,5 +1,7 @@
 /* Crew & Vendors: the crew list (the Crew tab of the Sheet, money access only: rates and what each person is owed)
-   next to the creative network (admin.js, the Network tab). Read only in this version. */
+   next to the creative network (admin.js, the Network tab). Owners and admins with money access change a person's
+   details and add people here; each change is written to the Crew tab through sheets-write. The name is the key
+   (Kas entries and RAB lines find people by it), so it never changes from the admin. */
 (function () {
   'use strict';
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
@@ -41,7 +43,18 @@
       function (e) { got = null; E.errRow(ui.tbody, COLS.length, e); });
   };
 
-  function open(id) {
+  // the Crew tab's own fields (Owed and Paid this year are the Sheet's formulas)
+  var FIELDS = [['role', 'Role', 120], ['phone', 'Phone', 60], ['rate', 'Rate (Rp)', 0], ['rate_unit', 'Per', 40], ['note', 'Note', 1000, true]];
+  var fieldEl = function (f, v) {
+    if (f[0] === 'rate') return E.amountInput(v, 'Rate');
+    if (f[3]) return h('textarea', { maxlength: f[2], value: v == null ? '' : String(v) });
+    return h('input', { type: 'text', maxlength: f[2], autocomplete: 'off', placeholder: f[0] === 'rate_unit' ? 'day' : '', value: v == null ? '' : String(v) });
+  };
+  var readOf = function (f) { return f[0] === 'rate' ? E.amount : undefined; };
+  var canWrite = function () { return A.canEdit() && A.canMoney(); };
+
+  // keep: drawn again after a save, at the same scroll position
+  function open(id, keep) {
     if (!E.isId(id)) return A.toast('That person isn\u2019t on the crew list any more.', true);
     Promise.all([
       sb.from('crew').select('*').eq('id', id).maybeSingle(),
@@ -61,17 +74,37 @@
         });
       }
       var pays = (r[3].v || []).filter(function (k) { return k.crew_id === c.id || E.words(k.counterparty).trim() === key; });
-      E.drawer('crew', c.id, [
-        h('h2', { text: c.name }),
-        h('p', { class: 'lead-line', text: [c.role, c.sheet_state === 'missing' ? 'No longer in the Sheet' : null].filter(Boolean).join(' \u00b7 ') || 'Crew list' }),
-        h('p', { class: 'eco-from', text: E.fromSheet(vals, c.sheet_seen_at) }),
-        E.section('Details', 'Crew tab', E.kv([
+      var edit = canWrite() && c.sheet_state !== 'missing', on = E.writesOn(vals), form = null, details;
+      if (edit && on) {
+        form = E.sheetForm({ label: 'Save details', op: 'crew_upsert',
+          args: function (set, expect) { return { name: c.name, set: set, expect: expect }; },
+          check: function (set) { return set.rate > 1e12 ? 'That rate is too large.' : ''; },
+          done: function (res) {
+            A.toast(res.status === 202 ? E.writeText(res) : 'Saved to the Crew tab.');
+            E.forget(); open(c.id, true);
+            if (ui && !panel.hidden) A.loaders.crew();
+          } });
+        details = E.section('Details', 'Crew tab', h('div', { class: 'eco-form' }, h('div', { class: 'adm-controls' }, FIELDS.map(function (f) {
+          return h('label', { class: f[3] ? 'wide' : null }, f[1], form.field(f[0], fieldEl(f, c[f[0]]), c[f[0]], readOf(f)));
+        })), form.bar), E.kv([
+          ['Owed', E.n(c.unpaid) == null ? E.quiet('Not in the Sheet') : E.rp(c.unpaid)],
+          ['Paid this year', E.n(c.paid_this_year) == null ? E.quiet('Not in the Sheet') : E.rp(c.paid_this_year)],
+          ['Network profile', c.network_profile_id ? h('a', { href: '#network/' + c.network_profile_id, text: 'Open the profile' }) : E.quiet('Not linked')]
+        ]), h('p', { class: 'eco-note', text: 'Changes are written to the Crew tab of the Sheet. The name stays as it is, because the Kas and the RAB lines find people by it.' }));
+      } else {
+        details = E.section('Details', 'Crew tab', E.kv([
           ['Role', c.role || E.quiet('Not set')], ['Rate', rate(c) || E.quiet('Not set')], ['Phone', E.phoneLink(c.phone) || E.quiet('Not set')],
           ['Note', c.note ? h('span', { class: 'adm-text', text: c.note }) : null],
           ['Owed', E.n(c.unpaid) == null ? E.quiet('Not in the Sheet') : E.rp(c.unpaid)],
           ['Paid this year', E.n(c.paid_this_year) == null ? E.quiet('Not in the Sheet') : E.rp(c.paid_this_year)],
           ['Network profile', c.network_profile_id ? h('a', { href: '#network/' + c.network_profile_id, text: 'Open the profile' }) : E.quiet('Not linked')]
-        ]), h('p', { class: 'eco-note', text: 'Read only in this version. Change crew details in the Crew tab of the Sheet.' })),
+        ]), edit ? h('p', { class: 'eco-note', text: 'Sheet writes are paused, so this is read only for now.' }) : null);
+      }
+      E.drawer('crew', c.id, [
+        h('h2', { text: c.name }),
+        h('p', { class: 'lead-line', text: [c.role, c.sheet_state === 'missing' ? 'No longer in the Sheet' : null].filter(Boolean).join(' \u00b7 ') || 'Crew list' }),
+        h('p', { class: 'eco-from', text: E.fromSheet(vals, c.sheet_seen_at) }),
+        details,
         E.section('Projects', 'RAB crew lines', r[1].e || r[2].e ? h('p', { class: 'eco-err', text: E.ecoError(r[1].e || r[2].e) })
           : !lines.length ? h('p', { class: 'adm-note', text: 'Not named in any RAB yet.' })
           : h('table', { class: 'eco-table' }, E.thead(['Project', 'Role', ['Fee', 'num']]), h('tbody', {}, lines.map(function (x) {
@@ -83,8 +116,63 @@
             return h('tr', {}, h('td', { text: E.day(k.entry_date) }), h('td', { class: 'hide-s', text: k.project_tab || 'Operasional' }),
               h('td', { class: 'num' }, E.num(k.amount)), h('td', { class: k.paid === 'Belum' ? null : 'muted', text: k.paid || '' }));
           }))))
-      ]);
+      ], keep);
+      A.guard(function () { return !!form && form.dirty(); });
     }).catch(E.failed);
   }
+
+  // ---------- a new person, added to the Crew tab ----------
+  function newPerson() {
+    if (!canWrite()) return;
+    Promise.all([E.data.values(), E.rows(sb.from('crew').select('name').limit(2000))]).then(function (r) {
+      if (!E.writesOn(r[0])) { A.toast('Sheet writes are paused, so people can\u2019t be added from the admin yet.', true); return; }
+      personForm(r[1].map(function (c) { return E.words(c.name).trim(); }));
+    }, E.failed);
+  }
+  function personForm(names) {
+    var name = h('input', { type: 'text', maxlength: 120, autocomplete: 'off', placeholder: 'Full name' });
+    var els = {};
+    FIELDS.forEach(function (f) { els[f[0]] = fieldEl(f, null); });
+    var msg = h('span', { class: 's', role: 'status' });
+    var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('neg', !!err); };
+    var send = E.writer();
+    var all = [name].concat(FIELDS.map(function (f) { return els[f[0]]; }));
+    var dirty = function () { return all.some(function (x) { return !!x.value.trim(); }); };
+    var btn = h('button', { class: 'btn', type: 'button', onclick: function () {
+      var n = name.value.trim().replace(/\s+/g, ' '), set = {};
+      FIELDS.forEach(function (f) {
+        var v = f[0] === 'rate' ? E.amount(els.rate) : els[f[0]].value.trim() || null;
+        if (v != null) set[f[0]] = v;
+      });
+      if (!n) return say('Give the person a name.', true);
+      if (names.indexOf(n.toLowerCase()) > -1) return say(n + ' is already on the crew list.', true);
+      if (set.rate > 1e12) return say('That rate is too large.', true);
+      all.forEach(function (x) { x.disabled = true; }); btn.disabled = true; say('Saving to the Sheet\u2026');
+      var back = function (t) { all.forEach(function (x) { x.disabled = false; }); btn.disabled = false; say(t, true); };
+      send('crew_upsert', { name: n, create: true, set: set }).then(function (r) {
+        if (r.status !== 200 && r.status !== 202) return back(E.writeText(r));
+        A.guard(null); E.forget();
+        A.toast(r.status === 202 ? E.writeText(r) : 'Added to the Crew tab: ' + n + '.');
+        if (ui && !panel.hidden) A.loaders.crew();
+        if (r.status !== 200) { A.closeDrawer(true); return; }
+        E.rows(sb.from('crew').select('id, name').limit(2000)).then(function (cs) {
+          var made = cs.filter(function (c) { return E.words(c.name).trim() === n.toLowerCase(); })[0];
+          if (made) open(made.id); else A.closeDrawer(true);
+        }, function () { A.closeDrawer(true); });
+      }, function (e) { back(E.ecoError(e)); });
+    } }, 'Add person');
+    E.drawer(null, null, [
+      h('h2', { text: 'New person' }),
+      h('p', { class: 'lead-line', text: 'Added to the Crew tab of the Sheet. Kas entries and RAB lines find people by name, so it can\u2019t be changed from the admin later.' }),
+      h('div', { class: 'adm-sec eco-form' }, h('div', { class: 'adm-controls' }, h('label', { class: 'wide' }, 'Name', name),
+        FIELDS.map(function (f) { return h('label', { class: f[3] ? 'wide' : null }, f[1], els[f[0]]); }))),
+      h('div', { class: 'eco-actionbar' }, msg, btn)
+    ]);
+    A.guard(dirty);
+    name.focus();
+  }
+  A.actions.crew = function () {
+    return canWrite() ? h('button', { class: 'btn', type: 'button', onclick: newPerson }, 'New person') : null;
+  };
   A.openers.crew = open;
 })();

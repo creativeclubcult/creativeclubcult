@@ -1,7 +1,8 @@
 /* Projects: every RAB in the Sheet (a Rekap Project row and its tab) and the Briefs not in the Sheet yet, sorted by
-   what needs doing. The drawer shows one project end to end. In this version what the admin keeps itself (shoot and
-   deliver dates, notes) changes here, and so does the net profit share of the split, which is written to the RAB tab;
-   everything else from the Sheet is read only. */
+   what needs doing. The drawer shows one project end to end. What the admin keeps itself (shoot and deliver dates,
+   notes) saves to the database. The status, the delivery date, payments, the quote settings, locking gear prices and
+   the PDFs are written to the Sheet through sheets-write, which checks the role and every value again; a new RAB is
+   made in the Sheet from a Brief. RAB 001 to 009 (the old tabs) and the line items stay read only. */
 (function () {
   'use strict';
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
@@ -74,7 +75,8 @@
   };
 
   // ---------- one project ----------
-  function open(id) {
+  // keep: drawn again after a save, at the same scroll position
+  function open(id, keep) {
     if (!E.isId(id)) return gone();
     var money = A.canMoney();
     Promise.all([
@@ -83,16 +85,30 @@
       E.settle(E.data.values()), E.settle(E.data.docs()), E.settle(E.data.kas()), E.settle(E.data.portfolio()),
       money ? E.settle(E.rows(sb.from('sync_changes').select('at, source, actor_email, field, old_value, new_value').eq('entity_id', id).order('at', { ascending: false }).limit(50)))
         : Promise.resolve({ v: [] }),
-      E.settle(E.rows(sb.from('activity_log').select('at, actor_email, action, source').eq('entity', 'project').eq('entity_id', id).order('at', { ascending: false }).limit(20)))
+      E.settle(E.rows(sb.from('activity_log').select('at, actor_email, action, source').eq('entity', 'project').eq('entity_id', id).order('at', { ascending: false }).limit(20))),
+      E.settle(E.data.clients())
     ]).then(function (r) {
       if (r[0].error) return E.failed(r[0].error);
       if (!r[0].data) return gone();
       var p = r[0].data, lead = A.canEdit() ? p.inquiry_id || p.manual_lead_id : null; // leads are for owners and admins
       (lead ? E.settle(E.rows(sb.from('lead_inbox').select('id, name, status').eq('id', lead))) : Promise.resolve({ v: [] })).then(function (lr) {
-        show({ p: p, m: r[1].data || null, mErr: r[1].error || null, values: r[2], docs: r[3], kas: r[4], port: r[5], changes: r[6], acts: r[7], lead: lr });
+        show({ p: p, m: r[1].data || null, mErr: r[1].error || null, values: r[2], docs: r[3], kas: r[4], port: r[5], changes: r[6], acts: r[7], lead: lr, clients: r[8] }, keep);
       });
     }).catch(E.failed);
   }
+  // a change the Sheet took (200) or queued (202): the drawer again with what the Sheet holds now, and the list behind it
+  function saved(id, r, text) {
+    A.toast(r.status === 202 ? E.writeText(r) : text);
+    E.forget();
+    open(id, true);
+    if (ui && !panel.hidden) A.loaders.projects();
+  }
+  var DOC_TYPES = [['PENAWARAN', 'Penawaran'], ['INVOICE', 'Invoice'], ['KWITANSI', 'Kwitansi']];
+  var docType = function (v) { v = String(v || '').trim().toUpperCase(); return DOC_TYPES.some(function (o) { return o[0] === v; }) ? v : ''; };
+  var field = function (label, el, cls) { return h('label', { class: cls || null }, label, el); };
+  // a seg's pressed button, set from outside (a status that wasn't saved goes back)
+  var press = function (box, v) { A.$$('button', box).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === v)); }); };
+  var lockSeg = function (box, on) { A.$$('button', box).forEach(function (b) { b.disabled = on; }); };
 
   // a date or the notes, kept by the admin: saved as soon as it changes
   function save(p, field, v, input, note, onFail) {
@@ -162,14 +178,18 @@
       canSet ? h('p', { class: 'eco-note' }, 'Net profit can be 10% to 25%. Changing it saves to the RAB tab in the Sheet.', saved) : null);
   }
 
-  function show(d) {
+  function show(d, keep) {
     var p = d.p, m = d.m, money = A.canMoney(), ph = E.phase(p), vals = d.values.v || {}, brief = p.sheet_state === 'none';
     var rab = m && m.rab && typeof m.rab === 'object' ? m.rab : null, meta = (rab && rab.meta) || {};
     var url = p.sheet_state === 'present' ? E.sheetUrl(vals, p.sheet_gid) : null, drive = A.safeUrl(p.drive_folder_url);
     var edit = A.canEdit() && p.sheet_state !== 'removed';
+    // what goes to the Sheet: Sheet writes on, the project's tab there, and never an old RAB (001 to 009)
+    var on = E.writesOn(vals), write = edit && on && p.sheet_state === 'present' && !E.frozen(p), writeMoney = write && money;
+    var why = !edit || p.sheet_state !== 'present' ? null : E.frozen(p) ? 'An old RAB (001 to 009): change it in the Sheet.'
+      : !on ? 'Sheet writes are paused, so this is read only for now.' : null;
     var kasRows = (d.kas.v || []).filter(function (k) { return k.project_id === p.id || (p.tab_name && k.project_tab === p.tab_name); });
     var step = E.nextStep(p, m, E.stepContext(d.docs.v, d.kas.v, d.port.v)(p));
-    var inputs = {};
+    var inputs = {}, forms = [];
 
     // header and the next step
     var top = [
@@ -179,14 +199,53 @@
       url || drive ? h('div', { class: 'eco-top-actions' }, url ? newTab(url, 'Open RAB', 'btn ghost') : null, drive ? newTab(drive, 'Drive folder', 'btn ghost') : null) : null,
       h('p', { class: 'eco-from', text: brief ? 'A Brief: kept in the admin until its RAB is made in the Sheet.' : E.fromSheet(vals, p.rab_seen_at || p.sheet_seen_at) })
     ];
+
+    // locking gear prices (the Sheet's own lock: each unlocked equipment price is fixed at what it is now)
+    var lockSend = E.writer();
+    function lockPrices(e) {
+      var btn = e.currentTarget, k = p.unlocked_gear;
+      A.ask('Lock ' + E.plural(k, 'gear price') + '?', 'Each equipment price in the RAB tab that isn\u2019t locked yet is fixed at its current price.', 'Lock prices').then(function (go) {
+        if (!go) return;
+        btn.disabled = true; btn.textContent = 'Locking\u2026';
+        var back = function (t) { btn.disabled = false; btn.textContent = 'Lock prices'; A.toast(t, true); };
+        lockSend('lock_prices', { project_id: p.id }).then(function (r) {
+          if (r.status !== 200 && r.status !== 202) return back(E.writeText(r));
+          var n = r.body.record && E.n(r.body.record.locked);
+          saved(p.id, r, n != null ? 'Locked ' + E.plural(n, 'gear price') + ' in the Sheet.' : 'Prices locked in the Sheet.');
+        }, function (err) { back(E.ecoError(err)); });
+      });
+    }
+    var canLock = write && p.layout === 'v2' && p.unlocked_gear > 0;
     var stepBtn = step === 'Set the shoot date' && edit ? h('button', { class: 'eco-btn is-primary', type: 'button', onclick: function () { inputs.shoot_date.focus(); } }, 'Set date')
+      : canLock && /gear price/.test(step) ? h('button', { class: 'eco-btn is-primary', type: 'button', onclick: lockPrices }, 'Lock prices')
+      : step === 'Make the RAB' && edit && on && !p.archived_at ? h('button', { class: 'eco-btn is-primary', type: 'button', onclick: function () { if (inputs.code) inputs.code.focus(); } }, 'Make the RAB')
       : url && /RAB|gear|Shoot on/.test(step) ? newTab(url, 'Open RAB', 'eco-btn is-primary') : null;
     var next = h('div', { class: 'eco-next' }, h('span', { class: 't' }, h('span', { class: 'k', text: 'Next step' }), h('span', { class: 's', text: step })), stepBtn);
 
-    var status = brief ? E.section('Status', null, blank('A Brief: there is no RAB for it in the Sheet yet.'))
-      : E.section('Status', 'Rekap Project',
-        E.seg([['Draft', 'Draft'], ['Dikirim', 'Dikirim'], ['Deal', 'Deal'], ['Lunas', 'Lunas']].concat(ph === 'Batal' ? [['Batal', 'Batal']] : []), ph, null, { 'aria-label': 'Status' }),
-        h('p', { class: 'eco-note', text: 'Read only in this version: the status follows Rekap Project in the Sheet.' }));
+    // the status: picked here, asked once, written to Rekap Project
+    var status = null;
+    if (brief) status = E.section('Status', null, blank('A Brief: there is no RAB for it in the Sheet yet.'));
+    else {
+      var OPTS = [['Draft', 'Draft'], ['Dikirim', 'Dikirim'], ['Deal', 'Deal'], ['Lunas', 'Lunas'], ['Batal', 'Batal']];
+      var statusSend = E.writer(), statusNote = h('span', { class: 'eco-saved', role: 'status' });
+      var statusBox = E.seg(write || ph === 'Batal' ? OPTS : OPTS.slice(0, 4), ph, write ? function (v) {
+        if (v === ph) return;
+        var batal = v === 'Batal';
+        A.ask(batal ? 'Mark this project Batal?' : 'Change the status to ' + v + '?',
+          'Rekap Project in the Sheet goes from ' + (ph || 'empty') + ' to ' + v + '.' + (batal ? ' Nothing is deleted, and it can be changed back.' : ''),
+          batal ? 'Mark Batal' : 'Change to ' + v, batal).then(function (go) {
+          if (!go) return press(statusBox, ph);
+          lockSeg(statusBox, true); statusNote.textContent = 'Saving to the Sheet\u2026'; statusNote.classList.remove('is-err');
+          var back = function (t) { lockSeg(statusBox, false); press(statusBox, ph); statusNote.textContent = t; statusNote.classList.add('is-err'); };
+          statusSend('project_set', { project_id: p.id, set: { status: v }, expect: { status: p.status } }).then(function (r) {
+            if (r.status === 200 || r.status === 202) return saved(p.id, r, 'Status saved to the Sheet: ' + v + '.');
+            back(E.writeText(r));
+          }, function (e) { back(E.ecoError(e)); });
+        });
+      } : null, { 'aria-label': 'Status' });
+      status = E.section('Status', 'Rekap Project', h('div', {}, statusBox, statusNote),
+        h('p', { class: 'eco-note', text: write ? 'A new status is written to Rekap Project in the Sheet.' : why || 'The status follows Rekap Project in the Sheet.' }));
+    }
 
     // dates: the Sheet's are read only, the plan dates save as they change
     var rs = money && vals.rekap_summary ? vals.rekap_summary.value : null, tempo = rs ? E.n(rs.tempo_days) : null;
@@ -199,12 +258,35 @@
       inputs[field] = input;
       return [input, note];
     };
+    // the day the final files went out: Rekap Project, written once the typed date is whole (a date field reports
+    // every finished part while typing, and a year like 0202 must never reach the Sheet)
+    var delivered = function () {
+      if (!write) return p.final_file_date ? E.day(p.final_file_date) : E.quiet('Not yet');
+      var note = h('span', { class: 'eco-saved', role: 'status' }), send = E.writer(), wait = null;
+      var input = h('input', { type: 'date', value: p.final_file_date || '', 'aria-label': 'Files delivered' });
+      var back = function (t) { input.disabled = false; input.value = p.final_file_date || ''; note.textContent = t; note.classList.add('is-err'); };
+      var go = function () {
+        clearTimeout(wait); wait = null;
+        var v = input.value || null;
+        if (v === (p.final_file_date || null) || (v && !/^20\d\d-\d\d-\d\d$/.test(v))) return;
+        input.disabled = true; note.textContent = 'Saving to the Sheet…'; note.classList.remove('is-err');
+        send('project_set', { project_id: p.id, set: { final_file_date: v }, expect: { final_file_date: p.final_file_date } }).then(function (r) {
+          if (r.status === 200 || r.status === 202) return saved(p.id, r, v ? 'Files delivered on ' + E.day(v) + ', saved to the Sheet.' : 'Delivery date cleared in the Sheet.');
+          back(E.writeText(r));
+        }, function (e) { back(E.ecoError(e)); });
+      };
+      input.addEventListener('change', function () { clearTimeout(wait); wait = setTimeout(go, 1200); });
+      input.addEventListener('blur', function () { if (wait) go(); });
+      inputs.final_file_date = input;
+      return [input, note];
+    };
     var dates = E.section('Dates', null, E.kv([
       brief ? null : ['Quote date', p.quote_date ? E.day(p.quote_date) : E.quiet('Not set')],
       ['Shoot starts', dateField('shoot_date')], ['Shoot ends', dateField('shoot_end')], ['Deliver by', dateField('deliver_by')],
-      brief ? null : ['Files delivered', p.final_file_date ? E.day(p.final_file_date) : E.quiet('Not yet')],
+      brief ? null : ['Files delivered', delivered()],
       brief ? null : ['Payment due', p.payment_due ? E.day(p.payment_due) : E.quiet(tempo != null ? E.plural(tempo, 'day') + ' after the files are delivered' : 'Not set')]
-    ]), edit ? h('p', { class: 'eco-note', text: 'Shoot and deliver dates are kept in the admin and save as you change them. The other dates come from the Sheet.' }) : null);
+    ]), edit ? h('p', { class: 'eco-note', text: write ? 'Shoot and deliver dates are kept in the admin; Files delivered is written to Rekap Project in the Sheet. They save as you change them.'
+      : 'Shoot and deliver dates are kept in the admin and save as you change them. The other dates come from the Sheet.' }) : null);
 
     // money (owners and people with money access)
     var pays = null, costs = null, split = null, cash = null;
@@ -214,13 +296,27 @@
       } else {
         var paid = function (amt, dt) { return E.n(amt) > 0 ? E.rp(amt) + (dt ? ' on ' + E.day(dt) : '') : E.quiet('Not yet'); };
         var payNote = { Draft: 'Nothing to collect while the quote is a Draft.', Dikirim: 'Nothing to collect until the client agrees (Deal).', Batal: 'Cancelled: nothing to collect.' }[ph];
+        // what came in, typed here and written to Rekap Project (Deal and Lunas only: before that nothing is billed)
+        var payForm = null;
+        if (writeMoney && (ph === 'Deal' || ph === 'Lunas')) {
+          var pf = E.sheetForm({ label: 'Save payments', op: 'project_set',
+            args: function (set, expect) { return { project_id: p.id, set: set, expect: expect }; },
+            check: function (set) { return ['dp_received', 'final_received'].some(function (k) { return set[k] > 1e12; }) ? 'That amount is too large.' : ''; },
+            done: function (r) { saved(p.id, r, 'Payments saved to the Sheet.'); } });
+          forms.push(pf);
+          payForm = h('div', { class: 'eco-form' }, h('div', { class: 'adm-controls' },
+            field('DP received (Rp)', pf.field('dp_received', E.amountInput(m.dp_received, 'DP received'), m.dp_received, E.amount)),
+            field('DP date', pf.field('dp_date', h('input', { type: 'date', value: E.isoDay(m.dp_date) }), m.dp_date, E.dayOf)),
+            field('Pelunasan received (Rp)', pf.field('final_received', E.amountInput(m.final_received, 'Pelunasan received'), m.final_received, E.amount)),
+            field('Pelunasan date', pf.field('final_date', h('input', { type: 'date', value: E.isoDay(m.final_date) }), m.final_date, E.dayOf))), pf.bar);
+        }
         pays = E.section('Invoice and payments', 'Rekap Project',
           h('div', { class: 'eco-figs' }, E.money('Grand total', m.grand_total), E.money('DP' + (E.n(m.dp_pct) != null ? ' ' + E.pct(m.dp_pct) : ''), m.dp_amount),
             E.money('Pelunasan', m.final_amount), E.money('Received', m.paid_total)),
-          E.kv([['DP received', paid(m.dp_received, m.dp_date)], ['Pelunasan received', paid(m.final_received, m.final_date)],
+          E.kv([payForm ? null : ['DP received', paid(m.dp_received, m.dp_date)], payForm ? null : ['Pelunasan received', paid(m.final_received, m.final_date)],
             ['Outstanding', m.outstanding != null ? E.rp(m.outstanding) : E.quiet(ph === 'Deal' || ph === 'Lunas' ? 'Not in the Sheet' : 'Not billed yet')],
             ['Pay status', m.pay_status === 'Telat' || m.pay_status === 'Lunas' ? E.pill(m.pay_status) : m.pay_status]]),
-          payNote ? h('p', { class: 'eco-note', text: payNote }) : null);
+          payForm, payNote ? h('p', { class: 'eco-note', text: payNote }) : null);
 
         var cats = Array.isArray(m.categories) ? m.categories : [];
         var sum = function (k) { var any = false, t = 0; cats.forEach(function (c) { var v = E.n(c[k]); if (v != null) { any = true; t += v; } }); return any ? t : null; };
@@ -245,7 +341,7 @@
             E.n(m.profit) < 0 && gap >= -E.n(m.profit) ? ' That\u2019s where the loss comes from.' : '') : null,
           m.cost_override != null ? h('p', { class: 'eco-note', text: 'The cost is set by hand in Rekap Project (' + E.rp(m.cost_override) + '), so the Sheet uses it instead of the RAB.' }) : null);
         var al = rab && rab.internal && rab.internal.alloc;
-        if (al && typeof al === 'object') split = allocation(p, al, edit && p.sheet_state === 'present');
+        if (al && typeof al === 'object') split = allocation(p, al, write);
       }
       cash = E.section('Cash entries', 'Kas', d.kas.e ? oops(d.kas.e) : !kasRows.length ? blank('No cash entries for this project yet.')
         : h('table', { class: 'eco-table' }, E.thead(['Date', 'Kategori', ['Keterangan', 'hide-s'], 'To or from', ['Nominal', 'num'], 'Status']),
@@ -283,18 +379,80 @@
     var before = [];
     if (holders.length) before.push(holders.join(', ') + (holders.length === 1 ? ' is still a placeholder' : ' are still placeholders'));
     if (p.unlocked_gear > 0) before.push(E.plural(p.unlocked_gear, 'gear price') + (p.unlocked_gear === 1 ? ' isn\u2019t' : ' aren\u2019t') + ' locked');
+    // a PDF of the RAB tab, made by the Sheet into the client's Drive folder; it asks before locking prices or
+    // keeping [placeholder] text, the same two checks the Sheet's own export makes
+    var pdfRow = null;
+    if (writeMoney) {
+      var pdfType = A.select(DOC_TYPES, docType(meta.doc_type || p.doc_type) || 'PENAWARAN', { 'aria-label': 'Document type' });
+      var pdfNote = h('span', { class: 'eco-saved', role: 'status' }), pdfSend = E.writer();
+      var pdfBtn = h('button', { class: 'eco-btn is-primary', type: 'button', onclick: function () {
+        var ok = { lock: false, accept_placeholders: false };
+        var say = function (t, err) { pdfNote.textContent = t || ''; pdfNote.classList.toggle('is-err', !!err); };
+        var stop = function (t, err) { pdfBtn.disabled = false; pdfType.disabled = false; say(t, err); };
+        pdfBtn.disabled = true; pdfType.disabled = true;
+        (function go() {
+          say('Making the PDF in the Sheet\u2026');
+          pdfSend('export_pdf', { project_id: p.id, doc_type: pdfType.value, lock: ok.lock, accept_placeholders: ok.accept_placeholders }).then(function (r) {
+            if (r.status === 200 || r.status === 202) {
+              var f = r.body.record && r.body.record.file;
+              return saved(p.id, r, f && f.name ? 'PDF saved to Drive: ' + f.name : 'PDF saved to Drive.');
+            }
+            if (!(r.status === 409 && r.body.needs_confirm)) return stop(E.writeText(r), true);
+            var det = r.body.detail || {}, k = E.n(det.unlocked);
+            var q = k ? ['Lock the gear prices?', E.plural(k, 'equipment price') + (k === 1 ? ' isn\u2019t' : ' aren\u2019t') + ' locked yet. Lock at the current prices, then make the PDF?', 'Lock and make PDF', 'lock']
+              : ['Make the PDF with placeholders?', 'The top of the document still has [placeholder] text'
+                + (Array.isArray(det.placeholders) && det.placeholders.length ? ' in ' + det.placeholders.slice(0, 8).join(', ') : '') + '. Make the PDF anyway?', 'Make PDF anyway', 'accept_placeholders'];
+            // the refused attempt is cleared first, so it doesn't wait in the Sheet's list
+            E.sheetWrite('outbox_discard', { op_id: r.op_id }).catch(function () {}).then(function () { return A.ask(q[0], q[1], q[2]); }).then(function (yes) {
+              if (!yes) return stop('');
+              ok[q[3]] = true; go();
+            });
+          }, function (e) { stop(E.ecoError(e), true); });
+        })();
+      } }, 'Make PDF');
+      pdfRow = h('div', { class: 'eco-row' }, pdfType, pdfBtn, pdfNote);
+    }
     var docs = brief ? null : E.section('Documents', null,
       d.docs.e ? oops(d.docs.e) : !mine.length ? blank('No PDFs for this project yet.')
         : h('ul', { class: 'eco-list' }, mine.map(function (x) {
           return h('li', {}, h('span', { class: 't' }, E.ext(x.url, x.doc_no || x.title), h('span', { class: 'sub', text: (DOC[x.kind] || x.kind) + ' \u00b7 ' + A.date(x.created_at) })));
         })),
-      before.length && (ph === 'Draft' || ph === 'Deal') ? h('p', { class: 'eco-note', text: 'Before the ' + (ph === 'Draft' ? 'quote' : 'invoice') + ' PDF: ' + before.join(', and ') + '.' }) : null);
+      before.length && (ph === 'Draft' || ph === 'Deal') ? h('p', { class: 'eco-note', text: 'Before the ' + (ph === 'Draft' ? 'quote' : 'invoice') + ' PDF: ' + before.join(', and ') + '.' }) : null,
+      pdfRow);
 
     // the RAB header and its lines (money)
     var quote = null, budget = null;
     if (money && m && !brief) {
       var pc = function (v) { return v == null ? '0%' : E.pct(v); };
-      if (rab && rab.meta) {
+      if (rab && rab.meta && writeMoney && p.layout === 'v2') {
+        // the RAB header and its percentages, written to the RAB tab (the Sheet works out the totals again)
+        var qf = E.sheetForm({ label: 'Save quote settings', op: 'rab_meta',
+          args: function (set, expect) { return { project_id: p.id, set: set, expect: expect }; },
+          check: function (set) {
+            if ('doc_type' in set && !set.doc_type) return 'Pick the document type.';
+            if ('title' in set && !set.title) return 'The title can’t be empty.';
+            if ('client_label' in set && !set.client_label) return 'The client on the invoice can’t be empty.';
+            if ('quote_date' in set && !set.quote_date) return 'The quote date can’t be empty: the invoice number is made from it.';
+            var badPct = ['discount_pct', 'ppn_pct', 'dp_pct', 'pph23_pct'].some(function (k) { return k in set && set[k] !== null && !(set[k] >= 0 && set[k] <= 1); });
+            return badPct ? 'Type percentages as numbers from 0 to 100, like 11 or 2,5.' : '';
+          },
+          done: function (r) { saved(p.id, r, 'Quote settings saved to the Sheet.'); } });
+        forms.push(qf);
+        var text = function (key, label, max, cls, hint) {
+          return field(label, qf.field(key, h('input', { type: 'text', maxlength: max || 200, autocomplete: 'off', placeholder: hint || '', value: meta[key] == null ? '' : String(meta[key]) }), meta[key]), cls);
+        };
+        var pcField = function (key, label) { return field(label, qf.field(key, E.shareInput(m[key], label), m[key], E.share)); };
+        var types = docType(meta.doc_type) ? DOC_TYPES : [['', 'Not set']].concat(DOC_TYPES);
+        quote = E.section('Quote settings', 'RAB header', h('div', { class: 'eco-form' }, h('div', { class: 'adm-controls' },
+          field('Document type', qf.field('doc_type', A.select(types, docType(meta.doc_type)), meta.doc_type)),
+          field('Quote date', qf.field('quote_date', h('input', { type: 'date', value: E.isoDay(meta.quote_date) }), meta.quote_date, E.dayOf)),
+          text('title', 'Title', 200, 'wide'), text('client_label', 'Client on the invoice'), text('product', 'Product'),
+          text('photographer', 'Photographer'), text('location', 'Location'),
+          text('locations', 'Number of locations', 200, null, '1'), text('shooting_days', 'Shooting days', 200, null, '1'),
+          text('usage', 'Usage'), text('language', 'Language'),
+          pcField('discount_pct', 'Diskon (%)'), pcField('ppn_pct', 'PPN (%)'), pcField('dp_pct', 'DP (%)'), pcField('pph23_pct', 'PPh 23 (%)')), qf.bar),
+          holders.length ? h('p', { class: 'eco-note', text: 'Text in [brackets] is a placeholder from the template. Replace it before the PDF goes to the client.' }) : null);
+      } else if (rab && rab.meta) {
         quote = E.section('Quote settings', 'RAB header', E.kv([
           ['Document type', meta.doc_type || p.doc_type], ['Title', meta.title], ['Client on the invoice', meta.client_label], ['Product', meta.product],
           ['Photographer', meta.photographer ? (holders.indexOf(String(meta.photographer).trim()) > -1 ? E.quiet(meta.photographer) : meta.photographer) : null],
@@ -343,7 +501,7 @@
     }
 
     // notes and links
-    var noteBox = null, noteNote = h('span', { class: 'eco-saved', role: 'status' }), sent = p.notes || null;
+    var noteBox = null, noteNote = h('span', { class: 'eco-saved', role: 'status' }), sent = (p.notes || '').trim() || null;
     if (edit) {
       noteBox = h('textarea', { value: p.notes || '', maxlength: 4000, placeholder: 'Notes for the team', 'aria-label': 'Notes' });
       noteBox.addEventListener('change', function () {
@@ -386,8 +544,133 @@
     var bar = url ? h('div', { class: 'eco-actionbar' }, h('span', { class: 's', text: [ph, money && m && m.grand_total != null ? E.rp(m.grand_total) : null].filter(Boolean).join(' \u00b7 ') }),
       newTab(url, 'Open RAB', 'btn')) : null;
 
-    E.drawer('projects', p.id, top.concat([next, status, dates, pays, costs, split, cash, crew, docs, quote, budget, notes, history, bar]));
-    if (noteBox) A.guard(function () { return (noteBox.value.trim() || null) !== sent; });
+    // a Brief becomes a RAB in the Sheet: a new tab from the template, its Rekap Project row, and the client if it's new
+    var make = brief && edit && !p.archived_at ? (on ? makeRab(p, d.clients, inputs) : E.section('Make the RAB', null, blank('Sheet writes are paused, so the RAB can\u2019t be made from here yet.'))) : null;
+
+    E.drawer('projects', p.id, top.concat([next, make || status, dates, pays, costs, split, cash, crew, docs, quote, budget, notes, history, bar]), keep);
+    A.guard(function () {
+      return (!!noteBox && (noteBox.value.trim() || null) !== sent) || forms.some(function (f) { return f.dirty(); });
+    });
   }
+
+  // the client code picks the client in the Client tab; a code that isn't there yet adds the client with the RAB
+  function makeRab(p, cl, inputs) {
+    var list = cl.v || [], pc = p.plan_client && typeof p.plan_client === 'object' ? p.plan_client : {};
+    var known = p.plan_client_id ? list.filter(function (c) { return c.id === p.plan_client_id; })[0] : null;
+    var input = function (max, ph, v, label) { return h('input', { type: 'text', maxlength: max, autocomplete: 'off', placeholder: ph || '', value: v || '', 'aria-label': label || null }); };
+    var f = {
+      code: input(5, 'HOMI', (known && known.code) || pc.code || ''),
+      project: input(80, 'Photoshoot Campaign', String(p.plan_title || '').slice(0, 80)),
+      doc: A.select(DOC_TYPES, 'PENAWARAN'),
+      name: input(200, 'Client name', known ? '' : pc.name), pic: input(200, '', known ? '' : pc.pic),
+      phone: input(60, '', known ? '' : pc.phone), email: input(254, '', known ? '' : pc.email)
+    };
+    inputs.code = f.code;
+    var byCode = function (code) { return list.filter(function (c) { return String(c.code || '').toUpperCase() === code && c.sheet_state !== 'missing'; })[0] || null; };
+    var who = h('p', { class: 'eco-note wide' });
+    var fresh = [field('Client name', f.name, 'wide'), field('PIC', f.pic), field('Phone', f.phone), field('Email', f.email, 'wide')];
+    function refresh() {
+      var code = f.code.value.trim().toUpperCase(), c = byCode(code), isNew = /^[A-Z]{2,5}$/.test(code) && !c;
+      fresh.forEach(function (x) { x.hidden = !isNew; });
+      who.textContent = c ? code + ' is ' + (c.name || code) + ' in the Client tab.' : isNew ? code + ' is a new client code: the client is added to the Client tab with the RAB.'
+        : cl.e ? 'The client list couldn\u2019t be loaded, so a new code can\u2019t be checked. Reload to try again.' : 'Two to five capital letters, used in the invoice number.';
+    }
+    f.code.addEventListener('input', function () {
+      var v = f.code.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
+      if (v !== f.code.value) f.code.value = v;
+      refresh();
+    });
+    refresh();
+    var send = E.writer(), msg = h('span', { class: 'eco-saved', role: 'status' });
+    var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+    var all = [f.code, f.project, f.doc, f.name, f.pic, f.phone, f.email];
+    var btn = h('button', { class: 'eco-btn is-primary', type: 'button', onclick: function () {
+      var code = f.code.value.trim().toUpperCase(), project = f.project.value.trim(), c = byCode(code), client = null;
+      if (!/^[A-Z]{2,5}$/.test(code)) return say('The client code is 2 to 5 capital letters, like HOMI.', true);
+      if (cl.e) return say('The client list couldn\u2019t be loaded. Reload to try again.', true);
+      if (!project) return say('Give the project a short name.', true);
+      if (!c) {
+        if (!f.name.value.trim()) return say(code + ' is a new code: give the client a name.', true);
+        client = { name: f.name.value.trim() };
+        ['pic', 'phone', 'email'].forEach(function (k) { var v = f[k].value.trim(); if (v) client[k] = v; });
+        if (client.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(client.email)) return say('Check the email address.', true);
+      }
+      A.ask('Make the RAB in the Sheet?', 'A new RAB tab for ' + (c ? c.name || code : client.name) + ' is added to the Sheet from the template, with its row in Rekap Project'
+        + (client ? ' and ' + code + ' in the Client tab' : '') + '. It starts as a Draft.', 'Make the RAB').then(function (go) {
+        if (!go) return;
+        all.forEach(function (x) { x.disabled = true; }); btn.disabled = true; say('Making the RAB in the Sheet\u2026');
+        var back = function (t) { all.forEach(function (x) { x.disabled = false; }); btn.disabled = false; say(t, true); };
+        send('create_rab', { project_id: p.id, code: code, project: project, doc_type: f.doc.value, client: client }).then(function (r) {
+          if (r.status !== 200 && r.status !== 202) return back(E.writeText(r));
+          var tab = r.body.record && r.body.record.tab;
+          saved(p.id, r, tab && tab.name ? 'RAB made in the Sheet: ' + tab.name + '.' : 'RAB made in the Sheet.');
+        }, function (e) { back(E.ecoError(e)); });
+      });
+    } }, 'Make the RAB');
+    return E.section('Make the RAB', 'In the Sheet', h('div', { class: 'eco-form' }, h('div', { class: 'adm-controls' },
+      field('Client code', f.code), field('Document type', f.doc), who, fresh, field('Project name in the RAB', f.project, 'wide')),
+      h('div', { class: 'eco-formbar' }, msg, btn)));
+  }
+
+  // ---------- a new project: a Brief in the admin, until its RAB is made in the Sheet ----------
+  function newBrief() {
+    if (!A.canEdit()) return;
+    E.data.clients().then(briefForm, function () { briefForm(null); });
+  }
+  function briefForm(clients) {
+    var opts = [['', 'Pick a client']].concat((clients || []).filter(function (c) { return c.sheet_state !== 'missing'; })
+      .map(function (c) { return [c.id, (c.name || c.code) + ' \u00b7 ' + c.code]; }), [['new', 'A new client']]);
+    var f = {
+      title: h('input', { type: 'text', maxlength: 120, autocomplete: 'off', placeholder: 'Photoshoot Campaign' }),
+      client: A.select(opts, clients ? '' : 'new'),
+      cname: h('input', { type: 'text', maxlength: 200, autocomplete: 'off' }),
+      shoot_date: h('input', { type: 'date' }), shoot_end: h('input', { type: 'date' }), deliver_by: h('input', { type: 'date' }),
+      notes: h('textarea', { maxlength: 4000, placeholder: 'What the client asked for' })
+    };
+    var nameRow = field('Client name', f.cname, 'wide');
+    var pick = function () { nameRow.hidden = f.client.value !== 'new'; };
+    f.client.addEventListener('change', pick); pick();
+    var msg = h('span', { class: 's', role: 'status' });
+    var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('neg', !!err); };
+    var dirty = function () { return !!(f.title.value.trim() || f.cname.value.trim() || f.shoot_date.value || f.shoot_end.value || f.deliver_by.value || f.notes.value.trim()); };
+    var btn = h('button', { class: 'btn', type: 'button', onclick: function () {
+      var row = { plan_title: f.title.value.trim(), shoot_date: f.shoot_date.value || null, shoot_end: f.shoot_end.value || null,
+        deliver_by: f.deliver_by.value || null, notes: f.notes.value.trim() || null };
+      if (!row.plan_title) return say('Give the project a name.', true);
+      if (!f.client.value) return say('Pick the client, or A new client.', true);
+      if (f.client.value === 'new') {
+        if (!f.cname.value.trim()) return say('Give the new client a name.', true);
+        row.plan_client = { name: f.cname.value.trim() };
+      } else {
+        // the id links the Brief to the client; the name and code show it in lists before the RAB exists
+        var c = (clients || []).filter(function (x) { return x.id === f.client.value; })[0];
+        row.plan_client_id = f.client.value;
+        if (c && c.name) row.plan_client = /^[A-Z]{2,5}$/.test(c.code || '') ? { name: c.name, code: c.code } : { name: c.name };
+      }
+      if (row.shoot_date && row.shoot_end && row.shoot_end < row.shoot_date) return say('The shoot can\u2019t end before it starts.', true);
+      btn.disabled = true; say('Saving\u2026');
+      sb.from('projects').insert(row).select('id').single().then(function (r) {
+        if (r.error || !r.data) { btn.disabled = false; return say(r.error ? E.ecoError(r.error) : 'Your account isn\u2019t allowed to do this.', true); }
+        A.guard(null); E.forget();
+        if (ui && !panel.hidden) A.loaders.projects();
+        A.toast('Brief saved. Make its RAB when the quote is ready.');
+        open(r.data.id);
+      }, function (e) { btn.disabled = false; say(E.ecoError(e), true); });
+    } }, 'Save brief');
+    E.drawer(null, null, [
+      h('h2', { text: 'New project' }),
+      h('p', { class: 'lead-line', text: 'Starts as a Brief in the admin. Its RAB is made in the Sheet from the Brief when the quote is ready.' }),
+      h('div', { class: 'adm-sec eco-form' }, h('div', { class: 'adm-controls' },
+        field('Project name', f.title, 'wide'), field('Client', f.client, 'wide'), nameRow,
+        field('Shoot starts', f.shoot_date), field('Shoot ends', f.shoot_end), field('Deliver by', f.deliver_by),
+        field('Notes', f.notes, 'wide'))),
+      h('div', { class: 'eco-actionbar' }, msg, btn)
+    ]);
+    A.guard(dirty);
+    f.title.focus();
+  }
+  A.actions.projects = function () {
+    return A.canEdit() ? h('button', { class: 'btn', type: 'button', onclick: newBrief }, 'New project') : null;
+  };
   A.openers.projects = open;
 })();
