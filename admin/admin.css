@@ -16,6 +16,8 @@
 .adm-link:hover { color: var(--ink); }
 .adm-msg, .adm-note { font-size: var(--t-body-sm); color: var(--graphite); min-height: 1.2em; line-height: 1.5; }
 .adm-msg.is-error { color: #E5484D; }
+.adm-gate-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.adm .field input.adm-code { letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 
 /* shell: sidebar + main */
 .adm-app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }

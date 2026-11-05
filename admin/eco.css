@@ -147,6 +147,16 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
 .eco-switch input:checked { background: var(--ink); border-color: var(--ink); }
 .eco-switch input:checked::after { transform: translateX(14px); background: var(--bg); }
 .eco-switch input:disabled { opacity: .45; cursor: default; }
+/* Settings, Team: the Add to team row and the role picker in the table */
+.eco-team-new { margin-bottom: 20px; }
+.eco-team-add { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .8fr) auto auto; gap: 12px 16px; align-items: end; }
+.eco-team-add .field { margin: 0; }
+.eco-team-add .field label { font-size: var(--t-caption); color: var(--graphite); text-transform: uppercase; letter-spacing: 0.02em; }
+.eco-team-add .btn { padding: 8px 16px; font-size: var(--t-body-sm); }
+.eco-team-new .eco-note { margin-top: 8px; }
+.adm select.eco-role { min-height: 32px; padding: 4px 8px; background: none; color: var(--ink); border: 1px solid var(--ash); border-radius: 8px; font: inherit; font-size: var(--t-body-sm); }
+.eco-team td.c-act { text-align: right; white-space: nowrap; }
+.eco-team td.c-act .adm-link { align-self: center; }
 
 /* the Sheet card in Settings */
 .eco-card { padding: 18px 20px; border: 1px solid var(--line); border-radius: 8px; }
@@ -195,6 +205,14 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
   .eco-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-soft); border-top: 1px solid var(--line); }
   .eco-sticky .btn { flex: 1 1 auto; justify-content: center; }
   .adm-panel.has-sticky { padding-bottom: 96px; }
+  .eco-team-add { grid-template-columns: minmax(0, 1fr); }
+  .eco-team-add .btn { justify-self: start; }
+  .eco-team td.c-email { grid-column: 1; grid-row: 1; align-self: center; overflow-wrap: anywhere; }
+  .eco-team td.c-money { grid-column: 2; grid-row: 1; }
+  .eco-team td.only-s { grid-row: 2; }
+  .eco-team tr.is-managed td.c-role { display: block; grid-column: 1; grid-row: 3; margin-top: 6px; }
+  .eco-team tr.is-managed td.c-act { display: flex; align-items: center; justify-content: flex-end; grid-column: 2; grid-row: 3; margin-top: 6px; }
+  .eco-team td.c-act:empty { display: none; }
   .adm-table.is-stack tr.has-act td.only-s { grid-column: 1; grid-row: 2; align-self: center; }
   .adm-table.is-stack tr.has-act td.act { grid-column: 2; grid-row: 2; }
   .adm-table td.act .eco-btn { margin: 0; }
@@ -210,4 +228,6 @@ a.eco-stage:hover { background-image: linear-gradient(rgba(234, 237, 241, 0.04),
   .adm-brand, .eco-sheet a, .adm-me .adm-link { display: inline-flex; align-items: center; min-height: 44px; }
   .adm-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; top: 6px; right: 4px; }
   .adm-table td a, .eco-table td a, .eco-kv a, .eco-list a.t, .eco-list .t a, .pf-builtin-list a { padding: 12px 6px; margin: -12px -6px; }
+  .eco-team td.c-act .adm-link { min-height: 44px; padding: 0 6px; }
+  .adm-gate-links .adm-link { min-height: 44px; }
 }

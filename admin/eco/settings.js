@@ -1,5 +1,6 @@
-/* Settings: who is on the team and who sees money (only owners change it), the Google Sheet connection with its
-   open issues and change log, and the backup (the owner block in index.html, run by admin.js). */
+/* Settings: the team (owners add and remove people and set their role and money access; adding sends an email
+   through team-access), the Google Sheet connection with its open issues and change log, and the backup (the owner
+   block in index.html, run by admin.js). */
 (function () {
   'use strict';
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
@@ -7,51 +8,139 @@
   var COLS = ['Email', 'Name', 'Role', 'Money', 'Since'];
   var ENV = { dev: 'Development', prod: 'Live' };
 
-  // ---------- the team and the Money switch ----------
+  // ---------- the team: roles and the Money switch; owners add and remove people ----------
+  var ROLES = [['admin', 'Admin'], ['viewer', 'Viewer']];
+  var ROLE_SAYS = { admin: 'Admins can edit, and see leads, applicants and network sign ups.', viewer: 'Viewers only read projects, the schedule and clients.' };
+  function codesText(st) {
+    if (st.required) return 'Email codes are on for everyone.';
+    if (st.mail) return 'Email codes are ready. They turn on for everyone the first time an owner signs in with one.';
+    return 'Email codes are off until the Gmail App Password for hello@ is saved in Supabase. Until then the password alone signs in, and adding people waits too.';
+  }
   function team() {
-    var tbody = h('tbody');
+    var tbody = h('tbody'), owner = A.isOwner(), st = A.pass() || {};
     teamBox.innerHTML = '';
     A.add(teamBox, [h('h2', { class: 'eco-h', text: 'Team' }),
-      h('div', { class: 'adm-table-wrap' }, h('table', { class: 'adm-table is-stack' }, E.thead(COLS), tbody)),
-      h('p', { class: 'eco-note', text: 'Owners and admins can edit; viewers can only read. Money shows amounts, Finance, the Kas and the Sheet\u2019s figures, and owners always have it. '
-        + (A.isOwner() ? 'New team members are added in Supabase for now.' : 'Only an owner can change who sees money.') })]);
-    E.waitRow(tbody, COLS.length);
+      owner ? addForm(st) : null,
+      h('div', { class: 'adm-table-wrap' }, h('table', { class: 'adm-table is-stack eco-team' }, E.thead(COLS.concat([''])), tbody)),
+      h('p', { class: 'eco-note', text: 'People sign in at creativeclubcult.com/admin with their email and password, then a code we email them. '
+        + ROLE_SAYS.admin + ' ' + ROLE_SAYS.viewer + ' Money shows amounts, Finance, the Kas and the Sheet’s figures, and owners always have it.'
+        + (owner ? '' : ' Only an owner can add people or change what they see.') }),
+      owner ? h('p', { class: 'eco-note', text: codesText(st) }) : null]);
+    E.waitRow(tbody, COLS.length + 1);
     E.rows(sb.from('team_members').select('user_id, email, full_name, role, can_see_money, created_at').order('created_at')).then(function (list) {
       tbody.innerHTML = '';
       list.forEach(function (m) { tbody.appendChild(member(m)); });
-      if (!list.length) E.fullRow(tbody, COLS.length, 'Nobody on the team yet.');
-    }, function (e) { E.errRow(tbody, COLS.length, e); });
+      if (!list.length) E.fullRow(tbody, COLS.length + 1, 'Nobody on the team yet.');
+    }, function (e) { E.errRow(tbody, COLS.length + 1, e); });
   }
+  // a database answer with no rows means the account may not do it (row level security says nothing more)
+  var answered = function (r, ok) {
+    if (r.error) return E.failed(r.error);
+    if (!r.data || !r.data.length) return A.toast('Your account isn’t allowed to change this.', true);
+    ok();
+  };
   function member(m) {
-    var owner = m.role === 'owner', who = m.full_name || m.email;
+    var owner = m.role === 'owner', who = m.full_name || m.email, me = A.me();
+    var manage = A.isOwner() && !owner && !(me && me.id === m.user_id);
+    var since = 'since ' + E.day(E.jkt(m.created_at));
     var sw = h('input', { type: 'checkbox', checked: owner || m.can_see_money === true, disabled: owner || !A.isOwner(), 'aria-label': 'Money access for ' + who });
     var word = h('span', { text: owner ? 'Always' : m.can_see_money ? 'On' : 'Off' });
     sw.addEventListener('change', function () {
       var want = sw.checked;
       sw.checked = !want; // stays as it was until the database says yes
       A.ask(want ? 'Give ' + who + ' money access?' : 'Take money access from ' + who + '?',
-        want ? 'They\u2019ll see amounts, Finance, the Kas and the Sheet\u2019s figures.' : 'They\u2019ll stop seeing amounts, Finance, the Kas and the Sheet\u2019s figures.',
+        want ? 'They’ll see amounts, Finance, the Kas and the Sheet’s figures.' : 'They’ll stop seeing amounts, Finance, the Kas and the Sheet’s figures.',
         want ? 'Give access' : 'Take access', !want).then(function (go) {
         if (!go) return;
         sw.disabled = true;
         sb.from('team_members').update({ can_see_money: want }).eq('user_id', m.user_id).select('user_id').then(function (r) {
           sw.disabled = false;
-          if (r.error) return E.failed(r.error);
-          if (!r.data || !r.data.length) return A.toast('Your account isn\u2019t allowed to change this.', true);
-          m.can_see_money = want; sw.checked = want; word.textContent = want ? 'On' : 'Off';
-          A.toast(want ? who + ' sees money now.' : who + ' no longer sees money.');
+          answered(r, function () {
+            m.can_see_money = want; sw.checked = want; word.textContent = want ? 'On' : 'Off';
+            A.toast(want ? who + ' sees money now.' : who + ' no longer sees money.');
+          });
         }, E.failed);
       });
     });
-    var tr = h('tr', {},
-      h('td', {}, m.email),
+    var role = manage ? A.select(ROLES, m.role, { class: 'eco-role', 'aria-label': 'Role for ' + who }) : h('span', { class: 'adm-pill', text: m.role });
+    var summary = h('td', { class: 'only-s' }, [m.full_name, manage ? null : m.role, since].filter(Boolean).join(' · '));
+    if (manage) role.addEventListener('change', function () {
+      var want = role.value;
+      role.value = m.role; // stays as it was until the database says yes
+      A.ask(want === 'admin' ? 'Make ' + who + ' an admin?' : 'Make ' + who + ' a viewer?', ROLE_SAYS[want], 'Change role').then(function (go) {
+        if (!go) return;
+        role.disabled = true;
+        sb.from('team_members').update({ role: want }).eq('user_id', m.user_id).select('user_id').then(function (r) {
+          role.disabled = false;
+          answered(r, function () {
+            m.role = want; role.value = want;
+            A.toast(who + (want === 'admin' ? ' is an admin now.' : ' is a viewer now.'));
+          });
+        }, E.failed);
+      });
+    });
+    var remove = manage ? h('button', { class: 'adm-link adm-danger', type: 'button', text: 'Remove' }) : null;
+    if (remove) remove.addEventListener('click', function () {
+      A.ask('Remove ' + who + ' from the team?', 'They can’t open the admin any more. Their account stays, so you can add them again later.', 'Remove', true).then(function (go) {
+        if (!go) return;
+        remove.disabled = true;
+        sb.from('team_members').delete().eq('user_id', m.user_id).select('user_id').then(function (r) {
+          remove.disabled = false;
+          answered(r, function () { A.toast(who + ' is off the team.'); team(); });
+        }, E.failed);
+      });
+    });
+    var tr = h('tr', { class: manage ? 'is-managed' : null },
+      h('td', { class: 'c-email' }, m.email),
       h('td', { class: 'hide-s' }, m.full_name || ''),
-      h('td', { class: 'hide-s' }, h('span', { class: 'adm-pill', text: m.role })),
-      h('td', {}, h('label', { class: 'eco-switch' }, sw, word)),
+      h('td', { class: manage ? 'c-role' : 'hide-s' }, role),
+      h('td', { class: 'c-money' }, h('label', { class: 'eco-switch' }, sw, word)),
       h('td', { class: 'hide-s' }, E.day(E.jkt(m.created_at))),
-      h('td', { class: 'only-s' }, [m.full_name, m.role, 'since ' + E.day(E.jkt(m.created_at))].filter(Boolean).join(' \u00b7 ')));
+      summary,
+      h('td', { class: 'c-act' }, remove));
     tr.style.cursor = 'default';
     return tr;
+  }
+  // Add to team (owners): team-access makes the account, adds it and emails a link to set a password
+  function addForm(st) {
+    var ready = !!st.mail && (!st.required || !!st.verified);
+    var email = h('input', { id: 't-email', type: 'email', name: 'email', maxlength: 254, autocomplete: 'off', placeholder: 'name@gmail.com', required: true });
+    var name = h('input', { id: 't-name', type: 'text', name: 'name', maxlength: 120, autocomplete: 'off' });
+    var role = A.select(ROLES, 'viewer', { id: 't-role', name: 'role' });
+    var money = h('input', { type: 'checkbox', name: 'money', 'aria-label': 'Money access' });
+    var btn = h('button', { class: 'btn', type: 'submit', disabled: !ready }, 'Add to team');
+    var form = h('form', { class: 'eco-team-add', novalidate: true },
+      h('div', { class: 'field' }, h('label', { for: 't-email', text: 'Email' }), email),
+      h('div', { class: 'field' }, h('label', { for: 't-name', text: 'Name' }), name),
+      h('div', { class: 'field' }, h('label', { for: 't-role', text: 'Role' }), role),
+      h('label', { class: 'eco-switch' }, money, h('span', { text: 'Money' })),
+      btn);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (btn.disabled) return;
+      var addr = email.value.trim(), who = name.value.trim() || addr;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) { A.toast('Enter a valid email.', true); email.focus(); return; }
+      A.ask('Add ' + who + (role.value === 'admin' ? ' as an admin?' : ' as a viewer?'),
+        'We email ' + addr + ' a link to set a password. ' + ROLE_SAYS[role.value]
+          + (money.checked ? ' They’ll also see amounts, Finance, the Kas and the Sheet’s figures.' : ''),
+        'Add and send').then(function (go) {
+        if (!go) return;
+        btn.disabled = true;
+        A.teamAccess('invite', { email: addr, name: name.value.trim(), role: role.value, money: money.checked }).then(function (a) {
+          btn.disabled = false;
+          if (a.status === 200 && a.body.ok) {
+            A.toast(a.body.mailed ? who + ' is on the team. The email with their link is on its way.'
+              : who + ' is on the team, but the email didn’t go out. They can use Forgot password on the sign in page.', !a.body.mailed);
+            team();
+            return;
+          }
+          A.toast(a.body.error || 'Couldn’t add them. Try again.', true);
+        }, function (err) { btn.disabled = false; E.failed(err); });
+      });
+    });
+    return h('div', { class: 'eco-team-new' }, form, ready ? null : h('p', { class: 'eco-note', text: st.mail
+      ? 'Enter the code from your email first, then you can add people.'
+      : 'Adding people sends them an email, so it waits for the Gmail App Password.' }));
   }
 
   // ---------- the Google Sheet (§3.12): status, open issues, change log ----------

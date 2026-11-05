@@ -1,7 +1,7 @@
 // JSON responses with CORS limited to ADMIN_ORIGINS (patterns like https://*.vercel.app, http://localhost:*).
 import { env } from './env.ts';
 
-function originAllowed(origin: string): boolean {
+export function originAllowed(origin: string): boolean {
   return env.origins.some((pat) => {
     const re = new RegExp('^' + pat.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\/]/g, '\\$&')).join('[^/]*') + '$');
     return re.test(origin);

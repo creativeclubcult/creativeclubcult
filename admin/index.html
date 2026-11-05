@@ -27,10 +27,27 @@
     </form>
   </main>
 
+  <!-- Second step: the code team-access emails after the password -->
+  <main class="adm-gate" data-view="code" hidden>
+    <form class="adm-card" data-form="code" novalidate>
+      <p class="eyebrow">Creative Club Cult <span class="adm-env" data-env hidden>Development</span></p>
+      <h1 class="heading-sm">Check your email</h1>
+      <p class="adm-note">Enter the code we sent to <strong data-me-email></strong>. It works once and expires in 10 minutes.</p>
+      <div class="field"><label for="c-code">Code</label><input id="c-code" class="adm-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required /></div>
+      <button class="btn" type="submit">Sign in</button>
+      <div class="adm-gate-links">
+        <button class="adm-link" type="button" data-action="resend">Send a new code</button>
+        <button class="adm-link" type="button" data-action="signout">Use another email</button>
+        <button class="adm-link" type="button" data-action="skip-code" hidden>Continue without a code</button>
+      </div>
+      <p class="adm-msg" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
   <main class="adm-gate" data-view="reset" hidden>
     <form class="adm-card" data-form="reset" novalidate>
       <p class="eyebrow">Creative Club Cult</p>
-      <h1 class="heading-sm">Set a new password</h1>
+      <h1 class="heading-sm" data-reset-title>Set a new password</h1>
       <div class="field"><label for="r-pass">New password (10+ characters)</label><input id="r-pass" type="password" name="password" autocomplete="new-password" minlength="10" required /></div>
       <button class="btn" type="submit">Save password</button>
       <p class="adm-msg" role="status" aria-live="polite"></p>
@@ -43,6 +60,18 @@
       <h1 class="heading-sm">Not on the team yet</h1>
       <p class="adm-note">You're signed in as <strong data-me-email></strong>, but this account hasn't been added to the CCC team. Ask an owner to add you.</p>
       <button class="btn ghost" type="button" data-action="signout">Sign out</button>
+    </div>
+  </main>
+
+  <main class="adm-gate" data-view="offline" hidden>
+    <div class="adm-card">
+      <p class="eyebrow">Creative Club Cult</p>
+      <h1 class="heading-sm">Couldn't check your sign in</h1>
+      <p class="adm-note">The admin couldn't reach its sign in check. Check the connection and try again.</p>
+      <div class="adm-gate-links">
+        <button class="btn" type="button" data-action="recheck">Try again</button>
+        <button class="adm-link" type="button" data-action="signout">Sign out</button>
+      </div>
     </div>
   </main>
 

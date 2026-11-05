@@ -12,8 +12,11 @@
   var SB_URL = DEV ? 'https://jvhhcehzhgpcphtpynnx.supabase.co' : 'https://zneckeqsvwbavqxpolri.supabase.co';
   var SB_KEY = DEV ? 'sb_publishable_4h3nPS3LkYpy8xOe2vEM_A_y9ffqKEY' : 'sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU';
   // A password-reset link signs the person in as well. Note it before the auth library reads and clears the
-  // address, so the reset form stays up until the new password is saved.
-  var recovering = /type=recovery/.test(location.hash + location.search);
+  // address, so the reset form stays up until the new password is saved. Links from team-access emails (an invitation
+  // or a reset) look like admin/#set=<token>&t=invite|recovery; they are taken off the address straight away.
+  var LINK = /^#set=([\w%-]+)&t=(invite|recovery)$/.exec(location.hash);
+  if (LINK) history.replaceState(null, '', location.pathname + location.search);
+  var recovering = !!LINK || /type=recovery/.test(location.hash + location.search), linking = !!LINK;
   var sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   Array.prototype.forEach.call(document.querySelectorAll('[data-env]'), function (el) { el.hidden = !DEV; });
 
@@ -103,21 +106,40 @@
   };
 
   // ---------- sign in / out ----------
+  // Two steps: the password (Supabase Auth), then a 6 digit code that the team-access function emails to the person.
+  // Once codes are on, the database reads nothing for a sign in that hasn't passed one (20261105_two_step); this page
+  // only follows what team-access says.
   var loginForm = $('[data-form="login"]'), loginMsg = $('.adm-msg', loginForm);
+  var say = function (el, text, bad) { el.textContent = text; el.classList.toggle('is-error', !!bad); };
+  // team-access answers {status, body}; only a failed connection rejects
+  function access(action, body) {
+    return sb.functions.invoke('team-access', { body: Object.assign({ action: action }, body || {}) }).then(function (r) {
+      if (!r.error) return { status: 200, body: r.data || {} };
+      var res = r.error.context;
+      if (!res || typeof res.json !== 'function') throw r.error;
+      return res.json().catch(function () { return {}; }).then(function (b) { return { status: res.status, body: b || {} }; });
+    });
+  }
   loginForm.addEventListener('submit', function (e) {
     e.preventDefault();
-    loginMsg.textContent = 'Signing in…'; loginMsg.classList.remove('is-error');
+    say(loginMsg, 'Signing in…');
     sb.auth.signInWithPassword({ email: loginForm.email.value.trim(), password: loginForm.password.value }).then(function (r) {
-      if (r.error) { loginMsg.textContent = r.error.message; loginMsg.classList.add('is-error'); }
-      else { loginMsg.textContent = ''; loginForm.password.value = ''; }
+      if (r.error) say(loginMsg, r.error.message, true);
+      else { say(loginMsg, ''); loginForm.password.value = ''; }
     });
   });
+  // the link comes from team-access (Gmail); before email is set up there, from Supabase Auth as before
   $('[data-action="forgot"]').addEventListener('click', function () {
     var email = loginForm.email.value.trim();
-    if (!email) { loginMsg.textContent = 'Type your email above first.'; loginMsg.classList.add('is-error'); return; }
-    sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }).then(function (r) {
-      loginMsg.classList.toggle('is-error', !!r.error);
-      loginMsg.textContent = r.error ? r.error.message : 'If that email is on the team, a reset link is on its way.';
+    if (!email) { say(loginMsg, 'Type your email above first.', true); return; }
+    say(loginMsg, 'Sending…');
+    var viaAuth = function () { return sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }); };
+    access('reset', { email: email }).then(function (a) {
+      if (a.status === 200) return { error: null };
+      if (a.body.code === 'mail_not_configured') return viaAuth();
+      return { error: { message: a.body.error || 'The link couldn’t be sent. Try again.' } };
+    }, viaAuth).then(function (r) {
+      say(loginMsg, r.error ? r.error.message : 'If that email is on the team, a link to set a new password is on its way.', !!r.error);
     });
   });
   var resetForm = $('[data-form="reset"]'), resetMsg = $('.adm-msg', resetForm);
@@ -134,20 +156,104 @@
   });
   $$('[data-action="signout"]').forEach(function (b) { b.addEventListener('click', function () { sb.auth.signOut(); }); });
 
+  // ---------- the code from the email ----------
+  var codeForm = $('[data-form="code"]'), codeMsg = $('.adm-msg', codeForm), codeBtn = $('button[type="submit"]', codeForm);
+  var skipBtn = $('[data-action="skip-code"]', codeForm);
+  var pass = null, checkedAt = 0; // team-access status for this sign in: {member, verified, required, mail, code_live}
+  var offline = function () { say(codeMsg, 'Couldn’t reach the admin. Check the connection and try again.', true); };
+  function askCode() {
+    show('code');
+    skipBtn.hidden = true;
+    codeForm.code.value = '';
+    codeForm.code.focus();
+    if (pass.code_live) say(codeMsg, ''); else sendCode();
+  }
+  // before codes are required, an email problem mustn't lock anyone out: the password alone still works then
+  var allowSkip = function () { if (pass && !pass.required) skipBtn.hidden = false; };
+  function sendCode() {
+    say(codeMsg, 'Sending a code…');
+    access('send').then(function (a) {
+      if (a.status === 401) return sb.auth.signOut();
+      if (a.status === 200 && a.body.verified) return passed();
+      if (a.status === 200 && a.body.sent) return say(codeMsg, 'Sent. It can take a minute, so check the spam folder too.');
+      if (a.status === 200 && a.body.wait) return say(codeMsg, 'A code is on its way. You can ask for another in ' + a.body.wait + ' seconds.');
+      say(codeMsg, a.body.error || 'The code couldn’t be sent. Try again.', true);
+      allowSkip();
+    }, function () { offline(); allowSkip(); });
+  }
+  codeForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (codeBtn.disabled) return;
+    var code = codeForm.code.value.replace(/\D/g, '');
+    if (code.length !== 6) { say(codeMsg, 'Enter the 6 digit code from the email.', true); return; }
+    say(codeMsg, 'Checking…');
+    codeBtn.disabled = true;
+    access('verify', { code: code }).then(function (a) {
+      codeBtn.disabled = false;
+      if (a.status === 401) return sb.auth.signOut();
+      if (a.status === 200 && a.body.ok) { pass.verified = true; if (a.body.turned_on) pass.required = true; return passed(); }
+      say(codeMsg, a.body.error || 'That code didn’t work. Send a new one.', true);
+      codeForm.code.select();
+    }, function () { codeBtn.disabled = false; offline(); });
+  });
+  // six digits typed or filled in from the email: check them straight away
+  codeForm.code.addEventListener('input', function () {
+    if (codeForm.code.value.replace(/\D/g, '').length === 6 && codeForm.requestSubmit) codeForm.requestSubmit();
+  });
+  $('[data-action="resend"]', codeForm).addEventListener('click', sendCode);
+  skipBtn.addEventListener('click', function () { if (pass && !pass.required) passed(); });
+  function passed() {
+    say(codeMsg, ''); codeForm.code.value = '';
+    sb.auth.getSession().then(function (s) { if (s.data.session) enter(s.data.session); else show('login'); });
+  }
+  $('[data-action="recheck"]').addEventListener('click', function () {
+    sb.auth.getSession().then(function (s) { route(s.data.session); });
+  });
+
+  // a link from an invitation or a reset email signs the person in, then asks for a password
+  if (LINK) sb.auth.verifyOtp({ token_hash: decodeURIComponent(LINK[1]), type: LINK[2] }).then(function (r) {
+    linking = false;
+    if (!r.error) {
+      $('[data-reset-title]').textContent = LINK[2] === 'invite' ? 'Set your password' : 'Set a new password';
+      show('reset');
+      return;
+    }
+    recovering = false;
+    sb.auth.getSession().then(function (s) {
+      route(s.data.session);
+      if (!s.data.session) say(loginMsg, 'That link has expired or was used already. Type your email and use Forgot password for a new one.', true);
+    });
+  });
+
   // the pages in admin/eco/ load after this file; opening the first page waits for them
   var ready = new Promise(function (go) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); });
   var routing = false;
   function route(session) {
-    if (!session) { me = null; show('login'); return; }
+    if (!session) { me = null; pass = null; if (!linking) show('login'); return; }
     // the auth library repeats "signed in" when the tab comes back into view: same person, nothing to redo
     // (re-routing would close an open record and lose what was being typed)
     if (me && me.id === session.user.id) return;
+    if (routing) return; routing = true;
+    $$('[data-me-email]').forEach(function (el) { el.textContent = session.user.email; });
+    access('status').then(function (a) {
+      if (a.status === 401) { routing = false; sb.auth.signOut(); return; }
+      if (a.status !== 200) throw new Error(a.body.error || 'team-access ' + a.status);
+      routing = false;
+      pass = a.body; checkedAt = Date.now();
+      if (recovering) return; // a reset link turned up meanwhile: the reset form stays
+      if (!pass.member) { show('denied'); return; }
+      if (!pass.verified && (pass.required || pass.mail)) { askCode(); return; }
+      enter(session);
+    }).catch(function () { routing = false; if (!recovering) show('offline'); });
+  }
+  function enter(session) {
     if (routing) return; routing = true;
     sb.from('team_members').select('role, full_name, email, can_see_money').eq('user_id', session.user.id).maybeSingle().then(function (r) {
       routing = false;
       if (recovering) return; // a reset link turned up meanwhile: the reset form stays
       $$('[data-me-email]').forEach(function (el) { el.textContent = session.user.email; });
-      if (r.error || !r.data) { show('denied'); return; }
+      if (r.error) { show('offline'); return; }
+      if (!r.data) { show('denied'); return; }
       me = { id: session.user.id, email: session.user.email, role: r.data.role, name: r.data.full_name,
         money: r.data.role === 'owner' || r.data.can_see_money === true };
       $('[data-me-role]').textContent = me.role;
@@ -167,11 +273,22 @@
   sb.auth.onAuthStateChange(function (event, session) {
     if (event === 'PASSWORD_RECOVERY') { recovering = true; show('reset'); return; }
     // a fresh page after signing out: nothing one person loaded stays in memory or on the page for the next
-    if (event === 'SIGNED_OUT') { recovering = false; var was = me; me = null; show('login'); if (was) location.reload(); return; }
+    if (event === 'SIGNED_OUT') { recovering = false; pass = null; var was = me; me = null; show('login'); if (was) location.reload(); return; }
     // the reset link's own sign-in must not swap the reset form for the dashboard
     if (recovering && session) { show('reset'); return; }
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') route(session);
+    if (event === 'TOKEN_REFRESHED') recheck();
   });
+  // a sign in can lose its pass while the page is open (codes switched on, taken off the team): look again now and then
+  function recheck() {
+    if (!me || Date.now() - checkedAt < 600000) return;
+    checkedAt = Date.now();
+    access('status').then(function (a) {
+      if (a.status === 401) return sb.auth.signOut();
+      if (a.status === 200 && (!a.body.member || (a.body.required && !a.body.verified))) location.reload();
+    }, function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') recheck(); });
 
   // ---------- sections (sidebar) ----------
   // #tab or #tab/<record id>; old addresses keep working
@@ -1086,6 +1203,7 @@
     date: date, dateTime: dateTime, ago: ago, safeUrl: safeUrl, openDrawer: openDrawer, closeDrawer: closeDrawer,
     guard: function (fn) { drawerGuard = fn; }, onSignedIn: function (fn) { signedIn.push(fn); },
     loaders: loaders, openers: openers, actions: actions, me: function () { return me; },
-    canEdit: canEdit, isOwner: isOwner, canMoney: canMoney, refreshBadges: refreshBadges, badge: badge
+    canEdit: canEdit, isOwner: isOwner, canMoney: canMoney, refreshBadges: refreshBadges, badge: badge,
+    pass: function () { return pass; }, teamAccess: access
   };
 })();
