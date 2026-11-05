@@ -32,6 +32,15 @@ DEV keeps its own schedules. Its pulls can be paused (`pull_enabled: false` on D
 8. Released: see the commit that moves `main` past `6ef14d2`.
 9. Writes stay off until 2026-11-07, after the daily parity checks.
 
+## Security audit on 2026-11-05
+
+Done after the release, before anyone else joins the team. Two gaps were closed for team members without money access; neither had been used, since the owner was the only account and Sheet writes are still off.
+
+1. Sheet write replies. Locking prices, a new RAB or a status change gets the whole tab back from the Sheet, amounts included. `sheets-write` now sends that record through `withoutMoney()` for anyone without money access, and the outbox keeps only the redacted record. The three functions were deployed again from commit `071465e` (each is version 2). The pull right after it was `connected`.
+2. Activity list. Kas events, and events about quote, invoice and receipt PDFs, were readable by the whole team. `20261105_activity_money.sql` (applied as `activity_money`) limits them to money access. Rollback is in the file header.
+
+Checked after both: without credentials the three functions answer 401, the publishable key alone gets "Sign in to the admin first.", and `activity_log` and `sync_outbox` refuse anonymous reads. Advisors are unchanged.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).

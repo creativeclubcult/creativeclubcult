@@ -24,7 +24,7 @@ The live Sheet (in the Shared Drive "CCC" of hello@creativeclubcult.com since 20
 
 ## PROD status (2026-11-05, project `zneckeqsvwbavqxpolri`)
 
-- All three are deployed from commit `833c780` of this repo. Each function is a one-line entry that imports `https://raw.githubusercontent.com/creativeclubcult/creativeclubcult/<commit>/supabase/functions/<name>/index.ts`; the bundle is built at deploy time, so the code that runs is this folder at that commit. To ship a change, push it, then deploy the same entry with the new commit hash. With the CLI installed, `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt` does the same from a checkout.
+- All three are deployed from commit `071465e` of this repo (first `833c780`; `071465e` keeps amounts out of write replies for people without money access). Each function is a one-line entry that imports `https://raw.githubusercontent.com/creativeclubcult/creativeclubcult/<commit>/supabase/functions/<name>/index.ts`; the bundle is built at deploy time, so the code that runs is this folder at that commit. To ship a change, push it, then deploy the same entry with the new commit hash. With the CLI installed, `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt` does the same from a checkout.
 - Paired with the live Sheet (env `prod`), whose web app runs Sync.gs 1.2.1 (deployment version 2). `admin_origins` is `https://creativeclubcult.com`.
 - Reading is on and writing is off: `sheet_values.flags` has `pull_enabled` true and `writes_enabled` false, and the live script's `SYNC_WRITES` is `off`. Writing goes on after two days of matching figures (`ops/PRODUCTION.md`, step 9).
 - The pg_cron schedules are the same as on DEV.
