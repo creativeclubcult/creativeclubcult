@@ -158,23 +158,39 @@
         if (key === 'equipment') gear();
       }
       var ctrl = function (k) { return ctrls.filter(function (x) { return x.key === k; })[0]; };
-      // the catalog's names for the picker, and its price as the hint in an empty price field
+      // the catalog's names for the picker, and its price as the hint in an empty price field. A locked price belongs
+      // to its equipment: other equipment picked on a locked line brings its own catalog price (still locked), or an
+      // empty price when the catalog has none, unless a price was typed here
       function gear() {
         var item = ctrl('item'), price = ctrl('manual_price'), g = grp || (l && o.group);
+        var items = [], typed = false, was = l && l.item != null ? String(l.item).trim() : '';
+        var locked = !!l && E.n(l.manual_price) != null;
+        var hitOf = function (name) { return items.filter(function (x) { return x[0] === name; })[0]; };
+        var tip = function () {
+          var hit = hitOf(item.el.value.trim());
+          price.el.placeholder = hit && hit[2] != null ? E.num(hit[2]) + ' in the catalog' : 'Catalog price';
+        };
+        var note = '', tell = function (t) { if (t || note) say(t); note = t; };   // only ever clears its own line
+        var follow = function () {
+          if (!locked || typed) return;
+          var name = item.el.value.trim(), hit = hitOf(name);
+          if (name === was) { price.el.value = E.num(l.manual_price); return tell(''); }
+          price.el.value = hit && hit[2] != null ? E.num(hit[2]) : '';
+          tell(hit && hit[2] != null ? 'Price per day from Katalog Alat: ' + E.rp(hit[2]) + '.' : '');
+        };
         price.el.placeholder = 'Catalog price';
-        loadCatalog().then(function (items) {
+        price.el.addEventListener('input', function () { typed = true; });
+        item.el.addEventListener('input', function () { tip(); follow(); });
+        loadCatalog().then(function (got) {
           if (!item.el.isConnected) return;
+          items = got;
           list.innerHTML = '';
           var mine = items.filter(function (x) { return x[1] === g; });
           (mine.length ? mine : items).forEach(function (x) {
             list.appendChild(h('option', { value: x[0] }, x[2] == null ? 'Price by call' : 'Rp ' + E.num(x[2])));
           });
-          var tip = function () {
-            var hit = items.filter(function (x) { return x[0] === item.el.value.trim(); })[0];
-            price.el.placeholder = hit && hit[2] != null ? E.num(hit[2]) + ' in the catalog' : 'Catalog price';
-          };
-          item.el.addEventListener('input', tip);
           tip();
+          if (item.el.value.trim() !== was) follow();
         }, function () {
           if (item.el.isConnected) say('The equipment list couldn’t be loaded. Type the name as it is in Katalog Alat.');
         });
@@ -330,6 +346,19 @@
   }
 
   // ---------- the actual costs: REALISASI per category and the costs outside the RAB (Biaya lain di luar RAB) ----------
+  // the totals of the internal summary (TOTAL BIAYA KELUAR, L and M): the Sheet's own when the RAB was read, otherwise
+  // added up the way the Sheet does it, where an actual left empty counts as its estimate
+  function costTotals(rab, cats) {
+    var inn = (rab && rab.internal) || {}, est = 0, act = 0, any = false;
+    cats.concat([{ estimate: inn.other_estimate, actual: inn.other_actual }]).forEach(function (x) {
+      var e = E.n(x.estimate), a = E.n(x.actual);
+      if (e == null && a == null) return;
+      any = true; est += e || 0; act += a != null ? a : e || 0;
+    });
+    var se = E.n(inn.cost_estimate), sa = E.n(inn.cost_actual);
+    return { estimate: se != null ? se : any ? est : null, actual: sa != null ? sa : any ? act : null };
+  }
+
   // c = {p, rab, cats (project_money.categories), forms, saved(answer, text)}; gives {table, bar}
   function actuals(c) {
     var p = c.p, rab = c.rab, cats = c.cats, raw = (rab.summary && rab.summary.categories) || [], inn = rab.internal || {};
@@ -342,7 +371,12 @@
       },
       done: function (r) { c.saved(r, 'Actual costs saved to the Sheet.'); } });
     c.forms.push(form);
-    var input = function (key, v, rawV, label) { return h('td', { class: 'num eco-in' }, form.field(key, moneyInput(v, label), rawV === undefined ? null : rawV, readMoney)); };
+    // an empty actual shows its estimate greyed out: that is the amount the Sheet counts for it
+    var input = function (key, v, rawV, label, est) {
+      var el = moneyInput(v, label);
+      if (E.n(est) != null) el.placeholder = E.num(est);
+      return h('td', { class: 'num eco-in' }, form.field(key, el, rawV === undefined ? null : rawV, readMoney));
+    };
     var sum = function (list, k) { var any = false, t = 0; list.forEach(function (x) { var v = E.n(x[k]); if (v != null) { any = true; t += v; } }); return any ? t : null; };
     var other = { estimate: inn.other_estimate, actual: inn.other_actual };
     var rows = cats.map(function (x, i) {
@@ -350,17 +384,17 @@
       return h('tr', { class: billed || est || E.n(x.actual) ? null : 'is-zero' }, h('td', { text: x.label || '' }),
         h('td', { class: 'num hide-s' + (billed ? '' : ' muted') }, E.num(x.total)),
         h('td', { class: 'num' + (est > 0 && !(billed > 0) ? ' neg' : '') }, E.num(x.estimate)),
-        input('actual_' + (i + 1), x.actual, r.actual, 'Actual, ' + (x.label || 'category ' + (i + 1))));
+        input('actual_' + (i + 1), x.actual, r.actual, 'Actual, ' + (x.label || 'category ' + (i + 1)), x.estimate));
     });
     rows.push(h('tr', { class: 'eco-other' }, h('td', { text: 'Other costs outside the RAB' }), h('td', { class: 'num hide-s' }),
       h('td', { class: 'num eco-in' }, form.field('other_estimate', moneyInput(other.estimate, 'Estimate, other costs outside the RAB'), other.estimate === undefined ? null : other.estimate, readMoney)),
-      input('other_actual', other.actual, other.actual, 'Actual, other costs outside the RAB')));
-    var all = cats.concat([other]);
+      input('other_actual', other.actual, other.actual, 'Actual, other costs outside the RAB', other.estimate)));
+    var tot = costTotals(rab, cats);
     return {
       table: h('table', { class: 'eco-table eco-actuals' }, E.thead(['Category', ['Billed', 'num hide-s'], ['Estimate', 'num'], ['Actual', 'num']]),
         h('tbody', {}, rows),
         h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'num hide-s' }, E.num(sum(cats, 'total'))),
-          h('td', { class: 'num' }, E.num(sum(all, 'estimate'))), h('td', { class: 'num' }, E.num(sum(all, 'actual')))))),
+          h('td', { class: 'num' }, E.num(tot.estimate)), h('td', { class: 'num' }, E.num(tot.actual))))),
       bar: form.bar
     };
   }
@@ -368,4 +402,5 @@
   E.RAB_SECTIONS = SECTIONS;
   E.rabBudget = budget;
   E.rabActuals = actuals;
+  E.rabCostTotals = costTotals;
 })();

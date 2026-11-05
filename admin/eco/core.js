@@ -15,6 +15,9 @@
   // Rp 12.142.600, and a loss as −Rp 3.500.000 (a real minus sign)
   var signed = function (f) { return function (v) { var x = n(v); return x == null ? '' : (x < 0 ? '\u2212' : '') + f.format(Math.abs(x)); }; };
   var rp = signed(RP), num = signed(NUM), pct = signed(PCT);
+  // a project's margin as Rekap Project shows it, profit over omset from the whole amounts (the stored ratio is rounded
+  // to four places, which can move the shown percentage by 0.1); the stored one when either amount is missing
+  var margin = function (profit, omset, stored) { var p = n(profit), o = n(omset); return p != null && o ? p / o : n(stored); };
   var plural = function (k, one, many) { return k + ' ' + (k === 1 ? one : (many || one + 's')); };
   var clip = function (s, k) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > k ? s.slice(0, k - 1).trim() + '\u2026' : s; };
 
@@ -453,7 +456,7 @@
   var search = function (s) { return String(s || '').replace(/["\\,()*%]/g, ' ').replace(/\s+/g, ' ').trim(); };
 
   window.eco = {
-    n: n, rp: rp, num: num, pct: pct, plural: plural, clip: clip,
+    n: n, rp: rp, num: num, pct: pct, margin: margin, plural: plural, clip: clip,
     day: day, jkt: jkt, today: today, days: days, stamp: stamp, shortStamp: shortStamp, when: when, waited: waited,
     pad3: pad3, phase: phase, isActive: isActive, short: short, pname: pname, pill: pill, nextStep: nextStep, stepContext: stepContext,
     byUrgency: byUrgency, shootText: shootText, projectRow: projectRow, projectCols: projectCols,

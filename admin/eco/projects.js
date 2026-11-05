@@ -332,19 +332,23 @@
         // the actual costs are typed here when the RAB can be written to (the ten categories of the v2 summary)
         var act = writeMoney && p.layout === 'v2' && rab && cats.length === 10
           ? E.rabActuals({ p: p, rab: rab, cats: cats, forms: forms, saved: function (r, t) { saved(p.id, r, t); } }) : null;
+        // read only: the costs outside the RAB too, and the totals as the Sheet has them (an empty actual counts as its estimate)
+        var inn = (rab && rab.internal) || {}, tot = E.rabCostTotals(rab, cats);
+        var oth = E.n(inn.other_estimate) != null || E.n(inn.other_actual) != null
+          ? [{ label: 'Other costs outside the RAB', estimate: inn.other_estimate, actual: inn.other_actual, other: true }] : [];
         var catTable = act ? act.table : cats.length ? h('table', { class: 'eco-table' }, E.thead(['Category', ['Billed', 'num'], ['Estimate', 'num'], ['Actual', 'num hide-s']]),
-          h('tbody', {}, cats.map(function (c) {
+          h('tbody', {}, cats.concat(oth).map(function (c) {
             var billed = E.n(c.total), est = E.n(c.estimate);
-            return h('tr', { class: billed || est || E.n(c.actual) ? null : 'is-zero' }, h('td', { text: c.label || '' }),
-              h('td', { class: 'num' + (billed ? '' : ' muted') }, E.num(c.total)),
-              h('td', { class: 'num' + (est > 0 && !(billed > 0) ? ' neg' : '') }, E.num(c.estimate)),
+            return h('tr', { class: c.other ? 'eco-other' : billed || est || E.n(c.actual) ? null : 'is-zero' }, h('td', { text: c.label || '' }),
+              h('td', { class: 'num' + (billed || c.other ? '' : ' muted') }, E.num(c.total)),
+              h('td', { class: 'num' + (est > 0 && !(billed > 0) && !c.other ? ' neg' : '') }, E.num(c.estimate)),
               h('td', { class: 'num hide-s' }, E.num(c.actual)));
           })),
-          h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'num' }, E.num(sum('total'))), h('td', { class: 'num' }, E.num(sum('estimate'))),
-            h('td', { class: 'num hide-s' }, E.num(sum('actual'))))))
+          h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'num' }, E.num(sum('total'))), h('td', { class: 'num' }, E.num(tot.estimate)),
+            h('td', { class: 'num hide-s' }, E.num(tot.actual)))))
           : blank(p.layout === 'v1' ? 'This RAB uses the old layout, so its cost breakdown is only in the Sheet.' : 'The cost breakdown of this RAB isn\u2019t in the admin yet.');
         costs = E.section('Costs and profit', rab ? 'RAB internal summary' : 'Rekap Project',
-          h('div', { class: 'eco-figs' }, E.money('Omset', m.revenue), E.money('Cost', m.cost), E.money('Profit', m.profit), E.money('Margin', m.margin, { fmt: E.pct })),
+          h('div', { class: 'eco-figs' }, E.money('Omset', m.revenue), E.money('Cost', m.cost), E.money('Profit', m.profit), E.money('Margin', E.margin(m.profit, m.revenue, m.margin), { fmt: E.pct })),
           catTable, act ? act.bar : null,
           unbilled.length ? h('p', { class: 'eco-note' }, h('span', { class: 'eco-warn', text: unbilled.map(function (c) { return c.label + ' costs ' + E.rp(c.estimate); }).join(', ')
             + (unbilled.length === 1 ? ' but isn\u2019t' : ' but aren\u2019t') + ' billed to the client.' }),

@@ -154,7 +154,7 @@
   function sortValue(p, k) {
     var m = got.money.v[p.id] || {};
     return k === 'name' ? E.short(p).toLowerCase() : k === 'client' ? E.words(p.client_label) : k === 'date' ? p.quote_date || ''
-      : E.n(m[k === 'omset' ? 'revenue' : k]);
+      : k === 'margin' ? E.margin(m.profit, m.revenue, m.margin) : E.n(m[k === 'omset' ? 'revenue' : k]);
   }
   function projects(y, list) {
     var s = ui.sort, wrap = h('div');
@@ -181,8 +181,8 @@
           h('td', { class: 'hide-s' }, p.client_label || ''),
           h('td', { class: 'hide-s' }, E.day(p.quote_date)),
           m ? cell(m.revenue, 'hide-s') : none('hide-s'), m ? cell(m.cost, 'hide-s') : none('hide-s'), m ? cell(m.profit) : none(''),
-          m ? cell(m.margin, 'hide-s', E.pct) : none('hide-s'),
-          h('td', { class: 'only-s' }, m ? ['Omset ' + E.num(m.revenue), 'Cost ' + E.num(m.cost), 'margin ' + E.pct(m.margin)].join(' \u00b7 ') : 'Not in the Sheet'));
+          m ? cell(E.margin(m.profit, m.revenue, m.margin), 'hide-s', E.pct) : none('hide-s'),
+          h('td', { class: 'only-s' }, m ? ['Omset ' + E.num(m.revenue), 'Cost ' + E.num(m.cost), 'margin ' + E.pct(E.margin(m.profit, m.revenue, m.margin))].join(' \u00b7 ') : 'Not in the Sheet'));
       });
       wrap.innerHTML = '';
       var noCost = list.filter(function (p) { var m = got.money.v[p.id]; return !m || E.n(m.cost) == null; }).length;
