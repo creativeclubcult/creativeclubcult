@@ -35,4 +35,4 @@ The live Sheet (in the Shared Drive "CCC" of hello@creativeclubcult.com since 20
 deno test --no-check --allow-read --allow-env supabase/tests/diff_test.ts
 ```
 
-47 tests (diff, commit payloads, HMAC, MD5). The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local.
+49 tests (diff, commit payloads, HMAC, MD5, and the filter that keeps amounts out of write replies for people without money access). The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local.

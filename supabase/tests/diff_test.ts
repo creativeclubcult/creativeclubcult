@@ -9,6 +9,7 @@ import {
 import { kasFields, kasHash } from '../functions/_shared/norm.ts';
 import { hmacHex, requestMessage, signRequest, verifyScriptSignature } from '../functions/_shared/hmac.ts';
 import { md5Hex } from '../functions/_shared/md5.ts';
+import { withoutMoney } from '../functions/_shared/ops.ts';
 import type { KasRow, Snapshot } from '../functions/_shared/snapshot.ts';
 
 // ---------- tiny assert helpers (no network imports) ----------
@@ -533,4 +534,22 @@ Deno.test('md5: RFC 1321 vectors', () => {
   eq(md5Hex(''), 'd41d8cd98f00b204e9800998ecf8427e');
   eq(md5Hex('abc'), '900150983cd24fb0d6963f7d28e17f72');
   eq(md5Hex('The quick brown fox jumps over the lazy dog'), '9e107d9d372bb6826bd81d3542a419d6');
+});
+
+Deno.test('withoutMoney: a reply keeps the plain project fields and drops the RAB, Kas, crew and PDF', () => {
+  const reply = {
+    locked: 2, written: ['G20', 'G21'], noop: [], tab: { name: '010 Sample', gid: 7 }, invoice_no: '010/SMP/281026',
+    project: { row: 12, gid: 7, tab_name: '010 Sample', title: 'Campaign', status: 'Draft', quote_date: '2026-10-28',
+      grand_total: 12000000, dp_amount: 6000000, paid_total: 0, outstanding: 0, revenue: 12000000, cost: 9000000,
+      profit: 3000000, margin: 0.25, gear_note: 'Lens Rp 500.000', pay_status: 'Belum' },
+    rab: { gid: 7, data: { lines: [{ desc: 'Photographer', total: 1500000 }] } },
+    kas: { amount: 500000 }, crew: { rate: 1500000 }, file: { id: 'x', url: 'https://drive.google.com/x' },
+    folder_url: 'https://drive.google.com/f', removed: { amount: 1 }, totals: { omset: 1 },
+  };
+  eq(withoutMoney(reply), {
+    locked: 2, written: ['G20', 'G21'], noop: [], tab: { name: '010 Sample', gid: 7 }, invoice_no: '010/SMP/281026',
+    project: { row: 12, gid: 7, tab_name: '010 Sample', title: 'Campaign', status: 'Draft', quote_date: '2026-10-28' },
+  });
+  eq(withoutMoney({ client: { code: 'SMP', name: 'Sample' }, written: ['name'] }), { client: { code: 'SMP', name: 'Sample' }, written: ['name'] });
+  eq(withoutMoney({ project: null, rab: { data: {} } }), {});
 });

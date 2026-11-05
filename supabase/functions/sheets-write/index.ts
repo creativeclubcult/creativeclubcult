@@ -4,7 +4,7 @@ import { fromUser, type TeamUser } from '../_shared/auth.ts';
 import { DbError, getState, insert, q, select, setState, update } from '../_shared/db.ts';
 import { envMismatch, loadConfig, missingConfig } from '../_shared/env.ts';
 import { gate, json, readJson } from '../_shared/http.ts';
-import { CONTROL_OPS, friendly, OPS } from '../_shared/ops.ts';
+import { CONTROL_OPS, friendly, OPS, withoutMoney } from '../_shared/ops.ts';
 import { runPull } from '../_shared/pull.ts';
 import { deliver, type OutboxRow } from '../_shared/write.ts';
 
@@ -28,6 +28,13 @@ function stateBody(r: OutboxRow): { http: number; body: Record<string, unknown> 
   }
 }
 
+/** Every answer that can carry the Sheet's record goes out through here: without money access, no amounts. */
+function answer(req: Request, user: TeamUser, http: number, body: Record<string, unknown>): Response {
+  const rec = body.record;
+  if (user.money || !rec || typeof rec !== 'object') return json(req, http, body);
+  return json(req, http, { ...body, record: withoutMoney(rec as Record<string, unknown>) });
+}
+
 function mayControl(user: TeamUser, row: OutboxRow): string | null {
   if (!user.canEdit) return 'Your role can view but not change the Sheet.';
   if (row.created_by !== user.id && !user.owner) return 'Only the person who made this change, or the owner, can do that.';
@@ -41,7 +48,7 @@ async function writesEnabled(): Promise<boolean> {
   return v?.writes_enabled === true;
 }
 
-async function resend(req: Request, row: OutboxRow, patch: Record<string, unknown>): Promise<Response> {
+async function resend(req: Request, user: TeamUser, row: OutboxRow, patch: Record<string, unknown>): Promise<Response> {
   try {
     await update('sync_outbox', `id=eq.${q(row.id)}`, { status: 'sending', attempts: 1, next_attempt_at: new Date().toISOString(), ...patch });
   } catch (e) {
@@ -50,7 +57,7 @@ async function resend(req: Request, row: OutboxRow, patch: Record<string, unknow
   }
   const fresh = (await getOp(row.id))!;
   const out = await deliver(fresh);
-  return json(req, out.http, out.body);
+  return answer(req, user, out.http, out.body);
 }
 
 async function resolveIssue(id: string, user: TeamUser, resolution: string) {
@@ -83,7 +90,7 @@ async function control(req: Request, user: TeamUser, op: string, a: Record<strin
       }, `select=${OUTBOX_COLS}`);
       const out = await deliver(ins);
       if (out.status === 'done') await resolveIssue(iid, user, 'added');
-      return json(req, out.http, out.body);
+      return answer(req, user, out.http, out.body);
     }
     if (action === 'confirm' && issue.kind === 'mass_change') {
       await setState('force_removals', { until: new Date(Date.now() + 15 * 60000).toISOString(), by: user.email });
@@ -118,11 +125,11 @@ async function control(req: Request, user: TeamUser, op: string, a: Record<strin
   if (!(await writesEnabled())) return json(req, 423, { paused: true, error: friendly('writes_off') });
   if (op === 'outbox_retry') {
     if (row.status !== 'pending' && row.status !== 'failed') return json(req, 409, { error: 'This change is not waiting.', code: 'settled' });
-    return await resend(req, row, {});
+    return await resend(req, user, row, {});
   }
   if (op === 'outbox_force') {
     if (row.status !== 'conflict') return json(req, 409, { error: 'Only a change that conflicts with the Sheet can be forced.', code: 'settled' });
-    return await resend(req, row, { args: { ...row.args, force: true }, forced: true });
+    return await resend(req, user, row, { args: { ...row.args, force: true }, forced: true });
   }
   return json(req, 422, { error: 'Unknown action.', code: 'invalid' });
 }
@@ -163,7 +170,7 @@ Deno.serve(async (req) => {
     if (existing) {
       if (existing.created_by !== user.id && !user.owner) return json(req, 403, { error: 'This change belongs to someone else.', code: 'forbidden' });
       const s = stateBody(existing);
-      return json(req, s.http, s.body);
+      return answer(req, user, s.http, s.body);
     }
     if (!(await writesEnabled())) return json(req, 423, { paused: true, error: friendly('writes_off') });
     const since = new Date(Date.now() - 60000).toISOString();
@@ -196,12 +203,12 @@ Deno.serve(async (req) => {
           return json(req, 409, { waiting: true, op_id: active?.id ?? null, error: 'Another change to this record is still waiting for the Sheet.' });
         }
         const again = await getOp(opId);
-        if (again) { const s = stateBody(again); return json(req, s.http, s.body); }
+        if (again) { const s = stateBody(again); return answer(req, user, s.http, s.body); }
       }
       throw e;
     }
     const out = await deliver(row);
-    return json(req, out.http, out.body);
+    return answer(req, user, out.http, out.body);
   } catch (e) {
     console.error('sheets-write', e instanceof Error ? e.message : e);
     return json(req, 500, { error: 'Something went wrong while saving. Nothing was lost; try again.', code: 'error' });

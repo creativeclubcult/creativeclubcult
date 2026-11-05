@@ -89,6 +89,23 @@ const PROJECT_SET: Record<string, FieldRule> = {
 };
 const PROJECT_MONEY = new Set(['dp_received', 'dp_date', 'final_received', 'final_date', 'cost_override']);
 
+// A Rekap row's fields that the projects table holds (the whole team reads them); every other field is money
+const PROJECT_PLAIN = new Set(['row', 'gid', 'b_link', 'drive_folder_url', 'tab_name', 'invoice_no', 'client_label', 'title',
+  'quote_date', 'status', 'note_text', 'final_file_date', 'payment_due']);
+const PLAIN_REPLY = new Set(['client', 'tab', 'written', 'noop', 'locked', 'replayed', 'invoice_no', 'doc_type']);
+
+/** A Sheet reply's record as someone without money access may see it: the project's plain fields, the client and
+ *  what was written, never the RAB, Kas, crew or PDF. A change that isn't money (locking prices, a new RAB, a status)
+ *  still gets the whole tab back from the Sheet, so this goes over every answer and every stored result. */
+export function withoutMoney(record: Args): Args {
+  const out: Args = {};
+  for (const [k, v] of Object.entries(record)) {
+    if (k === 'project' && isObj(v)) out.project = Object.fromEntries(Object.entries(v).filter(([f]) => PROJECT_PLAIN.has(f)));
+    else if (PLAIN_REPLY.has(k)) out[k] = v;
+  }
+  return out;
+}
+
 const RAB_META: Record<string, FieldRule> = {
   doc_type: { kind: 'enum', values: DOC_TYPES }, title: { kind: 'text', max: 200, required: true },
   client_label: { kind: 'text', max: 200, required: true }, product: { kind: 'text', max: 200 },

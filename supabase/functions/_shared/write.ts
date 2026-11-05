@@ -1,7 +1,7 @@
 // Delivering one sync_outbox op to the Sheet and settling it (push, retry inside a pull, or the bridge tick).
 import { buildWriteCommit, type WriteReply } from './diff.ts';
 import { DbError, getState, insert, q, rpc, select, setState, update, upsert } from './db.ts';
-import { friendly } from './ops.ts';
+import { friendly, withoutMoney } from './ops.ts';
 import { callSheet, type SheetResult } from './sheet.ts';
 
 export interface OutboxRow {
@@ -53,7 +53,8 @@ export async function settle(row: OutboxRow, res: SheetResult): Promise<Outcome>
     }
     if (row.op === 'export_pdf') await recordPdf(row, data).catch((e) => console.error('documents upsert', e));
     const record = pickRecord(data);
-    await setOutbox(row.id, { status: 'done', result: { record, seq: data.seq ?? null, commit }, last_error: null, current: null });
+    // whoever made the change can read this row later, with or without money access
+    await setOutbox(row.id, { status: 'done', result: { record: withoutMoney(record), seq: data.seq ?? null, commit }, last_error: null, current: null });
     return { status: 'done', http: 200, body: { ok: true, op_id: row.id, record, seq: data.seq ?? null } };
   }
 
@@ -85,7 +86,9 @@ export async function settle(row: OutboxRow, res: SheetResult): Promise<Outcome>
     await setOutbox(row.id, { status: 'needs_confirm', current: res.current, last_error: res.message });
     return { status: 'needs_confirm', http: 409, body: { needs_confirm: true, op_id: row.id, detail: res.current, error: res.message } };
   }
-  await setOutbox(row.id, { status: 'failed', last_error: friendly(res.code, res.message), current: res.current ?? null });
+  // a moved Rekap row comes back whole (amounts included); its money issue keeps the detail, the outbox row doesn't
+  const keep = res.code === 'write_landed_on_moved_row' ? null : res.current ?? null;
+  await setOutbox(row.id, { status: 'failed', last_error: friendly(res.code, res.message), current: keep });
   if (res.code === 'formula_guard') await openIssue('formula_guard', row.id, friendly('formula_guard'), { op: row.op, message: res.message }, false);
   if (res.code === 'write_landed_on_moved_row') await openIssue('write_landed_on_moved_row', row.id, res.message, { op: row.op, detail: res.current }, true);
   if (res.code === 'writes_off') return { status: 'failed', http: 423, body: { paused: true, op_id: row.id, error: friendly('writes_off') } };
