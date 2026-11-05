@@ -1,5 +1,5 @@
 /* Reports: the year in numbers straight from the Sheet's Keuangan tab, checked against each project's own figures
-   (money access), and the lead pipeline (everyone). Read only; no charts in this version. */
+   (money access), and the lead pipeline (owners and admins). Read only; no charts in this version. */
 (function () {
   'use strict';
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
@@ -57,7 +57,7 @@
     ui.body.innerHTML = '';
     if (A.canMoney()) money(y);
     else ui.body.appendChild(h('p', { class: 'adm-note eco-block', text: 'Money figures need money access. An owner can turn it on for you in Settings.' }));
-    ui.body.appendChild(pipeline(y));
+    ui.body.appendChild(A.canEdit() ? pipeline(y) : h('p', { class: 'adm-note eco-block', text: 'The lead pipeline is for owners and admins.' }));
   }
 
   // ---------- money: the Sheet's year, then each project's own figures ----------
@@ -222,7 +222,7 @@
     }) : null, order.length ? table(E.thead(head), rows) : h('p', { class: 'adm-note', text: 'No clients with Deal or Lunas projects in ' + y + '.' }));
   }
 
-  // ---------- the lead pipeline (everyone) ----------
+  // ---------- the lead pipeline (owners and admins) ----------
   function pipeline(y) {
     if (got.leads.e) return errBlock('Pipeline', got.leads.e);
     var now = E.today(), last = +now.slice(0, 4) === y ? +now.slice(5, 7) : 12;
@@ -266,7 +266,8 @@
     ui.body.innerHTML = '';
     ui.body.appendChild(h('p', { class: 'eco-wait', text: 'Loading\u2026' }));
     Promise.all([E.settle(E.data.values()), E.settle(E.data.projects()), E.settle(E.data.money()), E.settle(E.data.clients()),
-      E.settle(E.rows(sb.from('lead_inbox').select('id, created_at, source, status').order('created_at', { ascending: false }).limit(5000)))
+      A.canEdit() ? E.settle(E.rows(sb.from('lead_inbox').select('id, created_at, source, status').order('created_at', { ascending: false }).limit(5000)))
+        : Promise.resolve({ v: [] })
     ]).then(function (r) {
       if (my !== loading) return;
       got = { values: r[0], projects: r[1], money: r[2], clients: r[3], leads: r[4] };

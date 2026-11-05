@@ -87,7 +87,7 @@
     ]).then(function (r) {
       if (r[0].error) return E.failed(r[0].error);
       if (!r[0].data) return gone();
-      var p = r[0].data, lead = p.inquiry_id || p.manual_lead_id;
+      var p = r[0].data, lead = A.canEdit() ? p.inquiry_id || p.manual_lead_id : null; // leads are for owners and admins
       (lead ? E.settle(E.rows(sb.from('lead_inbox').select('id, name, status').eq('id', lead))) : Promise.resolve({ v: [] })).then(function (lr) {
         show({ p: p, m: r[1].data || null, mErr: r[1].error || null, values: r[2], docs: r[3], kas: r[4], port: r[5], changes: r[6], acts: r[7], lead: lr });
       });

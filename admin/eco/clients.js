@@ -74,7 +74,8 @@
       if (!r[0].data) return A.toast('That client isn\u2019t there any more.', true);
       var c = r[0].data, money = A.canMoney();
       var s = r[1].e || r[2].e ? null : stats(c, r[1].v, r[2].v);
-      var leadIds = s ? s.list.map(function (p) { return p.inquiry_id || p.manual_lead_id; }).filter(Boolean) : [];
+      // leads are for owners and admins: anyone else gets no Leads section at all
+      var leadIds = s && A.canEdit() ? s.list.map(function (p) { return p.inquiry_id || p.manual_lead_id; }).filter(Boolean) : [];
       var leads = leadIds.length ? E.settle(E.rows(sb.from('lead_inbox').select('id, name, status, created_at, kind, source').in('id', leadIds))) : Promise.resolve({ v: [] });
       leads.then(function (lr) { show(c, s, r[1].e || r[2].e, r[3], r[4], lr, money ? r[2].v || {} : null); });
     }).catch(E.failed);
@@ -115,7 +116,7 @@
       h('p', { class: 'eco-note' }, 'Read only in this version. Change client details in the Client tab of the Sheet',
         tab ? [' (', h('a', { href: tab, target: '_blank', rel: 'noopener noreferrer', text: 'open the Sheet' }), ').'] : '.')),
       E.section('Projects', s ? E.plural(s.list.length, 'project') : null, projects),
-      E.section('Leads', null, leadList),
+      A.canEdit() ? E.section('Leads', null, leadList) : null,
       E.section('Documents', null, docList)
     ]);
   }

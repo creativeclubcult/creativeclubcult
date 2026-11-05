@@ -55,13 +55,13 @@
       </div>
       <nav class="adm-nav" aria-label="Admin">
         <a href="#overview" data-tab="overview">Overview</a>
-        <a href="#leads" data-tab="leads">Leads <span class="adm-badge" data-badge="leads" hidden></span></a>
+        <a href="#leads" data-tab="leads" data-edit-only hidden>Leads <span class="adm-badge" data-badge="leads" hidden></span></a>
         <a href="#clients" data-tab="clients">Clients</a>
         <a href="#projects" data-tab="projects">Projects</a>
-        <a href="#crew" data-tab="crew">Crew &amp; Vendors <span class="adm-badge" data-badge="network" hidden></span></a>
+        <a href="#crew" data-tab="crew" data-edit-or-money hidden>Crew &amp; Vendors <span class="adm-badge" data-badge="network" hidden></span></a>
         <a href="#documents" data-tab="documents">Documents</a>
         <a href="#finance" data-tab="finance" data-money-only hidden>Finance <span class="adm-badge" data-badge="finance" hidden></span></a>
-        <a href="#reports" data-tab="reports">Reports</a>
+        <a href="#reports" data-tab="reports" data-edit-or-money hidden>Reports</a>
         <a href="#portfolio" data-tab="portfolio">Website &amp; Portfolio</a>
         <a href="#applicants" data-tab="careers">Careers <span class="adm-badge" data-badge="applicants" hidden></span></a>
         <a href="#settings" data-tab="settings">Settings <span class="adm-badge" data-badge="settings" hidden></span></a>
@@ -92,7 +92,7 @@
       <section class="adm-panel" data-panel="clients" hidden></section>
       <section class="adm-panel" data-panel="projects" hidden></section>
       <section class="adm-panel" data-panel="crew" hidden>
-        <nav class="eco-subnav" aria-label="Crew &amp; Vendors"><a href="#crew" data-sub="crew">Crew list</a><a href="#network" data-sub="network">Network</a></nav>
+        <nav class="eco-subnav" aria-label="Crew &amp; Vendors" data-edit-only hidden><a href="#crew" data-sub="crew">Crew list</a><a href="#network" data-sub="network">Network</a></nav>
       </section>
       <section class="adm-panel" data-panel="documents" hidden></section>
       <section class="adm-panel" data-panel="finance" hidden></section>
@@ -156,7 +156,7 @@
       </section>
 
       <section class="adm-panel" data-panel="jobs" hidden>
-        <nav class="eco-subnav" aria-label="Careers"><a href="#applicants" data-sub="applicants">Applicants</a><a href="#jobs" data-sub="jobs">Open roles</a></nav>
+        <nav class="eco-subnav" aria-label="Careers" data-edit-only hidden><a href="#applicants" data-sub="applicants">Applicants</a><a href="#jobs" data-sub="jobs">Open roles</a></nav>
         <div class="adm-bar">
           <span class="adm-count" data-count></span>
         </div>

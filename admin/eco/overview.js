@@ -37,21 +37,25 @@
     var ph = f.projects_by_phase || {};
     var phases = ['Brief', 'Draft', 'Dikirim', 'Deal'].filter(function (k) { return ph[k] > 0; }).map(function (k) { return k + ' ' + ph[k]; }).join(' \u00b7 ');
     var ns = f.next_shoot, nsp = ns && (projects || []).filter(function (p) { return p.id === ns.project_id; })[0];
-    var net = f.network_new > 0 ? E.plural(f.network_new, 'network sign-up') + ' to review' : 'no sign-ups to review';
+    // leads and network sign-ups come back null (not 0) for an account that can't read them
+    var people = f.leads_new != null;
+    var net = !people ? null : f.network_new > 0 ? E.plural(f.network_new, 'network sign-up') + ' to review' : 'no sign-ups to review';
     var owed = amount(m.owed), collect = amount(m.to_collect), profit = amount(m.profit_year);
     box.flow.innerHTML = '';
     A.add(box.flow, [
-      stage('Leads', '#leads', E.num(f.leads_new), f.leads_new > 0 && f.leads_oldest_new_at ? 'Oldest waiting ' + E.waited(f.leads_oldest_new_at) : 'Nothing waiting'),
+      !people ? stage('Leads', null, 'No access', 'Needs admin access', 'is-quiet')
+        : stage('Leads', '#leads', E.num(f.leads_new), f.leads_new > 0 && f.leads_oldest_new_at ? 'Oldest waiting ' + E.waited(f.leads_oldest_new_at) : 'Nothing waiting'),
       synced ? stage('Clients', '#clients', E.num(f.clients_present), E.plural(f.clients_active, 'client') + ' with open projects') : later('Clients'),
       stage('Projects', '#projects', E.num(f.projects_active),
         ns ? 'Next shoot ' + E.when(ns.date) + ' \u00b7 ' + (nsp ? E.short(nsp) : ns.label) : (phases || 'Nothing active')),
-      !money ? stage('Crew & Vendors', '#crew', E.num(f.crew_on_active), 'People on active projects \u00b7 ' + net)
-        : synced ? stage('Crew & Vendors', '#crew', owed[0], 'Owed to crew \u00b7 ' + net, owed[1]) : later('Crew & Vendors'),
+      !money ? stage('Crew & Vendors', people ? '#crew' : null, E.num(f.crew_on_active), ['People on active projects', net].filter(Boolean).join(' \u00b7 '))
+        : synced ? stage('Crew & Vendors', '#crew', owed[0], ['Owed to crew', net].filter(Boolean).join(' \u00b7 '), owed[1]) : later('Crew & Vendors'),
       stage('Documents', '#documents', E.num(f.docs_this_month), 'PDFs this month \u00b7 '
         + (money && f.deals_without_invoice_pdf > 0 ? E.plural(f.deals_without_invoice_pdf, 'deal') + ' without an invoice PDF' : 'nothing waiting')),
       !money ? stage('Finance', null, 'No access', 'Needs money access', 'is-quiet')
         : synced ? stage('Finance', '#finance', collect[0], 'To collect \u00b7 ' + E.num(m.overdue_count) + ' overdue \u00b7 cash ' + (E.n(m.cash) == null ? 'not in the Sheet' : E.rp(m.cash)), collect[1]) : later('Finance'),
-      !money ? stage('Reports', '#reports', 'Pipeline', 'Money figures need money access', 'is-quiet')
+      !money ? (people ? stage('Reports', '#reports', 'Pipeline', 'Money figures need money access', 'is-quiet')
+        : stage('Reports', null, 'No access', 'Needs money or admin access', 'is-quiet'))
         : synced ? stage('Reports', '#reports', profit[0], 'Profit ' + (m.year || '') + ' \u00b7 omset ' + (E.n(m.omset_year) == null ? 'not in the Sheet' : E.rp(m.omset_year)), profit[1]) : later('Reports'),
       stage('Portfolio', '#portfolio', E.num(f.portfolio_live), 'Live items \u00b7 '
         + (f.lunas_not_in_portfolio > 0 ? E.plural(f.lunas_not_in_portfolio, 'finished project') + ' not added' : 'nothing to add'))
@@ -169,13 +173,15 @@
     portfolio: function (id) { return '#portfolio/' + id; }, project: function (id) { return '#projects/' + id; },
     lead: function (id) { return '#leads/' + id; }, document: function () { return '#documents'; }
   };
+  // leads, applicants and network sign-ups are only read by owners and admins; for anyone else there is nothing to list
+  var forEditors = function (q) { return A.canEdit() ? E.settle(E.rows(q())) : Promise.resolve({ v: [] }); };
   function activity() {
     var ul = box.activity; waitList(ul);
     Promise.all([
       E.settle(E.rows(sb.from('activity_log').select('at, actor_email, action, entity, entity_id, label, source').order('at', { ascending: false }).limit(15))),
-      E.settle(E.rows(sb.from('lead_inbox').select('id, kind, created_at, name, source').order('created_at', { ascending: false }).limit(8))),
-      E.settle(E.rows(sb.from('applicants').select('id, name, track, created_at').order('created_at', { ascending: false }).limit(8))),
-      E.settle(E.rows(sb.from('network_profiles').select('id, name, company_name, created_at').order('created_at', { ascending: false }).limit(8)))
+      forEditors(function () { return sb.from('lead_inbox').select('id, kind, created_at, name, source').order('created_at', { ascending: false }).limit(8); }),
+      forEditors(function () { return sb.from('applicants').select('id, name, track, created_at').order('created_at', { ascending: false }).limit(8); }),
+      forEditors(function () { return sb.from('network_profiles').select('id, name, company_name, created_at').order('created_at', { ascending: false }).limit(8); })
     ]).then(function (r) {
       var list = [], broken = 0;
       var each = function (x, fn) { if (x.e) { broken++; return; } x.v.forEach(function (it) { list.push(fn(it)); }); };
@@ -211,9 +217,9 @@
     var r = {
       flow: E.settle(E.data.flow(true)), projects: E.settle(E.data.projects()), money: E.settle(E.data.money()),
       docs: E.settle(E.data.docs()), kas: E.settle(E.data.kas()), portfolio: E.settle(E.data.portfolio()),
-      leads: E.settle(E.rows(sb.from('lead_inbox').select('id, kind, created_at, name, company, about, description, budget').eq('status', 'new').order('created_at').limit(20))),
-      applicants: E.settle(E.rows(sb.from('applicants').select('id, name, track, created_at').eq('status', 'new').order('created_at').limit(10))),
-      network: E.settle(E.rows(sb.from('network_profiles').select('id, name, company_name, created_at').eq('status', 'new').order('created_at').limit(10))),
+      leads: forEditors(function () { return sb.from('lead_inbox').select('id, kind, created_at, name, company, about, description, budget').eq('status', 'new').order('created_at').limit(20); }),
+      applicants: forEditors(function () { return sb.from('applicants').select('id, name, track, created_at').eq('status', 'new').order('created_at').limit(10); }),
+      network: forEditors(function () { return sb.from('network_profiles').select('id, name, company_name, created_at').eq('status', 'new').order('created_at').limit(10); }),
       drafts: E.settle(E.rows(sb.from('portfolio_items').select('id, title, updated_at').eq('status', 'draft').lt('updated_at', wk).order('updated_at').limit(6)))
     };
     var keys = Object.keys(r);

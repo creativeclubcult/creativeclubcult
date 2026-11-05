@@ -154,6 +154,7 @@
       $$('[data-edit-only]').forEach(function (el) { el.hidden = !canEdit(); });
       $$('[data-owner-only]').forEach(function (el) { el.hidden = !isOwner(); });
       $$('[data-money-only]').forEach(function (el) { el.hidden = !canMoney(); });
+      $$('[data-edit-or-money]').forEach(function (el) { el.hidden = !canEdit() && !canMoney(); });
       $$('[data-env]').forEach(function (el) { el.hidden = !DEV; });
       show('app');
       refreshBadges();
@@ -183,13 +184,16 @@
   var UNDER = { applicants: 'careers', jobs: 'careers', network: 'crew' };
   var SUBS = {
     leads: 'Contact form messages and the leads you add, in one list.',
-    clients: 'Clients from the Sheet, with their projects, leads and documents.',
+    clients: function () { return canEdit() ? 'Clients from the Sheet, with their projects, leads and documents.' : 'Clients from the Sheet, with their projects and documents.'; },
     projects: 'Every project in the Sheet and every brief, most urgent first.',
     crew: 'The crew list from the Sheet: rates and what each person is owed.',
     network: 'Collaborators and vendors who want to work with us.',
     documents: function () { return canMoney() ? 'Quotes, invoices, receipts, contracts and briefs, kept in Google Drive.' : 'Contracts, briefs and other project files, kept in Google Drive.'; },
     finance: 'What to collect and the Kas, from the Sheet.',
-    reports: function () { return canMoney() ? 'The year from the Sheet\u2019s Keuangan tab, checked against each project, and the lead pipeline.' : 'The lead pipeline. Money figures need money access.'; },
+    reports: function () {
+      if (!canMoney()) return 'The lead pipeline. Money figures need money access.';
+      return 'The year from the Sheet\u2019s Keuangan tab, checked against each project' + (canEdit() ? ', and the lead pipeline.' : '.');
+    },
     portfolio: 'Projects for the Work page. Drafts stay private until you publish.',
     applicants: 'Careers applications: team and internship.',
     jobs: 'Roles shown on the Careers pages.',
@@ -201,11 +205,22 @@
   }
   menuBtn.addEventListener('click', function () { sideOpen(!side.classList.contains('is-open')); });
   sideScrim.addEventListener('click', function () { sideOpen(false); });
+  // a page this account can't read opens the nearest one it can (the database draws the same lines)
+  function allowed(tab) {
+    if (tab === 'crew' && !canMoney()) tab = 'network'; // the crew list holds rates and amounts
+    if (canEdit()) return tab;
+    // leads, applicants and network sign-ups are for owners and admins; the pipeline is all Reports has without money
+    if (tab === 'applicants') return 'jobs';
+    if (tab === 'network') return canMoney() ? 'crew' : 'overview';
+    if (tab === 'leads' || (tab === 'reports' && !canMoney())) return 'overview';
+    return tab;
+  }
   function openTab() {
     var parts = (location.hash || '#overview').slice(1).split('/');
     var tab = ALIAS[parts[0]] || parts[0], id = parts[1] || null;
     if (!TITLES[tab]) { tab = 'overview'; id = null; }
-    if (tab === 'crew' && !canMoney()) { tab = 'network'; id = null; } // the crew list holds rates and amounts
+    var to = allowed(tab);
+    if (to !== tab) { tab = to; id = null; }
     // one address per page: an old or partial one is rewritten in place
     var want = '#' + tab + (id ? '/' + id : '');
     if (location.hash !== want) history.replaceState(null, '', want);
@@ -246,11 +261,11 @@
     if (!r.error) el.setAttribute('aria-label', r.count + ' ' + word);
   }
   function refreshBadges() {
+    // new leads, applicants and sign-ups, Sheet issues still open and Sheet writes that failed: for the people who can act on them
+    if (!canEdit()) { badge('settings', { count: 0 }, ''); return; }
     [['leads', 'lead_inbox'], ['applicants', 'applicants'], ['network', 'network_profiles']].forEach(function (b) {
       sb.from(b[1]).select('id', { count: 'exact', head: true }).eq('status', 'new').then(function (r) { badge(b[0], r, 'new'); });
     });
-    // Settings: Sheet issues still open and Sheet writes that failed, for the people who can act on them
-    if (!canEdit()) { badge('settings', { count: 0 }, ''); return; }
     Promise.all([
       sb.from('sync_issues').select('id', { count: 'exact', head: true }).is('resolved_at', null),
       sb.from('sync_outbox').select('id', { count: 'exact', head: true }).eq('status', 'failed')
