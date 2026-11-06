@@ -1,10 +1,11 @@
-/* A RAB's breakdown in the project drawer, line by line (M6). Owners and people with money access change, add and
-   remove the lines of the breakdown sections and of the equipment, and fill in the actual costs. Each change is one
-   write to the RAB tab through sheets-write (rab_line_set, rab_line_add, rab_line_clear, rab_internal), which checks
-   the role, money access and every value again. Before it writes, the Sheet checks that the line is still the one shown
-   here; it works out the totals itself. One line is open at a time. */
+/* A RAB's lines on the project page, in groups as the RAB tab has them (M6). Owners and people with money access
+   change, add and remove the lines of the breakdown sections and of the equipment, and fill in the actual costs. Each
+   change is one write to the RAB tab through sheets-write (rab_line_set, rab_line_add, rab_line_clear, rab_internal),
+   which checks the role, money access and every value again. Before it writes, the Sheet checks that the line is still
+   the one shown here; it works out the totals itself. One line is open at a time. */
 (function () {
   'use strict';
+  if (!window.cccAdmin) return; // admin.js stopped early: the sign in library didn't load
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
 
   // the breakdown in the order of the RAB tab, and the equipment groups as the Sheet names them
@@ -98,15 +99,17 @@
     return wait;
   }
 
-  // ---------- the Budget: the lines, one form open at a time ----------
-  // c = {p, rab, link, forms, saved(answer, text), refresh(text)}
+  // ---------- the Budget: the lines in groups, one form open at a time ----------
+  // c = {p, rab, edit, note, link, forms, saved(answer, text), refresh(text)}; gives the nodes of the Budget pane.
+  // edit false: the lines only (an old RAB, Sheet writes paused, or an account that can't change the RAB)
+  var closed = {};   // groups folded on a project stay folded when the page is drawn again
   function budget(c) {
-    var p = c.p, rab = c.rab, open = null, seq = 0;
+    var p = c.p, rab = c.rab, edit = c.edit !== false, open = null, seq = 0;
     var eq = rab.equipment && typeof rab.equipment === 'object' && Array.isArray(rab.equipment.groups) ? rab.equipment : null;
     var sectionOf = function (key) { return (rab.sections || []).filter(function (s) { return s.key === key; })[0] || null; };
     var numbered = (rab.sections || []).some(function (s) { return (s.lines || []).some(function (l) { return E.n(l.no) != null; }); });
-    var tb = h('tbody');
-    c.forms.push({ dirty: function () { return !!open && open.dirty(); } });
+    var box = h('div', { class: 'rab' + (edit ? '' : ' ro') });
+    if (edit) c.forms.push({ dirty: function () { return !!open && open.dirty(); } });
 
     // another form opens only after the one with changes is let go
     function claim() {
@@ -125,19 +128,19 @@
       return Math.min(Math.floor(max) + 1, 999);
     }
 
-    // the fields of one line and their bar; o = {key, group, line (null: a new line), close}
+    // the fields of one line and their buttons; o = {key, group, line (null: a new line), close}
     function lineForm(o) {
       var l = o.line, adding = !l, key = o.key, grp = o.group || null;
       var send = E.writer(), ctrls = [], listId = 'eco-gear-' + p.id.slice(0, 8) + '-' + (++seq);
-      var grid = h('div', { class: 'adm-controls' }), list = h('datalist', { id: listId });
-      var msg = h('span', { class: 'eco-saved', role: 'status' });
-      var hint = h('p', { class: 'eco-note', hidden: true, text: 'A price typed here is locked. Leave it empty to follow Katalog Alat.' });
+      var grid = h('div', { class: 'ed-f' }), list = h('datalist', { id: listId });
+      var msg = h('span', { class: 'fmsg', role: 'status' });
+      var hint = h('p', { class: 'help full', hidden: true, text: 'A price typed here is locked. Leave it empty to follow Katalog Alat.' });
       var pick = null;
       if (adding) {
         var opts = [];
         SECTIONS.forEach(function (s) {
           if (s[0] !== 'equipment') opts.push([s[0], s[1]]);
-          else if (eq) GEAR.forEach(function (g) { opts.push(['equipment:' + g[0], 'Equipment · ' + g[1]]); });
+          else if (eq) GEAR.forEach(function (g) { opts.push(['equipment:' + g[0], 'Equipment, ' + g[1]]); });
         });
         pick = A.select(opts, o.pick || 'pre', { 'aria-label': 'Section' });
         pick.addEventListener('change', function () { var v = pick.value.split(':'); draw(v[0], v[1] || null); say(''); });
@@ -146,14 +149,15 @@
         var keep = {};
         ctrls.forEach(function (x) { if (x.el.tagName === 'INPUT') keep[x.key + '|' + x.f[2]] = x.el.value; });
         key = k; grp = g; ctrls = []; grid.innerHTML = '';
-        if (pick) grid.appendChild(h('label', { class: 'wide' }, 'Section', pick));
+        if (pick) grid.appendChild(h('label', { class: 'f full' }, 'Section', pick));
         fieldsOf(key).forEach(function (f) {
           var x = control(f, l ? l[f[0]] : null, listId);
           x.was = x.read(x.el);
           if (keep[f[0] + '|' + f[2]] !== undefined) x.el.value = keep[f[0] + '|' + f[2]];
           ctrls.push(x);
-          grid.appendChild(h('label', { class: f[0] === 'desc' || f[0] === 'item' ? 'wide' : null }, f[1], x.el));
+          grid.appendChild(h('label', { class: 'f' + (f[0] === 'desc' || f[0] === 'item' ? ' full' : '') }, f[1], x.el));
         });
+        grid.appendChild(hint);
         hint.hidden = key !== 'equipment';
         if (key === 'equipment') gear();
       }
@@ -196,9 +200,9 @@
         });
       }
       var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
-      var save = h('button', { class: 'eco-btn is-primary', type: 'button' }, adding ? 'Add line' : 'Save line');
-      var cancel = h('button', { class: 'eco-btn', type: 'button' }, 'Cancel');
-      var remove = adding ? null : h('button', { class: 'eco-btn is-remove', type: 'button' }, 'Remove line');
+      var save = h('button', { class: 'btn sm lime', type: 'button' }, adding ? 'Add line' : 'Save line');
+      var cancel = h('button', { class: 'btn sm quiet', type: 'button' }, 'Cancel');
+      var remove = adding ? null : h('button', { class: 'btn sm quiet danger', type: 'button' }, 'Remove line');
       var busy = function (on) {
         [save, cancel, remove, pick].forEach(function (b) { if (b) b.disabled = on; });
         ctrls.forEach(function (x) { x.el.disabled = on; });
@@ -224,7 +228,7 @@
         if ((adding || id in set) && !set[id]) return (key === 'equipment' ? 'Pick or type the equipment.' : key === 'crew' ? 'A crew line needs a role.' : 'A line needs a description.') + out;
         return '';
       }
-      // the Sheet's answer: saved (or queued) reloads the drawer; a line that changed in the Sheet meanwhile is read
+      // the Sheet's answer: saved (or queued) draws the page again; a line that changed in the Sheet meanwhile is read
       // again; anything else stays here with the reason, and the refused change is cleared from the Sheet's list
       function settle(r, text) {
         if (r.status === 200 || r.status === 202) return c.saved(r, text(r));
@@ -248,7 +252,7 @@
           settle(r, function (a) {
             if (!adding) return 'Line saved to the Sheet.';
             var rec = a.body.record || {};
-            return rec.replayed ? 'That line was already added in the Sheet.' : 'Line added to ' + (key === 'equipment' ? 'Equipment · ' + GEAR_LABEL[grp] : LABEL[key]) + ' in the Sheet.';
+            return rec.replayed ? 'That line was already added in the Sheet.' : 'Line added to ' + (key === 'equipment' ? 'Equipment, ' + GEAR_LABEL[grp] : LABEL[key]) + ' in the Sheet.';
           });
         }, failed);
       });
@@ -268,81 +272,104 @@
       }
       draw(key, grp);
       return {
-        el: h('div', { class: 'eco-form eco-lineform' }, grid, list, hint, h('div', { class: 'eco-formbar' }, remove, msg, cancel, save)),
+        el: h('div', { class: 'ed' }, grid, list, h('div', { class: 'acts' }, save, cancel, msg, remove)),
         dirty: function () { return Object.keys(values()).length > 0; },
         focus: function () { var x = pick || (ctrls[0] && ctrls[0].el); if (x) x.focus(); }
       };
     }
 
-    // ---------- the table ----------
-    var group = function (t) { tb.appendChild(h('tr', {}, h('td', { class: 'eco-group', colspan: 4, text: t }))); };
+    // ---------- the groups and their lines ----------
     var qd = function (key, l) {
       var q = E.n(l.qty), d = E.n(l.days);
       if (key === 'equipment') return dec(q == null ? 1 : q) + ' × ' + dec(d == null ? 1 : d);
       return q != null && d != null ? dec(q) + ' × ' + dec(d) : q != null ? dec(q) : d != null ? (d === 1 ? '1 day' : dec(d) + ' days') : '';
     };
+    var sumOf = function (ls) { var any = false, t = 0; ls.forEach(function (l) { var v = E.n(l.total); if (v != null) { any = true; t += v; } }); return any ? t : null; };
+    var all = 0, known = false;
+    var count = function (v) { if (v != null) { known = true; all += v; } return v; };
     function line(key, g, l) {
-      var name = key === 'equipment' ? l.desc || l.item : l.desc;
-      var sub = key === 'crew' ? l.person : key === 'equipment' ? [l.vendor, l.price_date ? E.day(l.price_date, { year: false }) : null].filter(Boolean).join(' · ') : null;
-      var btn = h('button', { class: 'adm-link', type: 'button', 'aria-label': 'Change ' + (name ? E.clip(name, 60) : 'this line') }, 'Edit');
-      var tr = h('tr', {}, h('td', { class: name ? null : 'muted' }, name || 'No description', sub ? h('span', { class: 'sub', text: sub }) : null),
-        h('td', { class: 'num hide-s' }, qd(key, l)), h('td', { class: 'num' }, E.num(l.total)), h('td', { class: 'act' }, btn));
+      var name = key === 'equipment' ? l.desc || l.item : l.desc, locked = key === 'equipment' && E.n(l.manual_price) != null;
+      // equipment: the lock (said in words for a screen reader), then where the price is from
+      var from = key === 'equipment' ? [l.vendor, l.price_date ? E.day(l.price_date, { year: false }) : null].filter(Boolean).join(', ') : '';
+      var sub = key === 'crew' ? (l.person ? h('span', { text: l.person }) : null)
+        : key === 'equipment' ? h('span', {}, A.icon(locked ? 'lock' : 'unlock', 'lk' + (locked ? ' on' : '')),
+          from ? [h('span', { class: 'sr', text: locked ? 'Price locked, ' : 'Price not locked, ' }), from] : locked ? 'Price locked' : 'Price not locked')
+          : null;
+      var li = h('li', { class: 'ln' }, h('div', { class: 'nm' }, h('b', { class: name ? null : 'muted', text: name || 'No description' }), sub),
+        h('span', { class: 'q', text: qd(key, l) }), h('span', { class: 't', text: E.num(l.total) }));
+      if (!edit) return li;
+      var btn = h('button', { class: 'ib', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Edit ' + (name ? E.clip(name, 60) : 'this line') }, A.icon('edit'));
+      li.appendChild(btn);
       btn.addEventListener('click', function () {
+        if (btn.getAttribute('aria-expanded') === 'true') { if (open) open.ask(); return; }
         claim().then(function (go) {
           if (!go) return;
-          var row = h('tr', { class: 'eco-edit' });
-          var f = lineForm({ key: key, group: g, line: l, close: function () {
-            row.remove(); tr.classList.remove('is-open'); btn.hidden = false; open = null; btn.focus();
-          } });
-          row.appendChild(h('td', { colspan: 4 }, f.el));
-          tr.classList.add('is-open'); btn.hidden = true;
-          tr.parentNode.insertBefore(row, tr.nextSibling);
-          open = { dirty: f.dirty, close: function () { row.remove(); tr.classList.remove('is-open'); btn.hidden = false; open = null; } };
+          var row = h('li', { class: 'ed-li' });
+          var shut = function () { row.remove(); btn.setAttribute('aria-expanded', 'false'); open = null; };
+          var f = lineForm({ key: key, group: g, line: l, close: function () { shut(); btn.focus(); } });
+          row.appendChild(f.el);
+          btn.setAttribute('aria-expanded', 'true');
+          li.parentNode.insertBefore(row, li.nextSibling);
+          open = { dirty: f.dirty, close: shut, ask: function () { claim().then(function (yes) { if (yes) btn.focus(); }); } };
           f.focus();
         });
       });
-      tb.appendChild(tr);
+      return li;
+    }
+    // one section of the RAB, folded under its name, with its line count and its total
+    function group(id, title, n, total, extra, body) {
+      var d = h('details', { class: 'grp', open: !closed[p.id + id] },
+        h('summary', {}, A.icon('chev', 'car'), h('b', { text: title }), h('span', { class: 'cnt', text: E.plural(n, 'line') }), extra,
+          h('span', { class: 'tot', text: total == null ? '' : E.rp(total) })), body);
+      d.addEventListener('toggle', function () { closed[p.id + id] = !d.open; });
+      box.appendChild(d);
     }
     SECTIONS.forEach(function (s) {
       if (s[0] === 'equipment') {
         if (!eq) return;
-        var first = true;
+        var parts = [], n = 0;
         eq.groups.forEach(function (g) {
           var ls = Array.isArray(g.lines) ? g.lines : [];
           if (!ls.length) return;
-          group('Equipment · ' + (GEAR_LABEL[g.name] || g.name) + (first && p.unlocked_gear > 0 ? ' · ' + E.plural(p.unlocked_gear, 'price') + ' not locked' : ''));
-          first = false;
-          ls.forEach(function (l) { line('equipment', g.name, l); });
+          n += ls.length;
+          parts.push(h('p', { class: 'subh', text: GEAR_LABEL[g.name] || g.name }), h('ul', { class: 'lines' }, ls.map(function (l) { return line('equipment', g.name, l); })));
         });
-        if (!first && E.n(eq.ppn_bsm) > 0) {
-          tb.appendChild(h('tr', {}, h('td', { class: 'muted' }, 'Subtotal ' + E.num(eq.subtotal) + ' · PPN BSM ' + E.num(eq.ppn_bsm)),
-            h('td', { class: 'num hide-s' }), h('td', { class: 'num' }, E.num(eq.total)), h('td')));
-        }
+        if (!n) return;
+        if (E.n(eq.ppn_bsm) > 0) parts.push(h('p', { class: 'lsum' }, h('span', { text: 'Subtotal ' + E.rp(eq.subtotal) }), h('span', { text: 'PPN BSM ' + E.rp(eq.ppn_bsm) })));
+        var k = p.unlocked_gear || 0;
+        var tag = k > 0 ? h('span', { class: 'tag amber' }, A.icon('unlock'), E.plural(k, 'price') + ' not locked') : h('span', { class: 'tag lime' }, A.icon('lock'), 'Prices locked');
+        group('equipment', s[1], n, count(E.n(eq.total) != null ? E.n(eq.total) : sumOf([].concat.apply([], eq.groups.map(function (g) { return g.lines || []; })))), tag, parts);
         return;
       }
       var sec = sectionOf(s[0]), ls = sec && Array.isArray(sec.lines) ? sec.lines : [];
       if (!ls.length) return;
-      group(s[1]);
-      ls.forEach(function (l) { line(s[0], null, l); });
+      group(s[0], s[1], ls.length, count(E.n(sec.subtotal) != null ? E.n(sec.subtotal) : sumOf(ls)), null,
+        h('ul', { class: 'lines' }, ls.map(function (l) { return line(s[0], null, l); })));
     });
 
-    var addBtn = h('button', { class: 'eco-btn', type: 'button' }, 'Add a line');
-    var addBox = h('div', { class: 'eco-lineadd' }, addBtn);
-    addBtn.addEventListener('click', function () {
-      claim().then(function (go) {
-        if (!go) return;
-        var f = lineForm({ key: 'pre', line: null, close: function () { f.el.remove(); addBtn.hidden = false; open = null; addBtn.focus(); } });
-        addBtn.hidden = true; addBox.appendChild(f.el);
-        open = { dirty: f.dirty, close: function () { f.el.remove(); addBtn.hidden = false; open = null; } };
-        f.focus();
+    var addBtn = edit ? h('button', { class: 'btn sm', type: 'button', 'aria-expanded': 'false' }, A.icon('plus', 's'), 'Add a line') : null;
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        if (addBtn.getAttribute('aria-expanded') === 'true') { if (open) open.ask(); return; }
+        claim().then(function (go) {
+          if (!go) return;
+          var shut = function () { f.el.remove(); addBtn.setAttribute('aria-expanded', 'false'); open = null; };
+          var f = lineForm({ key: 'pre', line: null, close: function () { shut(); addBtn.focus(); } });
+          addBtn.setAttribute('aria-expanded', 'true');
+          box.insertBefore(f.el, box.firstChild);
+          open = { dirty: f.dirty, close: shut, ask: function () { claim().then(function (yes) { if (yes) addBtn.focus(); }); } };
+          f.focus();
+        });
       });
-    });
-
-    return E.section('Budget', ['RAB breakdown', c.link ? [' · ', c.link] : null],
-      tb.children.length ? h('table', { class: 'eco-table eco-lines' }, E.thead(['Item', ['Qty × days', 'num hide-s'], ['Total', 'num'], ['', 'act']]), tb)
-        : h('p', { class: 'adm-note', text: 'The RAB has no lines yet.' }),
-      addBox,
-      h('p', { class: 'eco-note', text: 'Each change is written to the RAB tab in the Sheet, which works out the totals again.' }));
+    }
+    var empty = !box.children.length;
+    return [
+      h('div', { class: 'pane-h' }, h('h3', { text: 'Lines on the quote' }), known && !empty ? h('span', { class: 'cnt', text: E.rp(all) + ' in all' }) : null, addBtn),
+      empty ? h('p', { class: 'empty', text: 'The RAB has no lines yet.' }) : null,
+      box,
+      h('p', { class: 'src' }, A.icon('sheet'), h('span', {}, c.note || (edit ? 'Each change goes to the RAB tab in the Sheet, which works out the totals again.' : 'From the RAB tab in the Sheet.'),
+        c.link ? [' ', c.link] : null))
+    ];
   }
 
   // ---------- the actual costs: REALISASI per category and the costs outside the RAB (Biaya lain di luar RAB) ----------
@@ -359,10 +386,28 @@
     return { estimate: se != null ? se : any ? est : null, actual: sa != null ? sa : any ? act : null };
   }
 
+  // the categories at Rp 0 (rows marked data-zero in scope) behind one button, so the ones that cost something stand
+  // out; key keeps it open or shut when the page is drawn again. null when no row is at Rp 0
+  var zeroShown = {};
+  function zeroToggle(scope, key) {
+    var rows = A.$$('tr[data-zero]', scope);
+    if (!rows.length) return null;
+    var btn = h('button', { class: 'btn sm', type: 'button' });
+    var paint = function () {
+      var on = !!zeroShown[key];
+      rows.forEach(function (r) { r.hidden = !on; });
+      btn.textContent = on ? 'Hide the categories at Rp 0' : 'Show ' + E.plural(rows.length, 'category', 'categories') + ' at Rp 0';
+      btn.setAttribute('aria-expanded', String(on));
+    };
+    btn.addEventListener('click', function () { zeroShown[key] = !zeroShown[key]; paint(); });
+    paint();
+    return btn;
+  }
+
   // c = {p, rab, cats (project_money.categories), forms, saved(answer, text)}; gives {table, bar}
   function actuals(c) {
     var p = c.p, rab = c.rab, cats = c.cats, raw = (rab.summary && rab.summary.categories) || [], inn = rab.internal || {};
-    var form = E.sheetForm({ label: 'Save actual costs', op: 'rab_internal',
+    var form = E.sheetForm({ label: 'Save actual costs', op: 'rab_internal', look: 'mock sm',
       args: function (set, expect) { return { project_id: p.id, set: set, expect: expect }; },
       check: function (set) {
         var ks = Object.keys(set);
@@ -375,32 +420,38 @@
     var input = function (key, v, rawV, label, est) {
       var el = moneyInput(v, label);
       if (E.n(est) != null) el.placeholder = E.num(est);
-      return h('td', { class: 'num eco-in' }, form.field(key, el, rawV === undefined ? null : rawV, readMoney));
+      return h('td', { class: 'num act' }, form.field(key, el, rawV === undefined ? null : rawV, readMoney));
     };
     var sum = function (list, k) { var any = false, t = 0; list.forEach(function (x) { var v = E.n(x[k]); if (v != null) { any = true; t += v; } }); return any ? t : null; };
     var other = { estimate: inn.other_estimate, actual: inn.other_actual };
     var rows = cats.map(function (x, i) {
       var billed = E.n(x.total), est = E.n(x.estimate), r = raw[i] || {};
-      return h('tr', { class: billed || est || E.n(x.actual) ? null : 'is-zero' }, h('td', { text: x.label || '' }),
-        h('td', { class: 'num hide-s' + (billed ? '' : ' muted') }, E.num(x.total)),
-        h('td', { class: 'num' + (est > 0 && !(billed > 0) ? ' neg' : '') }, E.num(x.estimate)),
+      // a cost that isn't billed to the client is marked; a category with nothing in it waits behind the button
+      var hot = est > 0 && !(billed > 0), zero = !billed && !est && !E.n(x.actual);
+      return h('tr', { class: hot ? 'hot' : null, 'data-zero': zero ? '' : null },
+        h('td', {}, hot ? A.icon('alert') : null, x.label || ''),
+        h('td', { class: 'num hide-s' }, E.num(x.total)), h('td', { class: 'num' }, E.num(x.estimate)),
         input('actual_' + (i + 1), x.actual, r.actual, 'Actual, ' + (x.label || 'category ' + (i + 1)), x.estimate));
     });
-    rows.push(h('tr', { class: 'eco-other' }, h('td', { text: 'Other costs outside the RAB' }), h('td', { class: 'num hide-s' }),
-      h('td', { class: 'num eco-in' }, form.field('other_estimate', moneyInput(other.estimate, 'Estimate, other costs outside the RAB'), other.estimate === undefined ? null : other.estimate, readMoney)),
+    var oz = !E.n(other.estimate) && !E.n(other.actual);
+    rows.push(h('tr', { 'data-zero': oz ? '' : null }, h('td', { text: 'Other costs outside the RAB' }), h('td', { class: 'num hide-s' }),
+      h('td', { class: 'num act' }, form.field('other_estimate', moneyInput(other.estimate, 'Estimate, other costs outside the RAB'), other.estimate === undefined ? null : other.estimate, readMoney)),
       input('other_actual', other.actual, other.actual, 'Actual, other costs outside the RAB', other.estimate)));
     var tot = costTotals(rab, cats);
-    return {
-      table: h('table', { class: 'eco-table eco-actuals' }, E.thead(['Category', ['Billed', 'num hide-s'], ['Estimate', 'num'], ['Actual', 'num']]),
-        h('tbody', {}, rows),
-        h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'num hide-s' }, E.num(sum(cats, 'total'))),
-          h('td', { class: 'num' }, E.num(tot.estimate)), h('td', { class: 'num' }, E.num(tot.actual))))),
-      bar: form.bar
-    };
+    rows.push(h('tr', { class: 'sum' }, h('td', { text: 'Total' }), h('td', { class: 'num hide-s' }, E.num(sum(cats, 'total'))),
+      h('td', { class: 'num' }, E.num(tot.estimate)), h('td', { class: 'num' }, E.num(tot.actual))));
+    var tbody = h('tbody', {}, rows);
+    var table = h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact' },
+      h('thead', {}, h('tr', {}, h('th', { text: 'Category' }), h('th', { class: 'num hide-s', text: 'Billed' }), h('th', { class: 'num', text: 'Estimate' }),
+        h('th', { class: 'num', text: 'Actual' }))), tbody));
+    var toggle = zeroToggle(tbody, p.id);
+    if (toggle) form.bar.insertBefore(toggle, form.bar.firstChild);
+    return { table: table, bar: form.bar };
   }
 
   E.RAB_SECTIONS = SECTIONS;
   E.rabBudget = budget;
   E.rabActuals = actuals;
   E.rabCostTotals = costTotals;
+  E.zeroToggle = zeroToggle;
 })();

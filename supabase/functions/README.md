@@ -29,6 +29,21 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 - Once codes are on, `private.is_team`, `can_edit`, `can_see_money` and `is_owner` also need this sign in (the JWT's `session_id`) to have passed a code, so every table, RPC and storage rule follows. The sheets functions ask the same through `access_state` and answer 403 `needs_code`. Signing out ends the pass.
 - Links in emails are `<origin>/admin/#set=<token>&t=invite|recovery`, from Supabase Auth's `generate_link`. The admin redeems them with `verifyOtp`, so no Site URL or redirect list is involved. Only an origin written exactly in `admin_origins` gets a link; a wildcard there never does.
 
+## pay-link and pay-page: the private invoice link
+
+A link to one invoice that the client opens without signing in: `<origin>/pay#<token>` shows what is owed, CCC's bank details, and a "Saya sudah transfer" button. It is the half version of an online invoice: there is no payment gateway, because that needs a merchant account first. Both run with `verify_jwt` off and check every request themselves. The rules live in the database (`Work CCC/migrations/20261106_followups_paylinks.sql`, section 5), and the page is `pay/` at the site root.
+
+| Function | Called by | Who is let in | Job |
+| --- | --- | --- | --- |
+| `pay-link` | Finance, the Collect panel | An owner, or an admin with money access, past the emailed code, from an origin written exactly in `admin_origins` | `create` (`via` email, whatsapp or copy) and `revoke`. Email sends the invoice summary in Indonesian from hello@ |
+| `pay-page` | The public page `/pay` | Anyone holding a live token | `view`: that one invoice, the bank details and the link's dates, nothing else, and the view is counted. `paid`: once per link, emails the team when Gmail is set up |
+
+- The token is 43 characters of base64url; the database keeps only its SHA-256. A link works for 60 days, until it is turned off, or until the invoice leaves Deal and Lunas or Rekap Project. Every dead, unknown or malformed link gets the same 404.
+- A link is made only for a billed invoice (Deal or Lunas) that is still owed, and only once CCC's bank details are filled in (Settings; owners edit them, money users read them). No link is made while the Sheet has no amount for the invoice (`no_amount`). If the amount is cleared after a link is out, the page shows no amount rather than Rp 0 and asks the client to check by email, and "Saya sudah transfer" still reaches the team. Once the Sheet shows the invoice as paid, "Saya sudah transfer" answers 409 `nothing_owed`.
+- Limits: 20 links per person in 10 minutes, 3 invoice emails an hour to one address. On the page, by an HMAC of the caller's address: 30 asks a minute, 10 dead links in 10 minutes, 300 dead links in 10 minutes from everyone. `pay-housekeeping` (pg_cron, hourly) drops counts older than a day.
+- Without `GMAIL_APP_PASSWORD`, `create` by email answers 503 `mail_not_configured` before anything is made; copy and WhatsApp still work, and `paid` is recorded without an email (the admin shows it on Finance either way).
+- The page's own CSP allows only its files and the two Supabase function URLs; `vercel.json` sends a stricter one for `/pay` (PROD only), plus `no-store`, `no-referrer` and `noindex`.
+
 ## DEV status (2026-11-06, project `jvhhcehzhgpcphtpynnx`)
 
 - All three are deployed. Without credentials they answer 401 (`unauthenticated`, `bad_key` or `unsigned`).
@@ -38,6 +53,8 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 - The Supabase CLI is not installed on this machine, so DEV runs minified builds. Each function is a small loader that reads its build `<name>@<first 12 hex of the source SHA-256>` from the DEV only table `public.deploy_bundles_dev` (server key only) and runs it only when the SHA-256 matches the pin.
 - Builds reach that table through `deploy-relay-dev`: a row is registered in SQL with the expected hash, and the relay stores only an upload with that hash. Between uploads the relay is a 410 stub. The same relay can hand a registered Apps Script file (`sync-gs@<sha12>`) back to the script editor, so Sync.gs reaches a copy's editor without being typed. Pins on 2026-11-06: `sheets-write@f40baac1831f`, `sheets-sync@51d19b507e64`, `sheets-bridge@7196f85e97b4`.
 - `team-access` is a one-line entry from commit `ba1f40e`, like PROD. `two_step_sign_in` is applied. DEV has no Gmail secret, so codes stay off there.
+- `pay-link` and `pay-page` are deployed the same way (function version 2 since 2026-11-06 08:02 UTC): pins `pay-link@b76554a505af` and `pay-page@00c98964f2f6`. The database side is applied as `followups_paylinks`, `lead_quote_sent`, `pay_functions` and `pay_owed_unknown`. Checked on DEV: CORS for listed origins only, 400/401/404 answers, a real link's view and "Saya sudah transfer" with no amount in the Sheet (no Rp 0), 409 on a paid invoice, a turned off link gives 404, the dead link limit gives 429. Every test link was removed afterwards.
+- Not yet possible on DEV: making a link from the admin. That needs an origin written exactly in `admin_origins` (DEV lists wildcards only), CCC's bank details in Settings, and an invoice that is still owed. Email needs `GMAIL_APP_PASSWORD`.
 - Production never gets the DEV builds; see below.
 
 ## PROD status (2026-11-05 21:05 UTC, project `zneckeqsvwbavqxpolri`)
@@ -47,6 +64,7 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 - `GMAIL_APP_PASSWORD` is set, and codes are on (`private.access_rules.two_step`) since 2026-11-05 10:46 UTC. What to do when email stops is in `ops/PRODUCTION.md`.
 - Reading and writing are on since 2026-11-05 16:09 UTC: `sheet_values.flags` has `pull_enabled` and `writes_enabled` true, and the live script's `SYNC_WRITES` is `on` (`ops/PRODUCTION.md`, step 9). To pause writing: `syncWritesOff` in the live script and `writes_enabled` false.
 - The pg_cron schedules are the same as on DEV.
+- `pay-link` and `pay-page` are not on PROD yet. Going live takes, each with its own yes: the migration `20261106_followups_paylinks.sql` (all sections, including the owed fix in section 5), the two functions from a pushed commit, and the site with `pay/` and the `/pay` headers in `vercel.json`. `admin_origins` already holds `https://creativeclubcult.com`, which is where the links will point.
 
 ## Tests
 
@@ -54,4 +72,6 @@ The second step of signing in (a 6 digit code emailed after the password), addin
 deno test --no-check --allow-read --allow-env --allow-net=127.0.0.1 supabase/tests/
 ```
 
-76 tests. `diff_test.ts` (49): diff, commit payloads, HMAC, MD5, and the filter that keeps amounts out of write replies for people without money access. `access_test.ts` (18): codes and their hash, email checks, the message format, a fake SMTP server (sent, refused without leaking the password, too slow), and every team-access action. `ops_test.ts` (9): the RAB line ops (M6), each section's own columns, values the way the Sheet takes them, rows and `expect`, and what a reply commits. The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local. On a DEV copy, `syncDevLineTest` in Sync.gs runs the RAB line checks on a temporary copy of the template.
+94 tests. `diff_test.ts` (49): diff, commit payloads, HMAC, MD5, and the filter that keeps amounts out of write replies for people without money access. `access_test.ts` (18): codes and their hash, email checks, the message format, a fake SMTP server (sent, refused without leaking the password, too slow), and every team-access action. `ops_test.ts` (9): the RAB line ops (M6), each section's own columns, values the way the Sheet takes them, rows and `expect`, and what a reply commits. `pay_test.ts` (18): tokens and their hash, the limits key, the Indonesian invoice email and the note to the team, an empty Sheet figure never written as Rp 0, and every pay-link and pay-page action and refusal.
+
+Deno is not installed system wide on this machine; a local copy is at `Work CCC/fc-scratch/bin/deno` (gitignored). Node is not installed, so browser scripts are syntax checked with `deno eval --no-check "new Function(Deno.readTextFileSync(f))"`. The Sync.gs end to end harness runs on a synthetic DEV copy in `Work CCC/harness/sync_gs_test.ts`, which stays local. On a DEV copy, `syncDevLineTest` in Sync.gs runs the RAB line checks on a temporary copy of the template.

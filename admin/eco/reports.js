@@ -1,32 +1,30 @@
-/* Reports: the year in numbers straight from the Sheet's Keuangan tab, checked against each project's own figures
-   (money access), and the lead pipeline (owners and admins). Read only; no charts in this version. */
+/* Reports: the year from the Sheet's Keuangan tab, checked against each project's own figures (money access), and the
+   leads that came in that year (owners and admins), laid out as the mockup has it. Read only. A figure that can't be
+   loaded says so; it never becomes 0. */
 (function () {
   'use strict';
-  var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h;
-  var panel = A.$('[data-panel="reports"]'), ui = null, got = null, loading = 0;
+  if (!window.cccAdmin) return; // admin.js stopped early: the sign in library didn't load
+  var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h, I = A.icon;
+  var panel = A.$('[data-panel="reports"]'), ui = null, got = null, turn = 0, view = 'chart', checks = {}, uid = 0;
   var DEAL = ['Deal', 'Lunas'];
   var MON = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' });
   var monthName = function (m) { return MON.format(new Date(Date.UTC(2000, m - 1, 1))); };
-  var FIELD = { projects: 'the project count', omset: 'Omset', cost: 'Cost', profit: 'Profit' };
-
-  var block = function (title, right) {
-    var s = h('section', { class: 'eco-block' }, h('div', { class: 'eco-block-h' }, h('h2', { class: 'eco-h', text: title }), right || null));
-    for (var i = 2; i < arguments.length; i++) A.add(s, arguments[i]);
-    return s;
-  };
-  var csvBtn = function (fn) { return h('button', { class: 'eco-btn', type: 'button', onclick: fn }, 'Export CSV'); };
-  var table = function (head, rows) { return h('div', { class: 'adm-table-wrap' }, h('table', { class: 'adm-table is-stack' }, head, h('tbody', {}, rows))); };
-  var still = function (tr) { tr.style.cursor = 'default'; return tr; };
-  var cell = function (v, cls, fmt) { return h('td', { class: 'num' + (cls ? ' ' + cls : '') + (E.n(v) < 0 ? ' neg' : '') }, (fmt || E.num)(v)); };
-  var zero = function (list) { return list.every(function (v) { return !E.n(v); }); };
+  var SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var AX = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
+  var FIELD = { omset: 'omset', cost: 'cost', profit: 'profit' };
   // a running total; a total of figures the Sheet doesn't have stays empty instead of becoming 0
   var plus = function (acc, k, v) { var x = E.n(v); if (x != null) acc[k] = (acc[k] || 0) + x; };
+  var bySeq = function (a, b) { return (b.seq || 0) - (a.seq || 0); };
+  var join = function (l) { return l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l[0] || ''; };
+  var cap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+  var empty = function (t) { return h('p', { class: 'empty', text: t }); };
+  var note = function (icon, t) { return h('p', { class: 'src' }, icon ? I(icon) : null, h('span', { text: t })); };
 
   function build() {
     if (ui) return;
-    ui = { year: A.select([], '', { 'aria-label': 'Year' }), body: h('div'), sort: { k: 'date', dir: -1 } };
+    ui = { year: A.select([], '', { class: 'field', 'aria-label': 'Year', hidden: true }),
+      csv: h('button', { class: 'btn', type: 'button', hidden: true, onclick: exportYear }, I('in', 's'), 'Export CSV'), list: [] };
     ui.year.addEventListener('change', draw);
-    A.add(panel, [h('div', { class: 'adm-bar' }, ui.year), ui.body]);
   }
   var val = function (key) { var v = got.values.v; return v && v[key] ? v[key].value : null; };
   var leadYear = function (l) { return (E.jkt(l.created_at) || '').slice(0, 4); };
@@ -37,241 +35,333 @@
     });
   };
 
+  // the years there is something to show for: the Sheet's, the projects' (money access) and the leads' (owners and admins)
   function fillYears() {
-    var set = {}, now = +E.today().slice(0, 4), ku = val('keuangan');
-    set[now] = true;
-    if (ku) {
-      if (E.n(ku.year)) set[E.n(ku.year)] = true;
-      (Array.isArray(ku.years) ? ku.years : []).forEach(function (r) { if (r && E.n(r.year)) set[E.n(r.year)] = true; });
-    }
-    (got.projects.v || []).forEach(function (p) { if (p.quote_date && DEAL.indexOf(p.status) > -1) set[+p.quote_date.slice(0, 4)] = true; });
-    (got.leads.v || []).forEach(function (l) { var y = +leadYear(l); if (y) set[y] = true; });
-    var keep = +ui.year.value || (A.canMoney() && ku && E.n(ku.year)) || now;
+    var set = {}, now = +E.today().slice(0, 4), ku = A.canMoney() ? val('keuangan') : null;
+    var put = function (y) { y = E.n(y); if (y && y > 1999) set[y] = true; };
+    put(now);
+    if (ku) { put(ku.year); (Array.isArray(ku.years) ? ku.years : []).forEach(function (r) { if (r) put(r.year); }); }
+    if (A.canMoney()) (got.projects.v || []).forEach(function (p) { if (DEAL.indexOf(p.status) > -1) put((p.quote_date || '').slice(0, 4)); });
+    (got.leads.v || []).forEach(function (l) { put(leadYear(l)); });
+    var keep = +ui.year.value || (ku && E.n(ku.year)) || now;
     ui.year.length = 0;
     Object.keys(set).map(Number).sort(function (a, b) { return b - a; })
       .forEach(function (y) { ui.year.appendChild(h('option', { value: y, selected: y === keep }, String(y))); });
+    ui.year.hidden = false;
   }
+
+  function card(title, aside, cls) {
+    var id = 'rp-h' + (++uid);
+    return h('section', { class: 'card' + (cls ? ' ' + cls : ''), 'aria-labelledby': id },
+      h('header', { class: 'card-h' }, h('h2', { id: id, text: title }), aside || null));
+  }
+  function fail(e) {
+    return h('div', { class: 'lstate' }, h('p', { class: 'empty is-err', text: E.ecoError(e) }),
+      h('button', { class: 'btn sm', type: 'button', onclick: function () { E.forget(); A.loaders.reports(); } }, 'Try again'));
+  }
+
   function draw() {
     if (!got) return;
-    var y = +ui.year.value;
-    ui.body.innerHTML = '';
-    if (A.canMoney()) money(y);
-    else ui.body.appendChild(h('p', { class: 'adm-note eco-block', text: 'Money figures need money access. An owner can turn it on for you in Settings.' }));
-    ui.body.appendChild(A.canEdit() ? pipeline(y) : h('p', { class: 'adm-note eco-block', text: 'The lead pipeline is for owners and admins.' }));
+    var y = +ui.year.value, money = A.canMoney(), edit = A.canEdit();
+    var broken = money && (got.projects.e || got.money.e);
+    var list = money && !broken ? yearProjects(y).sort(bySeq) : [];
+    ui.list = list;
+    ui.csv.hidden = !list.length;
+    var banner = money ? h('p', { class: 'note amber', hidden: true }) : null, line = null, kids;
+    if (money) {
+      var pj = projectsCard(y, list, broken);
+      line = pj.line;
+      // without the leads card, the clients sit beside the chart and the projects take the full row below
+      kids = edit ? [chart(y, list, broken), leadsCard(y), pj.el, clientsCard(y, list, broken)]
+        : [chart(y, list, broken), clientsCard(y, list, broken), pj.el];
+      if (!edit) pj.el.classList.add('rfull');
+    } else kids = [leadsCard(y)];
+    panel.innerHTML = '';
+    A.add(panel, [
+      money ? null : h('p', { class: 'note' }, I('lock'), h('span', { text: 'Money figures need money access. An owner can turn it on for you in Settings.' })),
+      banner, money ? tiles(y) : null,
+      h('div', { class: 'rgrid' + (money ? '' : ' solo') }, kids)]);
+    if (money && !got.values.e) runCheck(y, banner, line);
   }
 
-  // ---------- money: the Sheet's year, then each project's own figures ----------
-  function money(y) {
-    if (got.values.e) { ui.body.appendChild(h('p', { class: 'eco-err', text: E.ecoError(got.values.e) })); return; }
-    var ku = val('keuangan'), here = !!ku && E.n(ku.year) === y;
-    var row = ku && Array.isArray(ku.years) ? ku.years.filter(function (r) { return r && E.n(r.year) === y; })[0] : null;
-    var seen = got.values.v.keuangan ? got.values.v.keuangan.seen_at : null, figs;
-    if (!ku) figs = h('p', { class: 'adm-note', text: 'The Sheet\u2019s Keuangan tab hasn\u2019t been read yet.' });
-    else if (here) {
-      figs = h('div', { class: 'eco-figs' }, E.money('Omset', ku.omset), E.money('Cost', ku.cost), E.money('Profit', ku.profit),
-        E.money('Margin', ku.margin, { fmt: E.pct }), E.money('Money in', ku.money_in), E.money('To collect', ku.receivable_all),
-        E.money('Operational', ku.operational), E.money('Net profit', ku.net_profit));
-    } else if (row) {
-      figs = h('div', { class: 'eco-figs is-6' }, E.money('Omset', row.omset), E.money('Cost', row.cost), E.money('Profit', row.profit),
-        E.money('Margin', row.margin, { fmt: E.pct }), E.money('Money in', row.money_in), E.money('Net profit', row.net_profit));
-    } else figs = h('p', { class: 'adm-note', text: 'The Sheet\u2019s Keuangan tab has no figures for ' + y + '.' });
-    var check = h('p', { class: 'eco-note', text: 'Checking against each project\u2026' });
-    ui.body.appendChild(block('Year summary', null, figs, ku ? h('p', { class: 'eco-note', text: E.fromSheet(got.values.v, seen) }) : null, check));
-    checkLine(y, check);
-    var list = yearProjects(y), broken = got.projects.e || got.money.e;
-    ui.body.appendChild(here && Array.isArray(ku.months) ? sheetMonths(y, ku) : broken ? errBlock('Months', broken) : summedMonths(y, list));
-    ui.body.appendChild(broken ? errBlock('Projects', broken) : projects(y, list));
-    ui.body.appendChild(broken ? errBlock('Clients', broken) : clients(y, list));
+  // ---------- the Sheet's year against each project (the check runs on the server) ----------
+  function runCheck(y, banner, line) {
+    var mine = turn;
+    if (!checks[y]) checks[y] = sb.rpc('report_check', { p_year: y }).then(function (r) { if (r.error) throw r.error; return r.data; });
+    checks[y].then(function (c) {
+      if (mine !== turn || +ui.year.value !== y) return;
+      // no row for the year in the Keuangan tab: the figures already say so, and there is nothing to check against
+      if (!c || !c.sheet) return;
+      if (c.matches) { A.add(line, [I('check'), h('span', { text: 'Matches the Keuangan tab, checked ' + A.ago(c.checked_at) })]); line.hidden = false; return; }
+      A.add(banner, [I('alert'), h('span', {}, h('b', { text: 'The project list and the Sheet differ.' }), ' ' + diffText(c.diffs || []))]);
+      banner.hidden = false;
+    }, function (e) {
+      if (checks[y]) delete checks[y];
+      if (mine !== turn || +ui.year.value !== y) return;
+      A.add(line, [I('alert'), h('span', { text: 'Couldn’t check the year against each project. ' + E.ecoError(e) })]);
+      line.hidden = false;
+    });
   }
-  var errBlock = function (title, e) { return block(title, null, h('p', { class: 'eco-err', text: E.ecoError(e) })); };
-
-  function checkLine(y, box) {
-    sb.rpc('report_check', { p_year: y }).then(function (r) {
-      if (r.error) throw r.error;
-      var c = r.data;
-      if (!c) { box.textContent = ''; return; }
-      if (!c.sheet) { box.textContent = 'Nothing to check against: the Sheet\u2019s Keuangan tab has no row for ' + y + '.'; return; }
-      if (c.matches) { box.textContent = 'Matches the Sheet\u2019s Keuangan tab \u00b7 checked ' + A.ago(c.checked_at); return; }
-      var many = c.diffs.length > 1;
-      box.className = 'eco-note eco-warn';
-      box.textContent = 'Differs from the Sheet ' + c.diffs.map(diffText).join(', ') + '; the Sheet\u2019s figure' + (many ? 's are the right ones.' : ' is the right one.');
-    }).catch(function (e) { box.className = 'eco-note eco-err'; box.textContent = 'Couldn\u2019t check against each project. ' + E.ecoError(e); });
-  }
-  function diffText(d) {
-    var a = E.n(d.admin), s = E.n(d.sheet);
-    if (s == null) return 'in ' + FIELD[d.field] + ' (the Sheet has no figure)';
-    if (d.field === 'projects') return 'in ' + FIELD.projects + ' (' + a + ' here, ' + s + ' in the Sheet)';
-    return 'by ' + E.rp(Math.abs(a - s)) + ' in ' + FIELD[d.field];
+  // "11 projects here, 10 in the Keuangan tab. Omset is off by Rp 24.000.000 and cost by Rp 26.500.000. The Sheet's figures are the right ones."
+  function diffText(diffs) {
+    var out = [], off = [], none = [], right = 0;
+    diffs.forEach(function (d) {
+      var a = E.n(d.admin) || 0, s = E.n(d.sheet);
+      if (d.field === 'projects') {
+        if (s == null) out.push('The Keuangan tab has no project count.');
+        else { out.push(E.plural(a, 'project') + ' here, ' + s + ' in the Keuangan tab.'); right++; }
+        return;
+      }
+      if (!FIELD[d.field]) return;
+      if (s == null) { none.push(FIELD[d.field]); return; }
+      right++;
+      off.push((off.length ? FIELD[d.field] + ' by ' : cap(FIELD[d.field]) + ' is off by ') + E.rp(Math.abs(a - s)));
+    });
+    if (off.length) out.push(join(off) + '.');
+    if (none.length) out.push('The Keuangan tab has no figure for ' + join(none) + '.');
+    if (right) out.push(right > 1 ? 'The Sheet’s figures are the right ones.' : 'The Sheet’s figure is the right one.');
+    return out.join(' ');
   }
 
-  // the Sheet's own month table for its year, as it stands
-  var MKEYS = ['projects', 'omset', 'cost', 'profit', 'margin', 'money_in', 'receivable', 'operational', 'net_profit'];
-  var MHEAD = ['Month', ['Projects', 'num'], ['Omset', 'num'], ['Cost', 'num'], ['Profit', 'num'], ['Margin', 'num'], ['Money in', 'num'],
-    ['To collect', 'num'], ['Operational', 'num'], ['Net profit', 'num']];
-  function sheetMonths(y, ku) {
-    var line = function (label, m) {
-      return still(h('tr', { class: zero(MKEYS.map(function (k) { return m[k]; })) ? 'is-zero' : null },
-        h('td', {}, label),
-        cell(m.projects, 'hide-s'), cell(m.omset), cell(m.cost, 'hide-s'), cell(m.profit, 'hide-s'), cell(m.margin, 'hide-s', E.pct),
-        cell(m.money_in, 'hide-s'), cell(m.receivable, 'hide-s'), cell(m.operational, 'hide-s'), cell(m.net_profit, 'hide-s'),
-        h('td', { class: 'only-s' }, ['Cost ' + E.num(m.cost), 'Profit ' + E.num(m.profit), 'Net profit ' + E.num(m.net_profit)].join(' \u00b7 '))));
-    };
-    var rows = ku.months.map(function (m) { return line(m.label || monthName(m.month), m); });
-    if (ku.total) rows.push(line('Total', ku.total));
-    return block('Months', csvBtn(function () {
-      E.csv('ccc-report-' + y + '-months', MHEAD.map(function (c) { return Array.isArray(c) ? c[0] : c; }),
-        ku.months.map(function (m) { return [m.label || monthName(m.month)].concat(MKEYS.map(function (k) { return m[k]; })); })
-          .concat(ku.total ? [['Total'].concat(MKEYS.map(function (k) { return ku.total[k]; }))] : []));
-    }), table(E.thead(MHEAD), rows), h('p', { class: 'eco-note', text: 'As the Keuangan tab shows it.' }));
+  // ---------- the four figures ----------
+  function tile(icon, label, v, sub) {
+    var x = E.n(v);
+    return h('article', { class: 'tile' },
+      h('p', { class: 'k' }, I(icon), h('span', { text: label })),
+      h('p', { class: 'v' + (x == null ? ' soft' : x < 0 ? ' neg' : ''), text: x == null ? 'Not in the Sheet' : E.rp(x) }),
+      sub ? h('p', { class: 'c', text: sub }) : null);
   }
-  // other years: the Sheet keeps no month table, so each project's Omset, Cost and Profit is added up by its quote month
-  function summedMonths(y, list) {
-    var by = {}, bare = 0;
+  function tiles(y) {
+    if (got.values.e) return h('section', { class: 'card', 'aria-label': 'The year' }, fail(got.values.e));
+    var ku = val('keuangan');
+    if (!ku) return h('p', { class: 'note' }, I('sheet'), h('span', { text: 'The Sheet’s Keuangan tab hasn’t been read yet.' }));
+    // the Sheet's own year has every figure; earlier years keep a row each in the tab's year table
+    var here = E.n(ku.year) === y;
+    var row = here ? ku : (Array.isArray(ku.years) ? ku.years : []).filter(function (r) { return r && E.n(r.year) === y; })[0];
+    if (!row) return h('p', { class: 'note' }, I('sheet'), h('span', { text: 'The Keuangan tab has no figures for ' + y + '.' }));
+    var sub = function (label, v, fmt) { return E.n(v) == null ? null : label + ' ' + (fmt || E.rp)(v); };
+    return h('section', { class: 'tiles', 'aria-label': 'The year' },
+      tile('trend', 'Omset ' + y, row.omset, sub('Money in', row.money_in)),
+      tile('out', 'Cost', row.cost, here ? sub('Operational', ku.operational) : null),
+      tile('wallet', 'Profit', row.profit, sub('Margin', E.margin(row.profit, row.omset, row.margin), E.pct)),
+      tile('check', 'Net profit', row.net_profit, here ? sub('To collect', ku.receivable_all) : null));
+  }
+
+  // ---------- omset and cost by month: the Sheet's month table for its year, summed from the projects for others ----------
+  // three steps of 1, 2, 2.5 or 5 times a power of ten that clear the highest month
+  function niceStep(top) {
+    var raw = top / 3, p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), f = raw / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+  }
+  var axis = function (v) { return !v ? '0' : v >= 1e9 ? AX.format(v / 1e9) + 'B' : v >= 1e6 ? AX.format(v / 1e6) + 'M' : v >= 1e3 ? AX.format(v / 1e3) + 'K' : AX.format(v); };
+  function months(y, list, here) {
+    var out = [], ku = val('keuangan'), k, noCost = 0, bare = 0;
+    for (k = 1; k <= 12; k++) out.push({ k: k, n: 0 });
+    if (here) {
+      ku.months.forEach(function (m) {
+        var b = m && out[E.n(m.month) - 1];
+        if (!b) return;
+        b.n = 1; b.omset = E.n(m.omset); b.cost = E.n(m.cost); b.profit = E.n(m.profit); b.net = E.n(m.net_profit);
+      });
+      return { list: out, total: ku.total || null };
+    }
     list.forEach(function (p) {
-      var m = got.money.v[p.id], k = +p.quote_date.slice(5, 7), b = by[k] = by[k] || { projects: 0 };
-      b.projects++;
-      if (!m) { bare++; return; }
+      var b = out[+(p.quote_date || '').slice(5, 7) - 1], m = got.money.v[p.id];
+      if (!b) return;
+      b.n++;
+      if (!m || E.n(m.revenue) == null) { bare++; return; }
+      if (E.n(m.cost) == null) noCost++;
       plus(b, 'omset', m.revenue); plus(b, 'cost', m.cost); plus(b, 'profit', m.profit);
     });
-    var head = ['Month', ['Projects', 'num'], ['Omset', 'num'], ['Cost', 'num'], ['Profit', 'num']], rows = [], out = [];
-    for (var k = 1; k <= 12; k++) {
-      var b = by[k] || { projects: 0, omset: 0, cost: 0, profit: 0 };
-      out.push([monthName(k), b.projects, b.omset, b.cost, b.profit]);
-      rows.push(still(h('tr', { class: b.projects ? null : 'is-zero' }, h('td', {}, monthName(k)), cell(b.projects, 'hide-s'), cell(b.omset),
-        cell(b.cost, 'hide-s'), cell(b.profit, 'hide-s'),
-        h('td', { class: 'only-s' }, [E.plural(b.projects, 'project'), b.cost == null ? null : 'Cost ' + E.num(b.cost),
-          b.profit == null ? null : 'Profit ' + E.num(b.profit)].filter(Boolean).join(' \u00b7 ')))));
+    // a month with no projects really had nothing; one whose projects have no figures yet stays blank
+    out.forEach(function (b) {
+      if (!b.n) { b.omset = 0; b.cost = 0; b.profit = 0; }
+      ['omset', 'cost', 'profit'].forEach(function (f) { if (b[f] === undefined) b[f] = null; });
+    });
+    return { list: out, total: null, noCost: noCost, bare: bare };
+  }
+  function chart(y, list, broken) {
+    var ku = val('keuangan'), here = !!ku && E.n(ku.year) === y && Array.isArray(ku.months);
+    var sec = card('Omset and cost by month', null, 'rchart');
+    if (!here && broken) { sec.appendChild(fail(broken)); return sec; }
+    var data = months(y, list, here), ms = data.list;
+    var top = Math.max.apply(null, ms.map(function (b) { return Math.max(b.omset || 0, b.cost || 0); }));
+    if (!(top > 0)) {
+      sec.appendChild(empty(here ? 'The Keuangan tab has no omset or cost for ' + y + ' yet.'
+        : list.length ? 'The projects of ' + y + ' have no figures in the Sheet yet.' : 'No Deal or Lunas projects with a quote dated ' + y + '.'));
+      return sec;
     }
-    return block('Months', list.length ? csvBtn(function () { E.csv('ccc-report-' + y + '-months', head.map(function (c) { return Array.isArray(c) ? c[0] : c; }), out); }) : null,
-      list.length ? table(E.thead(head), rows) : h('p', { class: 'adm-note', text: 'No Deal or Lunas projects with a quote dated ' + y + '.' }),
-      list.length ? h('p', { class: 'eco-note', text: 'Summed from each project in the Sheet, by the month of its quote.'
-        + (bare ? ' ' + E.plural(bare, 'project has', 'projects have') + ' no figures in the Sheet yet.' : '') }) : null);
-  }
-
-  // ---------- each project that year, sortable ----------
-  var PCOLS = [{ k: 'name', t: 'Project' }, { k: 'client', t: 'Client' }, { k: 'date', t: 'Quote date' }, { k: 'omset', t: 'Omset', cls: 'num' },
-    { k: 'cost', t: 'Cost', cls: 'num' }, { k: 'profit', t: 'Profit', cls: 'num' }, { k: 'margin', t: 'Margin', cls: 'num' }];
-  function sortValue(p, k) {
-    var m = got.money.v[p.id] || {};
-    return k === 'name' ? E.short(p).toLowerCase() : k === 'client' ? E.words(p.client_label) : k === 'date' ? p.quote_date || ''
-      : k === 'margin' ? E.margin(m.profit, m.revenue, m.margin) : E.n(m[k === 'omset' ? 'revenue' : k]);
-  }
-  function projects(y, list) {
-    var s = ui.sort, wrap = h('div');
-    var paint = function () {
-      var sorted = list.slice().sort(function (a, b) {
-        var x = sortValue(a, s.k), z = sortValue(b, s.k);
-        if (x == null || x === '') return z == null || z === '' ? 0 : 1;
-        if (z == null || z === '') return -1;
-        return (x < z ? -1 : x > z ? 1 : 0) * s.dir || (b.seq || 0) - (a.seq || 0);
-      });
-      var head = h('thead', {}, h('tr', {}, PCOLS.map(function (c) {
-        return h('th', { class: c.cls || null, 'aria-sort': s.k === c.k ? (s.dir > 0 ? 'ascending' : 'descending') : null },
-          h('button', { class: 'eco-sort', type: 'button', onclick: function () {
-            s.dir = s.k === c.k ? -s.dir : c.cls ? -1 : 1; s.k = c.k; paint();
-          } }, c.t));
-      })));
-      var tot = {};
-      var rows = sorted.map(function (p) {
-        var m = got.money.v[p.id];
-        if (m) { plus(tot, 'omset', m.revenue); plus(tot, 'cost', m.cost); plus(tot, 'profit', m.profit); }
-        var none = function (cls) { return h('td', { class: 'num ' + cls }, E.quiet('Not in the Sheet')); };
-        return h('tr', { onclick: function () { location.hash = '#projects/' + p.id; } },
-          h('td', {}, E.short(p), p.title ? h('span', { class: 'sub', text: p.title }) : null),
-          h('td', { class: 'hide-s' }, p.client_label || ''),
-          h('td', { class: 'hide-s' }, E.day(p.quote_date)),
-          m ? cell(m.revenue, 'hide-s') : none('hide-s'), m ? cell(m.cost, 'hide-s') : none('hide-s'), m ? cell(m.profit) : none(''),
-          m ? cell(E.margin(m.profit, m.revenue, m.margin), 'hide-s', E.pct) : none('hide-s'),
-          h('td', { class: 'only-s' }, m ? ['Omset ' + E.num(m.revenue), 'Cost ' + E.num(m.cost), 'margin ' + E.pct(E.margin(m.profit, m.revenue, m.margin))].join(' \u00b7 ') : 'Not in the Sheet'));
-      });
-      wrap.innerHTML = '';
-      var noCost = list.filter(function (p) { var m = got.money.v[p.id]; return !m || E.n(m.cost) == null; }).length;
-      A.add(wrap, [table(head, rows), h('p', { class: 'eco-note', text: [E.plural(list.length, 'project'),
-        tot.omset == null ? null : 'Omset ' + E.rp(tot.omset), tot.cost == null ? null : 'Cost ' + E.rp(tot.cost),
-        tot.profit == null ? null : 'Profit ' + E.rp(tot.profit)].filter(Boolean).join(' \u00b7 ')
-        + (noCost ? '. ' + E.plural(noCost, 'project has', 'projects have') + ' no cost figures in the Sheet yet, so ' + (noCost === 1 ? 'its' : 'their')
-          + ' Cost, Profit and Margin are blank.' : '') })]);
+    var step = niceStep(top), max = step * 3;
+    var size = function (el, v) { el.style.height = (Math.max(0, v) / max * 100).toFixed(2) + '%'; return el; };
+    var at = function (el, i) { el.style.bottom = (i * 100 / 3).toFixed(2) + '%'; return el; };
+    var rpOr = function (v) { return v == null ? 'not in the Sheet yet' : E.rp(v); };
+    var plot = h('div', { class: 'plot' }, [1, 2, 3].map(function (i) { return at(h('span', { class: 'gl' }), i); }), ms.map(function (b) {
+      var m = h('div', { class: 'm' });
+      if (!(b.omset > 0) && !(b.cost > 0)) return m;
+      if (b.omset > 0) m.appendChild(size(h('i', { class: 'om' }), b.omset));
+      if (b.cost > 0) m.appendChild(size(h('i', { class: 'co' }), b.cost));
+      var text = 'Omset ' + rpOr(b.omset) + ', cost ' + rpOr(b.cost);
+      m.setAttribute('role', 'img');
+      m.setAttribute('aria-label', monthName(b.k) + ': ' + text.charAt(0).toLowerCase() + text.slice(1));
+      return E.tip(m, monthName(b.k) + ' ' + y, text, true);
+    }));
+    var fig = h('figure', { class: 'mchart', 'aria-label': 'Omset and cost by month in ' + y + '. The table view lists every month.' },
+      h('div', { class: 'yax', 'aria-hidden': 'true' }, [0, 1, 2, 3].map(function (i) { return at(h('span', { text: axis(step * i) }), i); })),
+      plot, h('div', { class: 'xax', 'aria-hidden': 'true' }, SHORT.map(function (s) { return h('span', { text: s }); })));
+    var chartView = h('div', {}, h('ul', { class: 'legend' }, h('li', {}, h('i', { class: 'sw om' }), 'Omset'), h('li', {}, h('i', { class: 'sw co' }), 'Cost')), fig);
+    var tableView = h('div', {}, h('div', { class: 'scrollx' }, monthTable(ms, here, data.total)));
+    var tabs = h('div', { class: 'tabs', role: 'group', 'aria-label': 'View' });
+    var show = function () {
+      chartView.hidden = view !== 'chart'; tableView.hidden = view !== 'table';
+      A.$$('button', tabs).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === view)); });
     };
-    if (list.length) paint();
-    return block('Projects', list.length ? csvBtn(function () {
-      E.csv('ccc-report-' + y + '-projects', ['Project', 'Title', 'Client', 'Quote date', 'Status', 'Omset', 'Cost', 'Profit', 'Margin'],
-        list.map(function (p) { var m = got.money.v[p.id] || {}; return [E.short(p), p.title, p.client_label, p.quote_date, p.status, m.revenue, m.cost, m.profit, m.margin]; }));
-    }) : null, list.length ? wrap : h('p', { class: 'adm-note', text: 'No Deal or Lunas projects with a quote dated ' + y + '.' }));
+    [['chart', 'Chart'], ['table', 'Table']].forEach(function (v) {
+      tabs.appendChild(h('button', { type: 'button', 'data-v': v[0], onclick: function () { view = v[0]; show(); } }, v[1]));
+    });
+    A.$('.card-h', sec).appendChild(tabs);
+    show();
+    var seen = here && got.values.v.keuangan ? got.values.v.keuangan.seen_at : null;
+    var meta = val('meta'), seed = meta && meta.version === 'seed';
+    var src = here ? (seed ? 'From a snapshot of the Keuangan tab' : 'From the Keuangan tab') + (seen ? ', read ' + E.stamp(seen) : '')
+      : 'Summed from each project in the Sheet, by the month of its quote.'
+        + (data.bare ? ' ' + E.plural(data.bare, 'project has', 'projects have') + ' no figures yet.' : '')
+        + (data.noCost ? ' ' + E.plural(data.noCost, 'project has', 'projects have') + ' no cost yet.' : '');
+    A.add(sec, [chartView, tableView, note(here ? 'sheet' : null, src)]);
+    return sec;
+  }
+  function monthTable(ms, here, total) {
+    var cols = [['omset', 'Omset'], ['cost', 'Cost'], ['profit', 'Profit']].concat(here ? [['net', 'Net profit']] : []);
+    // a month's 0 is greyed so the months with money stand out; the total row stays plain
+    var td = function (v, foot) { var x = E.n(v); return h('td', { class: 'num' + (x === 0 && !foot ? ' muted' : x < 0 ? ' neg' : ''), text: E.num(x) }); };
+    var sum = {};
+    ms.forEach(function (b) { cols.forEach(function (c) { plus(sum, c[0], b[c[0]]); }); });
+    // the Sheet's own total row for its year; otherwise the months added up
+    var tot = here && total ? { omset: total.omset, cost: total.cost, profit: total.profit, net: total.net_profit } : sum;
+    return h('table', { class: 'tbl compact mtab' },
+      h('thead', {}, h('tr', {}, h('th', { text: 'Month' }), cols.map(function (c) { return h('th', { class: 'num', text: c[1] }); }))),
+      h('tbody', {}, ms.map(function (b) { return h('tr', {}, h('td', { text: monthName(b.k) }), cols.map(function (c) { return td(b[c[0]]); })); })),
+      h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), cols.map(function (c) { return td(tot[c[0]], true); }))));
   }
 
-  // ---------- clients that year ----------
-  function clients(y, list) {
+  // ---------- leads that came in that year (owners and admins) ----------
+  function leadsCard(y) {
+    var sec = card('Leads in ' + y);
+    if (got.leads.e) { sec.appendChild(fail(got.leads.e)); return sec; }
+    var list = got.leads.v.filter(function (l) { return leadYear(l) === String(y) && l.status !== 'spam'; });
+    if (!list.length) { sec.appendChild(empty('No leads in ' + y + '.')); return sec; }
+    var src = {}, mon = {}, won = 0, lost = 0, order = Object.keys(E.SOURCES);
+    list.forEach(function (l) {
+      var s = l.source || 'other', k = +(E.jkt(l.created_at) || '').slice(5, 7);
+      src[s] = (src[s] || 0) + 1;
+      if (k) mon[k] = (mon[k] || 0) + 1;
+      if (l.status === 'won') won++;
+      if (l.status === 'lost') lost++;
+    });
+    var rank = function (s) { var i = order.indexOf(s); return i < 0 ? order.length : i; };
+    var bars = function (rows) {
+      var most = Math.max.apply(null, rows.map(function (r) { return r[1]; }));
+      return h('div', { class: 'hbars lbl' }, rows.map(function (r) {
+        var bar = h('i', { class: 'in' });
+        bar.style.width = (r[1] / most * 100).toFixed(1) + '%';
+        return h('div', { class: 'hb' }, h('span', { text: r[0], title: r[0] }), h('div', { class: 'tr' }, bar), h('b', { text: String(r[1]) }));
+      }));
+    };
+    var stat = function (label, v) { return h('div', {}, h('span', { text: label }), h('b', { text: String(v) })); };
+    A.add(sec, [
+      h('div', { class: 'stats3' }, stat('Leads', list.length), stat('Won', won), stat('Lost', lost)),
+      h('h3', { class: 'mini', text: 'By source' }),
+      bars(Object.keys(src).sort(function (a, b) { return src[b] - src[a] || rank(a) - rank(b) || a.localeCompare(b); })
+        .map(function (s) { return [E.SOURCES[s] || s, src[s]]; })),
+      h('h3', { class: 'mini', text: 'By month' }),
+      bars(Object.keys(mon).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return [monthName(k), mon[k]]; })),
+      note(null, 'Counted by the month each lead came in. Spam is left out.')]);
+    return sec;
+  }
+
+  // ---------- each project that year ----------
+  function projectsCard(y, list, broken) {
+    var sec = card('Projects', broken ? null : h('span', { class: 'aside', text: E.plural(list.length, 'project') }));
+    var line = h('p', { class: 'src', hidden: true });
+    if (broken) { sec.appendChild(fail(broken)); return { el: sec, line: line }; }
+    if (!list.length) { A.add(sec, [empty('No Deal or Lunas projects with a quote dated ' + y + '.'), line]); return { el: sec, line: line }; }
+    var num = function (v, label, fmt) { var x = E.n(v); return h('td', { class: 'num' + (x < 0 ? ' neg' : ''), 'data-l': label, text: (fmt || E.num)(x) }); };
+    var tot = {}, noCost = 0, noFig = 0;
+    var rows = list.map(function (p) {
+      var m = got.money.v[p.id] || {}, om = E.n(m.revenue), co = E.n(m.cost), cells;
+      plus(tot, 'omset', om); plus(tot, 'cost', co); plus(tot, 'profit', m.profit);
+      if (om == null) { noFig++; cells = [h('td', { class: 'nc', text: 'No figures yet' }), h('td'), h('td'), h('td')]; }
+      else if (co == null) { noCost++; cells = [num(om, 'Omset'), h('td', { class: 'nc', text: 'No cost yet' }), h('td'), h('td')]; }
+      else cells = [num(om, 'Omset'), num(co, 'Cost'), num(m.profit, 'Profit'), num(E.margin(m.profit, m.revenue, m.margin), 'Margin', E.pct)];
+      return h('tr', {}, h('td', {}, h('div', { class: 'pj' }, h('span', { class: 'av', 'aria-hidden': 'true', text: E.initial(p.client_label || E.clientName(p)) }),
+        h('div', {}, h('b', {}, h('a', { href: '#projects/' + p.id, text: E.short(p) })), p.title ? h('span', { text: p.title }) : null))), cells);
+    });
+    var notes = [];
+    if (noCost) notes.push(E.plural(noCost, 'project has', 'projects have') + ' no cost in the Sheet yet, so ' + (noCost === 1 ? 'its' : 'their') + ' profit and margin stay blank.');
+    if (noFig) notes.push(E.plural(noFig, 'project has', 'projects have') + ' no figures in the Sheet yet.');
+    A.add(sec, [h('table', { class: 'tbl rep' },
+      h('thead', {}, h('tr', {}, h('th', { text: 'Project' }), ['Omset', 'Cost', 'Profit', 'Margin'].map(function (t) { return h('th', { class: 'num', text: t }); }))),
+      h('tbody', {}, rows),
+      h('tfoot', {}, h('tr', {}, h('td', { text: E.plural(list.length, 'project') }), num(tot.omset, 'Omset'), num(tot.cost, 'Cost'), num(tot.profit, 'Profit'), h('td')))),
+      notes.length ? note(null, notes.join(' ')) : null, line]);
+    return { el: sec, line: line };
+  }
+
+  // ---------- clients that year, by omset ----------
+  function clientsCard(y, list, broken) {
+    if (broken) return h('div', { hidden: true });
     var names = {}, groups = {}, order = [];
     (got.clients.v || []).forEach(function (c) { names[c.id] = c.name || c.code; });
     list.forEach(function (p) {
-      var key = p.client_id || 'label:' + (p.client_label || ''), m = got.money.v[p.id] || {};
-      var g = groups[key];
-      if (!g) { g = groups[key] = { id: p.client_id, name: names[p.client_id] || p.client_label || 'No client', projects: 0 }; order.push(g); }
-      g.projects++; plus(g, 'omset', m.revenue); plus(g, 'profit', m.profit);
+      var key = p.client_id || 'label:' + E.words(p.client_label), m = got.money.v[p.id] || {}, g = groups[key];
+      if (!g) { g = groups[key] = { id: p.client_id, name: names[p.client_id] || p.client_label || 'No client', n: 0, all: true }; order.push(g); }
+      g.n++; plus(g, 'omset', m.revenue); plus(g, 'profit', m.profit);
+      if (E.n(m.profit) == null) g.all = false;
     });
-    order.sort(function (a, b) { return (b.omset || 0) - (a.omset || 0) || E.words(a.name).localeCompare(E.words(b.name)); });
-    var head = ['Client', ['Projects', 'num'], ['Omset', 'num'], ['Profit', 'num']];
-    var rows = order.map(function (g) {
-      var tr = h('tr', { onclick: g.id ? function () { location.hash = '#clients/' + g.id; } : null },
-        h('td', {}, g.name), cell(g.projects, 'hide-s'), cell(g.omset, 'hide-s'), cell(g.profit),
-        h('td', { class: 'only-s' }, E.plural(g.projects, 'project') + (g.omset == null ? '' : ' \u00b7 Omset ' + E.num(g.omset))));
-      return g.id ? tr : still(tr);
-    });
-    return block('Clients', order.length ? csvBtn(function () {
-      E.csv('ccc-report-' + y + '-clients', ['Client', 'Projects', 'Omset', 'Profit'], order.map(function (g) { return [g.name, g.projects, g.omset, g.profit]; }));
-    }) : null, order.length ? table(E.thead(head), rows) : h('p', { class: 'adm-note', text: 'No clients with Deal or Lunas projects in ' + y + '.' }));
+    var sec = card('Clients by omset', order.length ? h('span', { class: 'aside', text: E.plural(order.length, 'client') }) : null);
+    if (!order.length) { sec.appendChild(empty('No clients with Deal or Lunas projects in ' + y + '.')); return sec; }
+    order.sort(function (a, b) { return (b.omset == null ? -1 : b.omset) - (a.omset == null ? -1 : a.omset) || E.words(a.name).localeCompare(E.words(b.name)); });
+    var most = Math.max.apply(null, order.map(function (g) { return g.omset || 0; }));
+    sec.appendChild(h('ul', { class: 'cbars' }, order.map(function (g) {
+      var bar = null;
+      if (g.omset > 0 && most > 0) { bar = h('i'); bar.style.width = (g.omset / most * 100).toFixed(1) + '%'; }
+      // the profit only when every project of the client has one, so a part never passes for the whole
+      var sub = g.all ? h('span', { class: 'sub' }, E.plural(g.n, 'project') + ', profit ', h('span', { class: g.profit < 0 ? 'neg' : null, text: E.rp(g.profit) }))
+        : g.n > 1 ? h('span', { class: 'sub', text: E.plural(g.n, 'project') }) : null;
+      return h('li', {}, h('b', {}, g.id ? h('a', { href: '#clients/' + g.id, text: g.name }) : g.name),
+        g.omset == null ? h('span', { class: 'amt soft', text: 'No figures yet' }) : h('span', { class: 'amt', text: E.rp(g.omset) }),
+        h('span', { class: 'tr' }, bar), sub);
+    })));
+    return sec;
   }
 
-  // ---------- the lead pipeline (owners and admins) ----------
-  function pipeline(y) {
-    if (got.leads.e) return errBlock('Pipeline', got.leads.e);
-    var now = E.today(), last = +now.slice(0, 4) === y ? +now.slice(5, 7) : 12;
-    var leads = got.leads.v.filter(function (l) { return leadYear(l) === String(y) && l.status !== 'spam'; });
-    if (!leads.length) return block('Pipeline', null, h('p', { class: 'adm-note', text: 'No leads in ' + y + '.' }));
-    var seen = {};
-    leads.forEach(function (l) { seen[l.source || 'other'] = true; });
-    var srcs = Object.keys(E.SOURCES).filter(function (s) { return seen[s]; })
-      .concat(Object.keys(seen).filter(function (s) { return !E.SOURCES[s]; }).sort());
-    var name = function (s) { return E.SOURCES[s] || s; };
-    var by = {}, tot = { all: 0, won: 0, lost: 0, src: {} };
-    leads.forEach(function (l) {
-      var k = +(E.jkt(l.created_at) || '').slice(5, 7), b = by[k] = by[k] || { all: 0, won: 0, lost: 0, src: {} }, s = l.source || 'other';
-      [b, tot].forEach(function (x) { x.all++; x.src[s] = (x.src[s] || 0) + 1; if (l.status === 'won') x.won++; if (l.status === 'lost') x.lost++; });
-    });
-    var rate = function (b) { return b.won + b.lost ? E.pct(b.won / (b.won + b.lost)) : ''; };
-    var line = function (label, b) {
-      return still(h('tr', { class: b.all ? null : 'is-zero' }, h('td', {}, label), cell(b.all),
-        srcs.map(function (s) { return cell(b.src[s] || 0, 'hide-s'); }), cell(b.won, 'hide-s'), cell(b.lost, 'hide-s'),
-        h('td', { class: 'num hide-s' }, rate(b)),
-        h('td', { class: 'only-s' }, srcs.filter(function (s) { return b.src[s]; }).map(function (s) { return name(s) + ' ' + b.src[s]; })
-          .concat(b.all ? ['won ' + b.won, 'lost ' + b.lost] : [], rate(b) ? ['win rate ' + rate(b)] : []).join(' \u00b7 '))));
-    };
-    var rows = [], out = [];
-    for (var k = 1; k <= last; k++) {
-      var b = by[k] || { all: 0, won: 0, lost: 0, src: {} };
-      rows.push(line(monthName(k), b));
-      out.push([monthName(k), b.all].concat(srcs.map(function (s) { return b.src[s] || 0; }), [b.won, b.lost]));
-    }
-    rows.push(line('Total', tot));
-    var head = ['Month', ['Leads', 'num']].concat(srcs.map(function (s) { return [name(s), 'num']; }), [['Won', 'num'], ['Lost', 'num'], ['Win rate', 'num']]);
-    return block('Pipeline', csvBtn(function () {
-      E.csv('ccc-report-' + y + '-pipeline', ['Month', 'Leads'].concat(srcs.map(name), ['Won', 'Lost']), out);
-    }), table(E.thead(head), rows),
-      h('p', { class: 'eco-note', text: 'Counted by the month each lead came in. Spam is left out. Win rate is won out of won and lost.' }));
+  // the year's projects with their figures, for a spreadsheet
+  function exportYear() {
+    var y = +ui.year.value;
+    if (!got || !ui.list.length) return;
+    E.csv('ccc-report-' + y + '-projects', ['Project', 'Title', 'Client', 'Quote date', 'Status', 'Omset', 'Cost', 'Profit', 'Margin'],
+      ui.list.map(function (p) {
+        var m = got.money.v[p.id] || {};
+        return [E.short(p), p.title, p.client_label, p.quote_date, p.status, m.revenue, m.cost, m.profit, E.margin(m.profit, m.revenue, m.margin)];
+      }));
   }
 
   A.loaders.reports = function () {
     build();
-    var my = ++loading;
-    ui.body.innerHTML = '';
-    ui.body.appendChild(h('p', { class: 'eco-wait', text: 'Loading\u2026' }));
-    Promise.all([E.settle(E.data.values()), E.settle(E.data.projects()), E.settle(E.data.money()), E.settle(E.data.clients()),
-      A.canEdit() ? E.settle(E.rows(sb.from('lead_inbox').select('id, created_at, source, status').order('created_at', { ascending: false }).limit(5000)))
-        : Promise.resolve({ v: [] })
-    ]).then(function (r) {
-      if (my !== loading) return;
+    var mine = ++turn;
+    checks = {};
+    // a first visit waits; a return keeps the last report on screen until the new one is in
+    if (!got) { panel.innerHTML = ''; panel.appendChild(empty('Loading reports…')); }
+    Promise.all([E.data.values(), E.data.projects(), E.data.money(), E.data.clients(),
+      A.canEdit() ? E.rows(sb.from('lead_inbox').select('id, created_at, source, status').order('created_at', { ascending: false }).limit(5000)) : Promise.resolve([])
+    ].map(E.settle)).then(function (r) {
+      if (mine !== turn) return;
       got = { values: r[0], projects: r[1], money: r[2], clients: r[3], leads: r[4] };
       fillYears(); draw();
     });
+  };
+  // the year for everyone who opens Reports; the export for money access (it holds each project's figures)
+  A.actions.reports = function () {
+    build();
+    return [ui.year, A.canMoney() ? ui.csv : null];
   };
 })();

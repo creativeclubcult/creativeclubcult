@@ -1,0 +1,136 @@
+/* The client's invoice page (/pay): the public site's type and colours (styles.css) on a page of its own, with no
+   page transitions and no menu. Phone first; the bill and the way to pay sit side by side from 900px. */
+@font-face {
+  font-family: 'Heros'; font-style: normal; font-weight: 400 500; font-display: swap;
+  src: url('/fonts/heros-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Heros'; font-style: normal; font-weight: 600 800; font-display: swap;
+  src: url('/fonts/heros-bold.woff2') format('woff2');
+}
+
+:root {
+  --bg: #05070C;
+  --ink: #EAEDF1;
+  --graphite: rgba(234, 237, 241, 0.62);  /* secondary text: 6.8:1 on the page */
+  --edge: rgba(234, 237, 241, 0.5);       /* borders of what you press or type in: 4.7:1 */
+  --line: rgba(234, 237, 241, 0.14);      /* hairlines between rows */
+  --error: #E5484D;                       /* 5.2:1 */
+  --pad: clamp(16px, 2.6vw, 40px);
+  --pill: 1440px;
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  min-height: 100vh; min-height: 100svh;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--ink);
+  font-family: 'Heros', Helvetica, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px; line-height: 1.45; letter-spacing: -0.018em;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+::selection { background: var(--ink); color: var(--bg); }
+a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--edge); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+button { font: inherit; color: inherit; letter-spacing: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.pay-head { padding: 16px var(--pad); }
+.brand { text-decoration: none; white-space: nowrap; }
+.brand sup { font-size: 0.5em; vertical-align: 0.9em; margin-left: 1px; }
+
+.pay {
+  flex: 1; width: 100%; max-width: 1200px;
+  padding: clamp(40px, 7vw, 96px) var(--pad) clamp(56px, 8vw, 112px);
+}
+
+/* ---------- type ---------- */
+.pay-title { font-size: clamp(26px, 2.4vw, 34px); font-weight: 400; line-height: 1.2; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.pay-h2 { font-size: 20px; font-weight: 400; line-height: 1.3; }
+.pay-sub { color: var(--graphite); max-width: 36rem; overflow-wrap: anywhere; }
+.pay-label { font-size: 12px; line-height: 1.4; text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); }
+.pay-amount { font-size: clamp(44px, 5.4vw, 76px); line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* ---------- loading, a dead link, no connection ---------- */
+.pay-msg { max-width: 36rem; display: grid; gap: 16px; justify-items: start; }
+.pay-msg .btn { margin-top: 8px; }
+
+/* ---------- the bill and the way to pay ---------- */
+.pay-grid { display: grid; gap: 56px; }
+@media (min-width: 900px) {
+  .pay-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: clamp(56px, 7vw, 120px); align-items: start; }
+  .pay-grid.is-single { grid-template-columns: minmax(0, 40rem); }
+}
+.pay-sum, .pay-act { display: grid; gap: 40px; align-content: start; min-width: 0; }
+.pay-intro { display: grid; gap: 8px; }
+.pay-owed { display: grid; gap: 10px; }
+.pay-part { display: grid; gap: 16px; }
+
+.pay-rows { border-bottom: 1px solid var(--line); }
+.pay-row {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: center;
+  min-height: 52px; padding: 12px 0; border-top: 1px solid var(--line);
+}
+.pay-row dt { color: var(--graphite); }
+.pay-row dd { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
+
+/* a small pill; the ::after makes the target 44px tall */
+.copy {
+  position: relative; flex: none;
+  padding: 6px 12px; border: 1px solid var(--edge); border-radius: var(--pill); background: transparent;
+  font-size: 12px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer;
+  transition: border-color .2s, background-color .2s, color .2s;
+}
+.copy::after { content: ''; position: absolute; inset: -8px -6px; }
+.copy:hover { border-color: var(--ink); }
+.copy.is-done { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+/* ---------- "Sudah transfer?" ---------- */
+.pay-form { display: grid; gap: 20px; justify-items: start; }
+.field { display: grid; gap: 8px; width: 100%; max-width: 36rem; }
+.field label { font-size: 12px; line-height: 1.4; text-transform: uppercase; letter-spacing: 0.02em; color: var(--graphite); }
+.field .opt { text-transform: none; letter-spacing: 0; }
+.field textarea {
+  width: 100%; min-height: 96px; resize: vertical; padding: 10px 0 10px;
+  background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--edge); border-radius: 0;
+  font: inherit; letter-spacing: inherit;
+}
+/* focus: the underline doubles and turns white */
+.field textarea:focus { outline: none; border-bottom: 2px solid var(--ink); padding-bottom: 9px; }
+.pay-hint { font-size: 14px; color: var(--graphite); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 12px 28px; border: 0; border-radius: var(--pill);
+  background: var(--ink); color: var(--bg); font-size: 16px; line-height: 1.25; cursor: pointer;
+  transition: opacity .2s;
+}
+.btn:hover { opacity: 0.86; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--edge); }
+.btn.ghost:hover { opacity: 1; box-shadow: inset 0 0 0 1px var(--ink); }
+@media (max-width: 599px) { .pay-form .btn { width: 100%; } }
+
+.pay-status { min-height: 1.45em; font-size: 14px; color: var(--graphite); }
+.pay-status.is-error { color: var(--error); }
+.pay-done { max-width: 36rem; }
+
+/* ---------- footer ---------- */
+.pay-foot { display: grid; gap: 4px; padding: 20px var(--pad) 28px; border-top: 1px solid var(--line); font-size: 14px; color: var(--graphite); }
+
+/* read out, not seen */
+.pay-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.pay-copybox { position: fixed; top: 0; left: -9999px; opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* a client's finance team may print it or save it as a PDF */
+@media print {
+  :root { --bg: #fff; --ink: #000; --graphite: #444; --edge: #777; --line: #ccc; }
+  .copy, .pay-form, .btn { display: none !important; }
+  .pay { padding-top: 24px; }
+  .pay-grid { grid-template-columns: 1fr 1fr; }
+}

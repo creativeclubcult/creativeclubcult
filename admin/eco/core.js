@@ -5,6 +5,7 @@
    so; it never turns into 0. */
 (function () {
   'use strict';
+  if (!window.cccAdmin) return; // admin.js stopped early: the sign in library didn't load
   var A = window.cccAdmin, sb = A.sb, h = A.h, $$ = A.$$;
 
   // ---------- numbers ----------
@@ -46,8 +47,8 @@
   // how long something has been waiting: "12 min", "5 h", "3 days"
   var waited = function (t) {
     var m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000));
-    if (m < 60) return m + ' min';
-    if (m < 1440) return Math.round(m / 60) + ' h';
+    if (m < 60) return plural(m, 'minute');
+    if (m < 1440) return plural(Math.round(m / 60), 'hour');
     return plural(Math.floor(m / 1440), 'day');
   };
 
@@ -57,11 +58,11 @@
   var ACTIVE = ['Brief', 'Draft', 'Dikirim', 'Deal'];
   var isActive = function (p) { return p.sheet_state !== 'removed' && !p.archived_at && ACTIVE.indexOf(phase(p)) > -1; };
   var planClient = function (p) { var c = p.plan_client; return c && typeof c === 'object' && c.name ? String(c.name) : null; };
-  // "011 ACME": the RAB number and the client; "011 ACME · Photoshoot Campaign" in full
+  // "011 ACME": the RAB number and the client; "011 ACME, Photoshoot Campaign" in full
   var short = function (p) { return p.sheet_state === 'none' ? (planClient(p) || 'New client') : (pad3(p.seq) + ' ' + (p.client_label || '')).trim(); };
   var pname = function (p) {
     var t = p.sheet_state === 'none' ? p.plan_title : (p.title || p.tab_name);
-    return [short(p), t].filter(Boolean).join(' \u00b7 ');
+    return [short(p), t].filter(Boolean).join(', ');
   };
   var PILL = { Brief: 'is-off is-brief', Draft: 'is-off', Dikirim: 'is-sent', Deal: 'is-open', Lunas: 'is-live', Batal: 'is-arch', Telat: 'is-err' };
   var pill = function (t) { return t ? h('span', { class: 'adm-pill ' + (PILL[t] || ''), text: t }) : null; };
@@ -130,33 +131,132 @@
       return urgency(a, money[a.id], td) - urgency(b, money[b.id], td) || (b.seq == null ? 1e6 : b.seq) - (a.seq == null ? 1e6 : a.seq);
     });
   };
+  // "Sat 7 Nov", "Sat 7 to Sun 8 Nov" (the same month this year, as the mockup has it), "Mon 30 Nov to Tue 1 Dec"
   var shootText = function (p) {
-    if (!p.shoot_date) return '';
-    return when(p.shoot_date) + (p.shoot_end && p.shoot_end !== p.shoot_date ? ' to ' + when(p.shoot_end) : '');
+    var a = p.shoot_date, b = p.shoot_end, x = ymd(a), y = ymd(b);
+    if (!a) return '';
+    if (!b || b === a) return when(a);
+    if (x && y && thisYear(a) && thisYear(b) && x[1] === y[1]) return WD[new Date(utc(x)).getUTCDay()] + ' ' + x[2] + ' to ' + when(b);
+    return when(a) + ' to ' + when(b);
   };
   var quiet = function (t) { return h('span', { class: 'muted', text: t }); };
-  // one project as a table row (Overview and Projects): title, phase, shoot, total and outstanding (money), next step
-  function projectRow(p, m, x, onOpen) {
-    var ph = phase(p), money = A.canMoney();
-    var tag = p.sheet_state === 'removed' ? 'Removed from the Sheet' : p.layout === 'v1' ? 'Old layout' : null;
-    var total = null, owe = null;
-    if (money) {
-      total = !m ? quiet(p.sheet_state === 'none' ? 'No RAB yet' : 'Not in the Sheet') : m.grand_total == null ? quiet('Not in the RAB') : rp(m.grand_total);
-      owe = (ph === 'Deal' || ph === 'Lunas') && m && m.outstanding != null
-        ? (ph === 'Lunas' && n(m.outstanding) === 0 ? quiet('Paid') : rp(m.outstanding))
-        : quiet(ph === 'Batal' ? '' : 'Not billed yet');
-    }
-    return h('tr', { onclick: onOpen },
-      h('td', {}, pname(p), tag ? h('span', { class: 'sub', text: tag }) : null),
-      h('td', { class: 'hide-s' }, pill(ph)),
-      h('td', { class: 'hide-s' }, p.shoot_date ? shootText(p) : quiet('Not set')),
-      money ? h('td', { class: 'num' }, total) : null,
-      money ? h('td', { class: 'num hide-s' }, owe) : null,
-      h('td', { class: 'l2' }, h('span', { class: 'show-s', text: ph + ' \u00b7 ' }), nextStep(p, m, x)));
-  }
-  var projectCols = function () {
-    return ['Project', 'Phase', 'Shoot'].concat(A.canMoney() ? [['Total', 'num'], ['Outstanding', 'num']] : [], ['Next step']);
+
+  // ---------- the mockup's pieces, shared by the Overview, Projects and the Calendar ----------
+  var addDays = function (s, k) { var p = ymd(s); return p ? new Date(utc(p) + k * 864e5).toISOString().slice(0, 10) : null; };
+  // who a project is for, and its own line under that: "Movana" over "013 SAMPLE Launch Film"
+  var clientName = function (p) { return p.sheet_state === 'none' ? (planClient(p) || 'New client') : (p.client_label || 'No client'); };
+  var projectLine = function (p) {
+    if (p.sheet_state === 'none') return p.plan_title || 'Brief';
+    return [pad3(p.seq), p.title || p.tab_name].filter(Boolean).join(' ');
   };
+  var initial = function (s) { var c = String(s || '').trim().charAt(0); return c ? c.toUpperCase() : '?'; };
+  // a Sheet status as the mockup's pill (the words stay the Sheet's own)
+  var STAGE = { Brief: 'brief', Draft: 'draft', Dikirim: 'sent', Deal: 'deal', Lunas: 'paid', Batal: 'off', Telat: 'late' };
+  var stage = function (t) { return t ? h('span', { class: 'pill ' + (STAGE[t] || 'off'), text: t }) : null; };
+  // leads still in play (a quote sent counts)
+  var OPEN_LEAD = ['new', 'replied', 'in progress', 'quoted'];
+
+  // a short note on hover or focus, for marks that carry a figure (bar segments, calendar days)
+  var tipBox = null;
+  var hideTip = function () { if (tipBox) tipBox.hidden = true; };
+  // Escape puts it away, and so does leaving the page it belongs to
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(); });
+  window.addEventListener('hashchange', hideTip);
+  // tap: a tap shows the note too (on a phone a tap is also a click), for marks that do nothing else when pressed
+  function tip(el, title, text, tap) {
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    var show = function () {
+      if (!tipBox) { tipBox = h('div', { class: 'tip', role: 'tooltip', hidden: true }); document.body.appendChild(tipBox); }
+      tipBox.innerHTML = '';
+      A.add(tipBox, [h('b', { text: title }), text ? h('span', { text: text }) : null]);
+      tipBox.hidden = false;
+      var r = el.getBoundingClientRect(), w = tipBox.offsetWidth, ht = tipBox.offsetHeight;
+      tipBox.style.left = Math.round(Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8)) + 'px';
+      tipBox.style.top = Math.round(r.top - ht - 8 < 8 ? r.bottom + 8 : r.top - ht - 8) + 'px';
+    };
+    el.addEventListener('mouseenter', show); el.addEventListener('focus', show);
+    el.addEventListener('mouseleave', hideTip); el.addEventListener('blur', hideTip); el.addEventListener('click', tap ? show : hideTip);
+    return el;
+  }
+
+  // What happens on which day (the Overview's week and the Calendar): shoots (a span of days), final files due,
+  // payments due (only with money access: money is {} otherwise) and lead follow ups (only owners and admins
+  // read leads). Each: { type, start, end, title, sub, href, late, crew, pid }, and tent on a shoot whose quote isn't a
+  // Deal yet (pencilled in, not confirmed).
+  var EVENT = {
+    shoot: { label: 'Shoot', icon: 'camera' }, deliver: { label: 'Files due', icon: 'send' },
+    pay: { label: 'Payment due', icon: 'in' }, follow: { label: 'Follow up', icon: 'chat' }
+  };
+  function events(projects, money, leads) {
+    var out = [], td = today();
+    (projects || []).forEach(function (p) {
+      if (p.sheet_state === 'removed' || p.archived_at) return;
+      var ph = phase(p), who = clientName(p), href = '#projects/' + p.id, crew = (p.crew_names || []).filter(Boolean);
+      // a shoot stays on the calendar once paid (a client can pay in full before the shoot); only a cancelled one goes
+      if (ph !== 'Batal' && p.shoot_date) {
+        out.push({ type: 'shoot', start: p.shoot_date, end: p.shoot_end && p.shoot_end > p.shoot_date ? p.shoot_end : p.shoot_date,
+          title: who, sub: projectLine(p), href: href, crew: crew, pid: p.id, tent: ph === 'Brief' || ph === 'Draft' || ph === 'Dikirim' });
+      }
+      if (p.deliver_by && !p.final_file_date && ph !== 'Batal') {
+        out.push({ type: 'deliver', start: p.deliver_by, end: p.deliver_by, title: who, sub: 'Final files for ' + projectLine(p), href: href,
+          late: p.deliver_by < td, crew: crew, pid: p.id });
+      }
+      var m = money && money[p.id];
+      if (m && p.payment_due && n(m.outstanding) > 0 && (ph === 'Deal' || ph === 'Lunas')) {
+        out.push({ type: 'pay', start: p.payment_due, end: p.payment_due, title: who, sub: rp(m.outstanding) + ' for ' + projectLine(p), href: href,
+          late: m.pay_status === 'Telat' || p.payment_due < td, crew: [], pid: p.id });
+      }
+    });
+    (leads || []).forEach(function (l) {
+      if (!l.next_step_on || OPEN_LEAD.indexOf(l.status) < 0) return;
+      out.push({ type: 'follow', start: l.next_step_on, end: l.next_step_on, title: l.name, sub: l.next_step || 'Follow up', href: '#leads/' + l.id,
+        late: l.next_step_on < td, crew: [] });
+    });
+    return out.sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : (a.type < b.type ? -1 : 1); });
+  }
+
+  // one project as a row of the mockup's table (Overview, Projects); on phones it becomes a card
+  var cardCols = function () {
+    var money = A.canMoney();
+    return [['Project'], ['Stage'], ['Shoot']].concat(money ? [['Value', 'num'], ['Paid']] : [], [['Next step'], ['', 'go']]);
+  };
+  function cardHead() {
+    return h('thead', {}, h('tr', {}, cardCols().map(function (c) {
+      return h('th', { class: c[1] || null }, c[0] ? c[0] : h('span', { class: 'sr', text: 'Open' }));
+    })));
+  }
+  function paidCell(p, m) {
+    var ph = phase(p), total = m ? n(m.grand_total) : null;
+    if (!(ph === 'Deal' || ph === 'Lunas') || !m || !(total > 0)) return h('td', { class: 'c-pg muted', text: ph === 'Batal' ? '' : 'Not billed yet' });
+    var paid = Math.max(0, Math.min(total, n(m.paid_total) || 0)), owe = n(m.outstanding), late = m.pay_status === 'Telat' && owe > 0;
+    if (owe === 0) return h('td', { class: 'c-pg' }, h('span', { class: 'paidok' }, A.icon('check'), 'Paid in full'));
+    var share = Math.round(paid / total * 100);
+    var bar = h('div', { class: 'tr' }, h('i', { class: 'is-paid' }), late ? h('i', { class: 'is-late' }) : null);
+    bar.firstChild.style.width = share + '%';
+    if (late) bar.lastChild.style.width = Math.min(100 - share, Math.round(owe / total * 100)) + '%';
+    var right = late ? h('span', { class: 'late', text: rp(owe) + ' late' })
+      : owe > 0 ? h('span', { text: rp(owe) + (p.payment_due ? ' due ' + day(p.payment_due, { year: false }) : ' to collect') })
+      : owe === 0 ? h('span', { text: 'Paid in full' }) : null;
+    return h('td', { class: 'c-pg' }, h('div', { class: 'prog' }, bar, h('div', { class: 'l' }, h('span', { text: share + '% paid' }), right)));
+  }
+  // open: the project's address (the name becomes its link, and the link covers the row) or a function to run on a click
+  function projectCard(p, m, x, open) {
+    var ph = phase(p), money = A.canMoney(), who = clientName(p), href = typeof open === 'string' ? open : null;
+    var tag = p.sheet_state === 'removed' ? 'Removed from the Sheet' : null;
+    var value = null;
+    if (money) {
+      value = !m ? h('td', { class: 'num c-val muted', text: p.sheet_state === 'none' ? 'No RAB yet' : 'Not in the Sheet' })
+        : m.grand_total == null ? h('td', { class: 'num c-val muted', text: 'Not in the RAB' }) : h('td', { class: 'num c-val', text: rp(m.grand_total) });
+    }
+    return h('tr', { 'data-s': ph, 'data-href': href, onclick: href ? null : open },
+      h('td', { class: 'c-pj' }, h('div', { class: 'pj' }, h('span', { class: 'av', 'aria-hidden': 'true', text: initial(who) }),
+        h('div', {}, h('b', {}, href ? h('a', { href: href, text: who }) : who), h('span', { text: tag ? projectLine(p) + ', ' + tag : projectLine(p) })))),
+      h('td', { class: 'c-st' }, stage(ph)),
+      h('td', { class: 'c-sh' + (p.shoot_date ? '' : ' muted'), text: p.shoot_date ? shootText(p) : 'Not set' }),
+      value, money ? paidCell(p, m) : null,
+      h('td', { class: 'next c-nx', text: nextStep(p, m, x) }),
+      h('td', { class: 'go' }, A.icon('chev', 's')));
+  }
 
   // ---------- data (one load per kind, shared by everything on the page for 30 seconds) ----------
   var cache = {};
@@ -208,13 +308,16 @@
   // ---------- the Sheet connection, in the sidebar footer (§3.12) ----------
   function sheetState(f) {
     var s = (f && f.sheet) || {};
-    if (!s.connected) return { text: 'Sheet not connected', cls: '' };
-    if (s.status === 'error' || f.failed > 0) return { text: 'Sheet sync stopped \u00b7 details', cls: 'is-err' };
-    if (f.conflicts > 0) return { text: 'Sheet \u00b7 ' + plural(f.conflicts, 'change') + (f.conflicts === 1 ? ' needs' : ' need') + ' a look', cls: 'is-ink' };
-    if (f.waiting > 0) return { text: 'Sheet \u00b7 ' + plural(f.waiting, 'change') + ' waiting', cls: 'is-ink' };
-    if (s.pull_enabled === false) return { text: 'Sheet \u00b7 sync paused', cls: '' };
-    if (s.writes_enabled === false) return { text: 'Sheet \u00b7 read only', cls: '' };
-    return { text: 'Sheet \u00b7 synced ' + (s.last_success_at ? A.ago(s.last_success_at) : 'not yet'), cls: '' };
+    // text: the sidebar line; short: the same without the word Sheet (Settings puts its own label in front)
+    var st = function (short, cls, text) { return { text: text || 'Sheet ' + short, short: short, cls: cls || '' }; };
+    if (!s.connected) return st('not connected');
+    if (s.status === 'error' || f.failed > 0) return st('sync stopped', 'is-err');
+    var need = f.conflicts === 1 ? ' needs a look' : ' need a look';
+    if (f.conflicts > 0) return st(plural(f.conflicts, 'change') + need, 'is-ink', plural(f.conflicts, 'Sheet change') + need);
+    if (f.waiting > 0) return st(plural(f.waiting, 'change') + ' waiting', 'is-ink', plural(f.waiting, 'Sheet change') + ' waiting');
+    if (s.pull_enabled === false) return st('sync paused');
+    if (s.writes_enabled === false) return st('read only', '', 'Sheet is read only');
+    return s.last_success_at ? st('synced ' + A.ago(s.last_success_at), 'is-ok') : st('not synced yet');
   }
   function paintSheet(f) {
     var st = f ? sheetState(f) : { text: 'Couldn\u2019t check the Sheet', cls: 'is-err' };
@@ -238,7 +341,7 @@
   function fromSheet(values, at) {
     var meta = values && values.meta && values.meta.value;
     var seed = meta && meta.version === 'seed';
-    return (seed ? 'From a one-time copy of the Sheet' : 'From the Sheet') + (at ? ' \u00b7 read ' + stamp(at) : '');
+    return (seed ? 'From a snapshot of the Sheet' : 'From the Sheet') + (at ? ', read ' + stamp(at) : '');
   }
 
   // ---------- writing to the Sheet (sheets-write checks the role, money access and every value again) ----------
@@ -266,7 +369,7 @@
   function writeText(r) {
     if (r.status === 200) return 'Saved to the Sheet.';
     if (r.status === 202) return 'The Sheet is busy. The change is queued and goes in by itself.';
-    if (r.body.conflict) return 'Not saved: this changed in the Sheet meanwhile. Close, reload and try again.';
+    if (r.body.conflict) return 'Not saved: this changed in the Sheet meanwhile. Reload the page to see it, then try again.';
     return r.body.error || 'Not saved. Try again.';
   }
   // after a write, a pull brings the Sheet's own totals (Kas, Rekap) up to date; a busy or failed pull is left for the next one
@@ -321,11 +424,12 @@
   var dayOf = function (el) { return el.value || null; };
   /* A form whose values live in the Sheet. Each field remembers what it showed and the Sheet's value behind it, so
      only what changed is sent, with the old value as `expect`: the Sheet refuses the change when that cell changed
-     meanwhile. o = {label, op, args(set, expect), check(set) → '' or a problem, done(answer)} */
+     meanwhile. o = {label, op, args(set, expect), check(set) → '' or a problem, done(answer), look}; look 'mock' (or
+     'mock sm' for the small button) draws the bar the way the mockup's pages do */
   function sheetForm(o) {
-    var fields = [], send = writer();
-    var msg = h('span', { class: 'eco-saved', role: 'status' });
-    var btn = h('button', { class: 'eco-btn is-primary', type: 'button' }, o.label);
+    var fields = [], send = writer(), mock = /^mock/.test(o.look || '');
+    var msg = h('span', { class: mock ? 'fmsg' : 'eco-saved', role: 'status' });
+    var btn = h('button', { class: mock ? 'btn lime' + (/\bsm\b/.test(o.look) ? ' sm' : '') : 'eco-btn is-primary', type: 'button' }, o.label);
     var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
     var busy = function (on) { btn.disabled = on; fields.forEach(function (x) { x.el.disabled = on; }); };
     btn.addEventListener('click', function () {
@@ -348,7 +452,7 @@
         return el;
       },
       dirty: function () { return fields.some(function (x) { return !same(x.read(x.el), x.was); }); },
-      bar: h('div', { class: 'eco-formbar' }, msg, btn)
+      bar: mock ? h('div', { class: 'formacts' }, btn, msg) : h('div', { class: 'eco-formbar' }, msg, btn)
     };
   }
 
@@ -361,6 +465,8 @@
     var msg = (e && (e.message || e.error_description)) || '';
     var code = e && e.code;
     if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return 'Couldn\u2019t reach the database. Check the connection and reload.';
+    // a server function the browser couldn't reach (supabase-js words the failed request its own way)
+    if ((e && e.name === 'FunctionsFetchError') || /Failed to send a request/i.test(msg)) return 'Couldn\u2019t reach the admin. Check the connection and try again.';
     if (code === 'PGRST301' || /JWT|token/i.test(msg)) return 'Your session has ended. Sign in again.';
     if (code === '42501' || /permission denied|row-level security/i.test(msg)) return 'Your account isn\u2019t allowed to do this.';
     if (code === '23514') return 'One of the values isn\u2019t allowed here. Check the fields and try again.';
@@ -402,6 +508,40 @@
     });
     return dl;
   };
+  // the mockup's drawer parts: a head (a mark such as an avatar or a client code, the name, a line under it, small tags),
+  // sections with a plain heading and an optional control on its right, and label and value rows
+  var dhead = function (mark, title, sub, tags) {
+    return h('div', { class: 'dr-head' }, mark, h('div', { class: 't' }, h('h2', { text: title }), sub ? h('p', { text: sub }) : null,
+      tags && tags.length ? h('ul', { class: 'metas' }, tags.map(function (t) {
+        // a tag is its text, or [colour, text] for one that marks a state (amber: no longer in the Sheet)
+        return Array.isArray(t) ? h('li', { class: 'tag ' + t[0] }, t[1]) : h('li', { class: 'tag' }, t);
+      })) : null));
+  };
+  // what the crew is still owed, as Finance and Crew & Vendors both put it: the Kas entries not paid yet (Keluar and
+  // Belum), how many there are, and who the oldest is for and how long it has waited. kas is null when it couldn't be loaded
+  function crewOwed(kas) {
+    var unpaid = kas ? kas.filter(function (k) { return k.kind === 'Keluar' && k.paid === 'Belum'; }) : null;
+    var old = unpaid && unpaid.slice().sort(function (a, b) { return (a.entry_date || '9').localeCompare(b.entry_date || '9'); })[0];
+    var since = old && old.entry_date ? days(old.entry_date, today()) : null;
+    var sub = !unpaid ? 'The Kas entries couldn\u2019t be loaded' : !unpaid.length ? 'Nothing unpaid'
+      : unpaid.length === 1 ? [old.counterparty || old.description || old.category, since != null ? plural(since, 'day') : null].filter(Boolean).join(', ')
+      : old.entry_date ? 'The oldest from ' + day(old.entry_date, { year: false }) : plural(unpaid.length, 'entry', 'entries');
+    return { unpaid: unpaid, sub: sub, tag: unpaid && unpaid.length ? h('span', { class: 'tag amber', text: unpaid.length + ' unpaid' }) : null };
+  }
+  var dsec = function (title, right) {
+    // a control beside the heading stays out of it, so the heading reads as its title alone
+    var s = h('section', { class: 'sec' }, right ? h('div', { class: 'sec-hd' }, h('h3', { text: title }), right) : h('h3', { text: title }));
+    for (var i = 2; i < arguments.length; i++) A.add(s, arguments[i]);
+    return s;
+  };
+  var props = function (pairs) {
+    var dl = h('dl', { class: 'props' });
+    pairs.forEach(function (p) {
+      if (!p || p[1] == null || p[1] === '') return;
+      dl.appendChild(h('dt', { text: p[0] })); dl.appendChild(h('dd', {}, p[1]));
+    });
+    return dl;
+  };
   // segmented control; onPick(value) runs when the choice changes (without it, the control only shows the value)
   var seg = function (opts, current, onPick, attrs) {
     var box = h('div', Object.assign({ class: 'eco-seg', role: 'group' }, attrs || {}));
@@ -412,6 +552,15 @@
       } : null }, o[1]));
     });
     return box;
+  };
+  // a document made for a project, as the mockup lists it (its number, its kind and day); it opens in Google Drive
+  var DOC_KIND = { penawaran: 'Penawaran', invoice: 'Invoice', kwitansi: 'Kwitansi', contract: 'Contract', brief: 'Brief', other: 'Other' };
+  var docItem = function (x, more) {
+    var u = A.safeUrl(x.url), kind = DOC_KIND[x.kind] || x.kind || 'Document';
+    var kids = [h('span', { class: 'nic' }, A.icon('docs', 's')),
+      h('div', {}, h('b', { text: x.doc_no || x.title || kind }), h('span', { text: [kind, more, shortStamp(x.file_created_at || x.created_at)].filter(Boolean).join(', ') })),
+      u ? A.icon('ext', 's') : null];
+    return h('li', {}, u ? h('a', { class: 'doc', href: u, target: '_blank', rel: 'noopener noreferrer' }, kids) : h('div', { class: 'doc' }, kids));
   };
   var ext = function (href, text) { var u = A.safeUrl(href); return u ? h('a', { href: u, target: '_blank', rel: 'noopener noreferrer', text: text }) : text; };
   var wa = function (phone) { var d = String(phone || '').replace(/[^\d]/g, '').replace(/^0/, '62'); return d.length >= 8 ? 'https://wa.me/' + d : null; };
@@ -459,12 +608,14 @@
     n: n, rp: rp, num: num, pct: pct, margin: margin, plural: plural, clip: clip,
     day: day, jkt: jkt, today: today, days: days, stamp: stamp, shortStamp: shortStamp, when: when, waited: waited,
     pad3: pad3, phase: phase, isActive: isActive, short: short, pname: pname, pill: pill, nextStep: nextStep, stepContext: stepContext,
-    byUrgency: byUrgency, shootText: shootText, projectRow: projectRow, projectCols: projectCols,
+    byUrgency: byUrgency, shootText: shootText,
     data: data, forget: forget, rows: rows, settle: settle, sheetState: sheetState, paintSheet: paintSheet, sheetUrl: sheetUrl, fromSheet: fromSheet,
     uuid: uuid, sheetWrite: sheetWrite, writeText: writeText, pullSoon: pullSoon, writer: writer, writesOn: writesOn, frozen: frozen,
     rupiah: rupiah, amount: amount, amountInput: amountInput, share: share, shareInput: shareInput, isoDay: isoDay, dayOf: dayOf, sheetForm: sheetForm,
     SOURCES: SOURCES, isId: isId, ecoError: ecoError, failed: failed, fullRow: fullRow, waitRow: waitRow, errRow: errRow, thead: thead,
-    fig: fig, money: money, quiet: quiet, section: section, kv: kv, seg: seg, ext: ext, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
-    setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search
+    fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
+    setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search,
+    addDays: addDays, clientName: clientName, projectLine: projectLine, initial: initial, stage: stage, OPEN_LEAD: OPEN_LEAD, tip: tip,
+    EVENT: EVENT, events: events, cardHead: cardHead, projectCard: projectCard
   };
 })();

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src https://zneckeqsvwbavqxpolri.supabase.co https://jvhhcehzhgpcphtpynnx.supabase.co; base-uri 'none'; form-action 'none'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="theme-color" content="#05070C" />
+  <title>Tagihan dari Creative Club Cult</title>
+  <!-- the preview a chat app shows for the link: nothing private, the token after the # never reaches it -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Creative Club Cult" />
+  <meta property="og:title" content="Tagihan dari Creative Club Cult" />
+  <meta property="og:description" content="Rincian tagihan dan cara pembayarannya." />
+  <meta property="og:image" content="https://creativeclubcult.com/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="preload" href="/fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/pay/pay.css" />
+  <script src="/pay/pay.js" defer></script>
+</head>
+<body>
+  <header class="pay-head"><a class="brand" href="/">Creative Club Cult<sup>©</sup></a></header>
+
+  <main class="pay" id="main" aria-busy="true">
+    <section class="pay-msg" id="msg" role="status">
+      <h1 class="pay-title" id="msg-title">Memuat tagihan…</h1>
+      <p class="pay-sub" id="msg-text" hidden></p>
+      <button class="btn ghost" id="retry" type="button" hidden>Coba lagi</button>
+    </section>
+
+    <div class="pay-grid" id="bill" hidden>
+      <section class="pay-sum" aria-labelledby="bill-title">
+        <div class="pay-intro">
+          <h1 class="pay-title" id="bill-title"></h1>
+          <p class="pay-sub" id="bill-what" hidden></p>
+        </div>
+
+        <div class="pay-owed">
+          <p class="pay-label" id="owed-label"></p>
+          <p class="pay-amount" id="owed"></p>
+          <p class="pay-sub" id="owed-note" hidden></p>
+        </div>
+
+        <dl class="pay-rows">
+          <div class="pay-row" id="row-doc" hidden><dt>Nomor invoice</dt><dd id="doc"></dd></div>
+          <div class="pay-row" id="row-due" hidden><dt>Jatuh tempo</dt><dd id="due"></dd></div>
+          <div class="pay-row" id="row-total" hidden><dt>Total tagihan</dt><dd id="total"></dd></div>
+          <div class="pay-row" id="row-paid" hidden><dt>Sudah dibayar</dt><dd id="paid"></dd></div>
+        </dl>
+      </section>
+
+      <div class="pay-act" id="act">
+        <section class="pay-part" aria-labelledby="bank-title">
+          <h2 class="pay-h2" id="bank-title">Transfer ke</h2>
+          <dl class="pay-rows" id="bank-rows" hidden>
+            <div class="pay-row"><dt>Bank</dt><dd id="bank-name"></dd></div>
+            <div class="pay-row"><dt>Nomor rekening</dt><dd><span id="bank-no"></span><button class="copy" id="copy-no" type="button" aria-label="Salin nomor rekening">Salin</button></dd></div>
+            <div class="pay-row"><dt>Atas nama</dt><dd id="bank-holder"></dd></div>
+            <div class="pay-row" id="row-amount"><dt>Jumlah</dt><dd><span id="bank-amount"></span><button class="copy" id="copy-amount" type="button" aria-label="Salin jumlah transfer">Salin</button></dd></div>
+          </dl>
+          <p class="pay-sub" id="bank-note" hidden></p>
+          <p class="pay-sub" id="bank-none" hidden></p>
+        </section>
+
+        <section class="pay-part" aria-labelledby="confirm-title">
+          <h2 class="pay-h2" id="confirm-title">Sudah transfer?</h2>
+          <div class="pay-form" id="confirm-form">
+            <p class="pay-sub">Tekan tombol di bawah supaya tim kami langsung mengecek.</p>
+            <div class="field">
+              <label for="note">Catatan <span class="opt">(opsional)</span></label>
+              <textarea id="note" maxlength="300" rows="3" aria-describedby="note-hint"></textarea>
+              <p class="pay-hint" id="note-hint">Misalnya nama pengirim, kalau transfer dari rekening lain.</p>
+            </div>
+            <button class="btn" id="paid-btn" type="button">Saya sudah transfer</button>
+            <p class="pay-status" id="paid-status" role="status"></p>
+          </div>
+          <p class="pay-done" id="confirm-done" tabindex="-1" hidden></p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="pay-foot">
+    <p>Ada pertanyaan? Kirim email ke <a href="mailto:hello@creativeclubcult.com">hello@creativeclubcult.com</a></p>
+    <p id="expiry" hidden></p>
+  </footer>
+  <p class="pay-sr" id="live" aria-live="polite"></p>
+</body>
+</html>
