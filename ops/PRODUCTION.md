@@ -113,9 +113,34 @@ Release: `site` and `main` at `6da90b2` (the previous `main` is `6dd7712`; the o
 
 At the owner's choice, 010 row 99 was put back to Sony FE 24-70mm F2.8 GM II Lens (BSM) at the locked 300.000 through the fixed form (one op, only the item written). The Sheet row is the original again (vendor BSM, 29 Okt 26), Equipment is 1.953.600 again with PPN BSM, and `project_money` followed. Afterwards: 15 ops all `done`, 0 open sync issues.
 
+## Admin v3: redesign, leads board, calendar, collections and invoice links, 2026-11-07
+
+The owner asked for the admin to follow the first mockup, and for next steps on leads, a Leads board, a shoot calendar, collections by age with a WhatsApp reminder, search with quick actions, and a private invoice link for clients. The link is the half version: no payment gateway, which needs a merchant account first. Built and checked on DEV and the local harness (`Work CCC/eco-design/PLAN_V3.md`, Delivery Gate in `Work CCC/eco-design/DELIVERY_GATE_2026-11-06.md`), committed as `56dd5af`.
+
+Rollout on PROD, approved by the owner in chat ("gass naik kelive dan lanjut 4 langkah"), done on 2026-11-06 between 18:01 and 18:06 UTC (01:01 to 01:06 WIB on 2026-11-07):
+
+| # | Step | Check | Rollback |
+| --- | --- | --- | --- |
+| 1 | PROD database: `20261106_followups_paylinks.sql` (all five sections in one file), applied as `followups_paylinks`. Before it: nothing named `pay_*` existed, every table, column and helper it uses was there, `lead_follows_project()` was the one in `20261104_admin_ecosystem.sql` (same hash), and the 12 function bodies in the file had DEV's hashes. | One fingerprint of everything it adds or replaces (function bodies with settings and grants, the view, constraints, RLS and table grants, column grants, policies, indexes, triggers, the cron job, comments) equals DEV's; advisors; the publishable key is refused | after rows 3 and 2: the two blocks at the top of the file. Dropping `pay_links` and `pay_settings` deletes the links and bank details made since, so that is the owner's call |
+| 2 | Push `admin-ecosystem`, then functions `pay-link` and `pay-page` from `56dd5af` (verify_jwt off) | the function files raw.githubusercontent.com serves at that commit equal the commit; CORS for the site only; 405, 400, 401 and 404 answers | delete the two functions |
+| 3 | Release: `site` and `main` to `56dd5af` (Vercel) | live files byte for byte the commit's; the `/pay` headers; every admin page signed in as the owner | push `6da90b2` to `main` and `site` again, or Vercel's instant rollback to `dpl_9aZvxitdDwN8d8A3JdPgdeGzBDfg` |
+
+Status:
+
+1. Applied at 18:01 UTC (version `20261106180130`). PROD and DEV give the same fingerprint (`05dcfbdc…`), part by part. The security advisors add one note, the intended "no policy" on `private.pay_hits` (like the sign in tables); the leaked password WARN is the Auth setting it was before. With the publishable key, `pay_settings`, `pay_links` and `lead_inbox` answer 401, and `pay_page_view` and `pay_link_create` answer "permission denied for function". `pay-housekeeping` runs at minute 29 of every hour.
+2. `admin-ecosystem` pushed at `56dd5af`; both functions deployed at 18:04 UTC (version 1). The 11 function files GitHub serves at that commit equal the commit. `pay-link` without a sign in, or with a fake token, answers 401. `pay-page` answers 204 with CORS for `https://creativeclubcult.com` and without it for another site, 405 for GET, 400 for an unknown action, 404 for a malformed token without asking the database, and 404 for a well formed dead token through the database. That check and the browser check in step 3 left two dead link counts in `private.pay_hits`, which housekeeping drops after a day.
+3. `site` and `main` at `56dd5af` (Vercel production `dpl_9jwnHVxkJWZa8DV5FXF3CdzyXGby`, ready by 18:06 UTC; the previous `main` is `6da90b2`). Nothing outside `admin/`, `pay/`, `supabase/`, `ops/` and `vercel.json` changed, and the live `/`, `/admin` and `/pay` files are byte for byte the commit's. `/pay` sends its CSP, `no-store`, `no-referrer` and `noindex`; `/supabase/…`, `/Work CCC/…` and `/ops/…` answer 404. Signed in as the owner (the session already in the browser, reading only, no action clicked): all 14 admin pages load with no error, nothing left Loading, no sideways scroll at 1211 px and a clean console, and the Overview at 375 px as well. Finance reads the Sheet (to collect Rp 0: no invoice is at Deal, 10 are Lunas and 2 Draft), and Settings shows the empty Bank details card. `/pay` without a token says "Link ini tidak lengkap."; with a dead token, "Link ini sudah tidak berlaku." The home page loads with every file 200.
+
+Still open:
+
+- CCC's bank details: the owner types them in Settings, Bank details. Until then no link can be made (`no_bank`).
+- The first real link: from Finance, Collect, on an invoice at Deal that is still owed. Today there is none.
+- The payment gateway: not built; it needs a merchant account.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
 - If Google asks for access when the web app is deployed: click Allow (hello@).
 - After the release: sign in at creativeclubcult.com/admin once so the pages can be checked signed in.
 - Codes by email (done 2026-11-05): on hello@, create an App Password (myaccount.google.com/apppasswords; 2-Step Verification has to be on), save it as the function secret `GMAIL_APP_PASSWORD` in Supabase (Edge Functions, Secrets), then sign in at /admin once with the password and the emailed code. That turns codes on for everyone.
+- Invoice links (live since 2026-11-07): type CCC's bank details once in Settings, Bank details (bank, account number, account holder, a note in Indonesian). Then, on Finance, Collect makes a link for an invoice at Deal that is still owed, by email, WhatsApp or copy.

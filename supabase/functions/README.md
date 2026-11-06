@@ -57,14 +57,14 @@ A link to one invoice that the client opens without signing in: `<origin>/pay#<t
 - Not yet possible on DEV: making a link from the admin. That needs an origin written exactly in `admin_origins` (DEV lists wildcards only), CCC's bank details in Settings, and an invoice that is still owed. Email needs `GMAIL_APP_PASSWORD`.
 - Production never gets the DEV builds; see below.
 
-## PROD status (2026-11-05 21:05 UTC, project `zneckeqsvwbavqxpolri`)
+## PROD status (2026-11-06 18:06 UTC, project `zneckeqsvwbavqxpolri`)
 
 - All three are deployed from commit `6dd7712` of this repo (function version 5, since 20:58 UTC: the RAB line ops of M6 and the catalog read). Before that: `833c780`, then `071465e`, which keeps amounts out of write replies for people without money access, then `ba1f40e`, which adds the sign in code check; to roll M6 back, deploy the three from `ba1f40e` again. `team-access` stays deployed from `ba1f40e`. Each function is a one-line entry that imports `https://raw.githubusercontent.com/creativeclubcult/creativeclubcult/<commit>/supabase/functions/<name>/index.ts`; the bundle is built at deploy time, so the code that runs is this folder at that commit. To ship a change, push it, then deploy the same entry with the new commit hash. With the CLI installed, `supabase functions deploy <name> --project-ref zneckeqsvwbavqxpolri --no-verify-jwt` does the same from a checkout.
 - Paired with the live Sheet (env `prod`), whose web app runs Sync.gs 1.3.0 (deployment version 3 since 20:53 UTC; before that 1.2.1 as version 2). `admin_origins` is `https://creativeclubcult.com`.
 - `GMAIL_APP_PASSWORD` is set, and codes are on (`private.access_rules.two_step`) since 2026-11-05 10:46 UTC. What to do when email stops is in `ops/PRODUCTION.md`.
 - Reading and writing are on since 2026-11-05 16:09 UTC: `sheet_values.flags` has `pull_enabled` and `writes_enabled` true, and the live script's `SYNC_WRITES` is `on` (`ops/PRODUCTION.md`, step 9). To pause writing: `syncWritesOff` in the live script and `writes_enabled` false.
 - The pg_cron schedules are the same as on DEV.
-- `pay-link` and `pay-page` are not on PROD yet. Going live takes, each with its own yes: the migration `20261106_followups_paylinks.sql` (all sections, including the owed fix in section 5), the two functions from a pushed commit, and the site with `pay/` and the `/pay` headers in `vercel.json`. `admin_origins` already holds `https://creativeclubcult.com`, which is where the links will point.
+- `pay-link` and `pay-page` are deployed from commit `56dd5af` (function version 1, since 2026-11-06 18:04 UTC), as the same one-line entries. The database side is `20261106_followups_paylinks.sql`, applied as `followups_paylinks` with all five sections at once (18:01 UTC); its objects equal DEV's. `admin_origins` holds `https://creativeclubcult.com`, so links are `https://creativeclubcult.com/pay#<token>`. No link exists yet: CCC's bank details stay empty until the owner types them in Settings. Rollback, in order: `ops/PRODUCTION.md`, Admin v3.
 
 ## Tests
 
