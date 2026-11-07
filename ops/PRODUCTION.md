@@ -137,6 +137,20 @@ Still open:
 - The first real link: from Finance, Collect, on an invoice at Deal that is still owed. Today there is none.
 - The payment gateway: not built; it needs a merchant account.
 
+## Admin fixes from the tutorial videos, 2026-11-07
+
+Recording the admin tutorial videos showed three front end bugs in `56dd5af`. The owner approved the fix ("gas kerjain") and the release ("gas naikin ke live"). Commit `de0535c` changes only `admin/ui.css` and `admin/eco/core.js`: no database, function or Sheet change.
+
+- Overview, To collect: a KPI card under 380 px lists Paid, Overdue and Not due yet as rows, the amount on the right (a container query on `.kpis>.kpi`). Before, the three amounts ran into each other at 1280 px.
+- Needs you, Pay crew: `E.waited` counts a calendar day from the Sheet as whole days in Jakarta, as Oldest unpaid does. Before, it was a day short from 00:00 to 07:00 WIB.
+- Careers, Open roles: the Settings role tile rules are scoped to `div.roles`, so `table.tbl.roles` lays out as a table again. From 761 to 1280 px a role's title and summary wrap, so On the site stays inside the card.
+
+Checked before the release on the local harness with sample data: every page at 1280, 1024 and 390 px as owner, editor, viewer and money viewer, with no error and no sideways scroll; Pay crew equal to Oldest unpaid at 23:59, 00:00, 03:00, 06:59 and 07:00 WIB; the Settings tiles unchanged.
+
+Release: `admin-ecosystem`, `site` and `main` at `de0535c` (Vercel production `dpl_GNx9EWsNT7bKSWPZ7XWs6FHGTXyc`, ready at 01:38 UTC, 08:38 WIB; the previous `main` is `56dd5af`). The 19 files under `admin/` are live byte for byte (`index.html` as `/admin`), `ui.css` is still `no-store`, and the home page answers 200. Signed in as the owner (the session already in the browser, reading only, nothing clicked): the 13 admin pages load with no error, no sideways scroll and nothing past the edge at 1280, 1024 and 390 px, and the Settings tiles are the same 4 column grid. Today's data shows none of the three: To collect is Rp 0 (no invoice at Deal), nothing is owed to crew, and Careers has no open roles.
+
+Rollback: push `56dd5af` to `main` and `site` again, or Vercel's instant rollback to `dpl_9jwnHVxkJWZa8DV5FXF3CdzyXGby`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
