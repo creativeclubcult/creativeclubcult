@@ -151,6 +151,23 @@ Release: `admin-ecosystem`, `site` and `main` at `de0535c` (Vercel production `d
 
 Rollback: push `56dd5af` to `main` and `site` again, or Vercel's instant rollback to `dpl_9jwnHVxkJWZa8DV5FXF3CdzyXGby`.
 
+## Public site fixes from the device audit, 2026-11-07
+
+The owner asked for an audit of the whole site, above all on phones, and approved the release ("Ya, naikin ke live"). Commit `44dc1a8` changes only public files: `app.js`, `portfolio.js`, `styles.css`, `index.html`, `work.html` and `work/view.html`. No admin, `/pay`, database, function or Sheet change.
+
+- Home, intro hand-over on phones and tablets: touch devices scroll natively (ScrollSmoother's `smooth()` is 0 there and the content never moves), so the hand-over read the content offset as 0 and set the scroll back to the hero before gliding down again. `visualScroll` now reads the scroll itself on touch devices; desktop is unchanged. The jump had been there since 2026-10-17.
+- Home, intro: on phones the plus sat on "[ INTRODUCTION ]". With no room left of the text it now starts at the right end of the label's line.
+- Home: the BTS photo placeholder (a dashed box with a production note) is gone. The panel stays black behind "We have no rules, but we have standards." until a real photo is chosen.
+- Work and project pages: `app.js` is preloaded and the connection to Supabase opens early; if `portfolio.js` never arrives the page starts `app.js` itself; the 2.5 s limit now covers the whole answer, not only its headers.
+- Home CTA heading: at 320 px it kept 32 px and touched both edges. It now shrinks to `min(32px, 9vw)`.
+- `.on-light .eyebrow`: contrast 4.49 to 4.82:1.
+
+Checked before the release on the local server: home, Work, the project view, a project page and the journal at 390, 320 and 1280 px, with no sideways scroll, no failed request, no cookie, and hidden elements equal to live or fewer. A mocked published project joins the Work grid, reveals, filters and opens.
+
+Release: `site` and `main` at `44dc1a8` (Vercel production `dpl_Cd8x63nZsLUigYCDWSRwMJgRyLPp`, ready by 04:23 UTC, 11:23 WIB; the previous `main` is `de0535c`). Live byte for byte: `/`, `/work`, `/work/view`, `app.js`, `portfolio.js` and `styles.css`, and, unchanged, `/admin`, `admin/ui.css`, `admin/eco/core.js`, `/pay` and `pay/pay.js`. On the live home page the hand-over keeps its place: the scroll climbs from 1913 to 2448 on an iPhone (390 px) and from 1857 to 2536 on an iPad (768 px), never back, and the plus starts at the end of the label's line; the laptop traces as before. The 20 public pages at 390, 320 and 1280 px: no sideways scroll, no broken image, no failed request but the deliberate 404 test, and no cookie stored (Supabase's answers carry a `__cf_bm` Set-Cookie, which the browser drops because the requests go without credentials). The iPhone and laptop results equal the audit run before the release. At 320 px the home page went from 15 hidden elements to 1, and Work from 16 hidden cards and one failed request to none.
+
+Rollback: push `de0535c` to `main` and `site` again, or Vercel's instant rollback to `dpl_GNx9EWsNT7bKSWPZ7XWs6FHGTXyc`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
