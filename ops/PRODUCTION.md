@@ -188,6 +188,25 @@ Known and left as it was: right after the intro's scripted hand-back, ScrollSmoo
 
 Rollback: push `44dc1a8` to `main` and `site` again, or Vercel's instant rollback to `dpl_Cd8x63nZsLUigYCDWSRwMJgRyLPp`.
 
+## Hero parallax and centred pill words, 2026-11-07
+
+The owner asked for the home hero's words to move apart from the photo behind them, for a parallax feel, and said the word in the Careers pill wasn't centred. They approved the two mockups ("gasss kerjain") and then the release ("okke gass"). Commit `7fcff27` changes `index.html`, `styles.css`, `app.js` and `careers.html`. No admin, `/pay`, database, function or Sheet change.
+
+- Home hero: the photo and its shade sit on their own layer, `.h-hero-bg` (`aria-hidden`), behind `header.h-hero`, which now holds only the title and the line under it. The layer's negative bottom margin (`max(100svh, 560px)`) puts the header over it. The scroll timeline is the same as before. On desktop the photo sinks (`yPercent` 80, so it moves about 0.04 of the scroll on screen) and darkens, while the words now rise with the page at full speed as they fade. On phones and tablets the photo holds still (sticky, now on `.h-hero-bg`) and `.is-covered` hides it once the black section is half a screen over it; the words scroll natively, so there is still no scrubbed transform on phones.
+- Pills: the Heros font sits its letters low in the line (about 0.036 em in Chrome, about 0.064 em in the owner's Safari), so the words looked dropped inside their outlines. Under `@supports (text-box: trim-both cap alphabetic)` the line is trimmed to the capitals and the baseline, and `padding-block` adds back `(1lh - 1cap) / 2`, so the words are centred and every pill keeps its size. This covers `.nav-careers` (with `.nav-links` aligned on the baseline and a -4px margin), `.menu-tag`, `.tag` (now inline-block, since a flex box's bare text can't be trimmed), `.dept-state` (inline-block), `.job-more` and the careers track buttons, which keep flex for their arrow and trim a `span.tag-tx` around the word. Browsers without `text-box` (Firefox) keep the old look. `.btn` is unchanged (0.34 px low).
+
+Checked before the release on the local server (Chrome device emulation; no Safari or WebKit runner on this Mac). The desktop and iPhone frames match the approved mockup: on desktop the title moves 135 px for 135 px of scroll while the photo moves 5; on iPhone the photo stays at 0. On iPhone and iPad the photo is hidden 1.7 screens down and visible again at the top, with the title fully shown. Every pill measures the same space above its capitals as below its baseline (to 0.01 px), with heights unchanged (25.16, 22, 32.38, 28.38 and 46.77 px). The header stays 51.19 px with all four nav words on one baseline. A local mock role (never sent anywhere) showed "Read the role" and "Hiring now" centred too. Seven pages on iPhone and desktop show no sideways scroll, and their console and hidden-element counts match the live site before the release.
+
+Release: `site` and `main` at `7fcff27` (Vercel production `dpl_3YHZvSxMLQgPuuY6wEnhL9jB6QrT`, created 12:19 UTC, 19:19 WIB; the previous `main` is `defd803`). The notes commit `d8e0c23` went out with it.
+
+- Live byte for byte: `/`, `app.js`, `styles.css` and `careers.html`. `admin/ui.css` and `pay/pay.js` are unchanged.
+- Live, the hero frames and every pill give the same numbers as locally. Nine public pages, on iPhone and desktop: no sideways scroll, no failed request and no broken image. The console shows only the known "Deprecated API for given entry type" warning and lazy-load notices.
+- Not checked in Safari itself; the owner was asked to look at the Careers pill on their iPhone or Mac.
+
+Known and left as it was: a scripted jump three screens down lands in the intro, which holds the page while it plays, so a scripted jump back to the top right after it is ignored. The live site did the same before this release, and scrolling by finger is right.
+
+Rollback: push `defd803` to `main` and `site` again, or Vercel's instant rollback to `dpl_HYXTgXSm4Xg9MRGLquxZJ6iqnKbp`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
