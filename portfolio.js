@@ -4,6 +4,7 @@
    the built-in projects. If the database is slow or down, the page carries on with the built-in work. */
 (function () {
   'use strict';
+  window.cccPortfolio = true; // (the page starts app.js itself if this file never arrives)
 
   // local preview reads the development database, never the live one
   var DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
@@ -46,11 +47,12 @@
     if (token) headers.Authorization = 'Bearer ' + token;
     var ctl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctl) ctl.abort(); }, WAIT);
+    // the time limit covers the whole answer, not just its first bytes: a reply that stalls halfway on a
+    // weak mobile signal must not keep the page waiting
     return fetch(SB_URL + path, { headers: headers, signal: ctl ? ctl.signal : undefined }).then(function (r) {
-      clearTimeout(timer);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
-    });
+    }).then(function (d) { clearTimeout(timer); return d; }, function (e) { clearTimeout(timer); throw e; });
   }
   var published = function () {
     return get('/rest/v1/portfolio_items?select=' + COLS + '&status=eq.published&order=featured.desc,sort_order.asc,published_at.desc');

@@ -316,7 +316,7 @@ html.is-loading .site-header > * { opacity: 0; }
 
 /* Light sections (turn dark when Contact arrives) */
 .on-light { position: relative; z-index: 1; background: var(--ink); color: #020202; }
-.on-light .eyebrow { color: rgba(2, 2, 2, 0.55); }
+.on-light .eyebrow { color: rgba(2, 2, 2, 0.57); }
 
 /* Giant titles; letters fall in (app.js) — the wrap clips their trailing copies */
 .h-title { overflow: hidden; padding-top: clamp(8px, 1vw, 16px); }
@@ -419,7 +419,7 @@ html.is-loading .site-header > * { opacity: 0; }
 /* Typographic CTA with corner pluses */
 .h-cta-sec { min-height: 60svh; display: grid; place-items: center; overflow: hidden; }
 .h-cta { position: relative; display: block; overflow: hidden; padding-block: 6px; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }
-.h-cta-t { display: block; font-size: clamp(32px, 3.6vw, 52px); font-weight: 700; line-height: 1; letter-spacing: -0.05em; text-transform: uppercase; white-space: nowrap; }
+.h-cta-t { display: block; font-size: clamp(min(32px, 9vw), 3.6vw, 52px); font-weight: 700; line-height: 1; letter-spacing: -0.05em; text-transform: uppercase; white-space: nowrap; }
 .h-cta-t.dup { position: absolute; left: 0; right: 0; top: 6px; }
 .h-cta-t .ch { display: inline-block; }
 .h-cta-t.dup .ch { transform: translateY(-1.5em); }

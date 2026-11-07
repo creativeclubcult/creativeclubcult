@@ -112,7 +112,17 @@
         var cs = getComputedStyle(introP), fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || fs * 1.15;
         var size = fs * 0.72, gap = fs * 0.45;
         var cx = x - gap - size / 2, cy = y + lh / 2;
-        if (cx - size / 2 < 8) { cx = x + size / 2; cy = y - gap - size / 2; } // no room on the left: sit above
+        if (cx - size / 2 < 8) {
+          // no room on the left (phones, where the label has its own line above the text): the right end
+          // of the label's line, which the short label leaves empty
+          var label = intro.querySelector('.h-intro-label');
+          if (label) {
+            var ly = 0;
+            for (el = label; el && el !== intro; el = el.offsetParent) ly += el.offsetTop;
+            var lcs = getComputedStyle(label), llh = parseFloat(lcs.lineHeight) || parseFloat(lcs.fontSize) * 1.2;
+            cx = x + introP.offsetWidth - size / 2; cy = ly + Math.min(label.offsetHeight, llh) / 2;
+          } else { cx = x + size / 2; cy = y - gap - size / 2; }
+        }
         return { x: cx - intro.offsetWidth / 2, y: cy - intro.offsetHeight / 2, scale: size / plus.offsetWidth };
       };
       gsap.set(plusBars.concat(sq), { xPercent: -50, yPercent: -50 });
@@ -180,7 +190,10 @@
         window.removeEventListener('touchmove', block, { passive: false });
         window.removeEventListener('keydown', blockKeys);
       };
-      var visualScroll = function () { return -gsap.getProperty(content, 'y'); }; // what's on screen, not the wheel target
+      // what's on screen, not the wheel target. Phones and tablets scroll natively (nothing is smoothed and
+      // the content never moves), so there the scroll itself is what's on screen: reading the content's
+      // offset would say 0 and throw the page back to the top as the hand-over starts.
+      var visualScroll = function () { return smoother.smooth() ? -gsap.getProperty(content, 'y') : smoother.scrollTop(); };
       // The plus's journey: from the text to the centre, turning, folding into a square (and the photo
       // strip drifting along). Played on its own clock, never scrubbed, so scroll speed can't rush it.
       var PLUS_IN = 1.3, PLUS_OUT = 1;

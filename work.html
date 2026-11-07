@@ -17,6 +17,8 @@
   <meta name="theme-color" content="#05070C" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preload" href="fonts/heros-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preconnect" href="https://zneckeqsvwbavqxpolri.supabase.co" crossorigin />
+  <link rel="preload" href="app.js" as="script" />
   <link rel="stylesheet" href="styles.css" />
   <script>
     ['pageswap', 'pagereveal'].forEach(function (t) {
@@ -151,6 +153,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js" integrity="sha384-JCMGAgtMgo/19ttIm8BSnUFxOA5KAxaKT7jZdTDtaL0df8+CHKRo9XFCmhsvUlXG" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js" integrity="sha384-lg3+EgIwmxYq9YD4ix279pdUEasqmOS17fF+2mI/NEg6JHkawYaWYpJ6nKZenPOy" crossorigin="anonymous"></script>
   <script src="portfolio.js"></script>
+  <script>window.cccPortfolio || document.body.appendChild(Object.assign(document.createElement('script'), { src: 'app.js' }));</script>
   <script>
     // Vercel Web Analytics: cookieless visit counts, only on the live site
     if (/creativeclubcult\.com$/.test(location.hostname)) {
