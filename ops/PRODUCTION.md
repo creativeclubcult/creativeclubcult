@@ -168,6 +168,26 @@ Release: `site` and `main` at `44dc1a8` (Vercel production `dpl_Cd8x63nZsLUigYCD
 
 Rollback: push `de0535c` to `main` and `site` again, or Vercel's instant rollback to `dpl_GNx9EWsNT7bKSWPZ7XWs6FHGTXyc`.
 
+## Phone scrolling and the giant titles, 2026-11-07
+
+The owner sent a screen recording from an iPhone (Safari): pictures shook while scrolling and the Journal title on the home page was wrong. They approved the release ("Ya, naikin ke live"). Commit `defd803` changes only `app.js` and `styles.css`. No admin, `/pay`, database, function or Sheet change.
+
+- Phones and tablets scroll natively (ScrollSmoother's `smooth()` is 0), so a scrubbed transform or a ScrollTrigger pin is set a frame after Safari has already moved the page, and it shakes. When `smooth()` is 0, `app.js` now sets `html.is-native-scroll`. Then the home hero, the project photo (`.pstory-bg`), the Careers curtain (`.cr-hero`) and the Journal side columns are held by `position: sticky`. These drifts are off: the hero's inner layer, the full-bleed photo, the end panel, the project photo and the Journal cards. Opacity scrubs stay (shades, veils, the hero title fade, the Journal thumbs). Desktop is unchanged.
+- The home hero, sticky on phones, is hidden (`.is-covered`) once the black section is half a screen over it, so it can't show through further down. A plain scroll listener sets it: a ScrollTrigger toggle missed the first scroll after the intro's scripted hand-back and left the hero hidden at the top.
+- `.fit` titles are measured with the letters at rest (before, the letters could still be tilted for their fall, so the word read wider than it is). They keep room for ink that reaches past the first and last letter's box (canvas `actualBoundingBoxLeft/Right`, plus 1 px a side), and fit again when a font finishes loading (`document.fonts` `loadingdone`, and once `700 1em Heros` has loaded). ScrollTrigger refreshes only if a size changed. Safari can resolve `fonts.ready` before the bold face starts loading. At 390 px "Journal" goes from 109.7 to 119.5 px with its ink 2.9 and 2.6 px inside the edges, and "Selected Work" from 62.5 to 61.3 px with its k 1.0 px inside instead of 2.6 px past the edge. At 1440 px "Journal" is unchanged (441.4 px). "Selected Work" goes from 230.7 to 227.3 px, because its k had been clipped by about 9 px.
+
+Checked before the release on the local server (Chrome device emulation; no iOS Simulator or WebKit runner on this Mac). iPhone: the hero holds while the black section covers it, and it is visible again at the top after the hand-over and back. The MOVANA photo holds over exactly the range of the desktop pin. The Careers curtain holds, and the Journal page has no drifts. iPad: the Journal side columns hold. Laptop and desktop: everything as before. The bold font held back 4 s still ends at the right sizes. A font load forced after the titles were spoiled fits them again. Nine public pages show no sideways scroll and no new console message.
+
+Release: `site` and `main` at `defd803` (Vercel production `dpl_HYXTgXSm4Xg9MRGLquxZJ6iqnKbp`, created 09:22 UTC, 16:22 WIB; the previous `main` is `44dc1a8`).
+
+- Live byte for byte: `/`, `app.js` and `styles.css`. `admin/ui.css` and `pay/pay.js` are unchanged. `app.js` is served with `max-age=0, must-revalidate`, so a plain reload picks it up.
+- Nine public pages, on iPhone and desktop: no sideways scroll, no failed request and no broken image. The console shows only the known "Deprecated API for given entry type" warning and lazy-load notices.
+- Live on the iPhone: the titles come out at the sizes measured locally. After the hand-over and a finger scroll back to the top, the hero's shade is 0 and its title fully visible. On MOVANA the photo stays at the top until the gallery reaches it (scroll 1876), then leaves with it, with no pin and no transform on the image.
+
+Known and left as it was: right after the intro's scripted hand-back, ScrollSmoother skips the next scroll event. A single scripted jump to the top at that moment leaves the hero's shade at 0.8 and its title hidden until the next scroll. Nothing on the home page makes such a jump, and scrolling by finger is right. It was the same before this release.
+
+Rollback: push `44dc1a8` to `main` and `site` again, or Vercel's instant rollback to `dpl_Cd8x63nZsLUigYCDWSRwMJgRyLPp`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
