@@ -245,6 +245,10 @@ html.is-loading .site-header > * { opacity: 0; }
 .h-hero-shade { position: absolute; inset: 0; background: #000; opacity: 0; }
 .h-hero-title { position: relative; z-index: 1; padding-inline: var(--pad); font-size: var(--t-display); font-weight: 400; line-height: 1; letter-spacing: -0.04em; }
 .h-hero-sub { position: absolute; z-index: 1; left: 0; right: 0; bottom: clamp(20px, 3vw, 32px); font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; }
+/* Scrolling natively (phones, tablets) it holds still instead, held by the browser, so it can't shake;
+   app.js hides it once the black section is well over it, so it never shows through further down */
+html.is-native-scroll .h-hero { position: sticky; top: 0; }
+html.is-native-scroll .h-hero.is-covered { visibility: hidden; }
 
 /* Black section: how-we-work rows + pinned intro */
 /* z-index 2 and no own background: the work section overlaps the intro's last screen from below */
@@ -607,7 +611,7 @@ body.is-light .card.tint .eyebrow { color: rgba(234, 237, 241, 0.55); }
   column-gap: var(--gap); padding-inline: var(--pad);
 }
 .jl-side, .jl-rail { grid-row: 1; height: 100vh; position: sticky; top: 0; } /* app.js pins them instead under the smoother */
-html.has-smoother .jl-side, html.has-smoother .jl-rail { position: relative; }
+html.has-smoother:not(.is-native-scroll) .jl-side, html.has-smoother:not(.is-native-scroll) .jl-rail { position: relative; }
 .jl-side { grid-column: 1; display: flex; flex-direction: column; justify-content: center; }
 .jl-filters { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .jl-views { position: absolute; left: 0; bottom: clamp(16px, 2vw, 24px); display: flex; gap: 14px; }
@@ -763,9 +767,9 @@ html.has-smoother .jl-side, html.has-smoother .jl-rail { position: relative; }
   position: sticky; top: 0; z-index: 0;
   height: 100svh; margin-bottom: -100svh; overflow: hidden;
 }
-html.has-smoother .pstory-bg { position: relative; } /* pinned by ScrollTrigger instead */
+html.has-smoother:not(.is-native-scroll) .pstory-bg { position: relative; } /* pinned by ScrollTrigger instead (scrolling natively, the sticky holds it) */
 .pstory-bg img { width: 100%; height: 118%; object-fit: cover; object-position: 50% 50%; } /* room for the parallax drift */
-html.has-smoother .pstory-bg img { will-change: transform; }
+html.has-smoother:not(.is-native-scroll) .pstory-bg img { will-change: transform; }
 .pstory-shade { position: absolute; inset: 0; z-index: 1; background: #000; opacity: 0; pointer-events: none; }
 .pstory-bg::after {
   content: ""; position: absolute; inset: 0;
@@ -919,7 +923,7 @@ form.inquiry { display: flex; flex-direction: column; gap: 28px; }
     radial-gradient(60% 70% at 40% 40%, rgba(10, 31, 61, 0.9), transparent 75%),
     #02050A;
 }
-html.has-smoother .cr-hero { position: relative; }
+html.has-smoother:not(.is-native-scroll) .cr-hero { position: relative; }
 .cr-gradient { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cr-hero-text { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; gap: var(--gap); padding-bottom: clamp(20px, 3vw, 40px); }
 .cr-title { line-height: 0.95; }

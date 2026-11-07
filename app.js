@@ -5,6 +5,7 @@
   // ---- Type fitting (runs first: ScrollTrigger measures the final layout) ----
   // .ptitle: shrink a long project name until it fits on one line.
   // .fit: scale giant type so it fills data-fit (0–1) of its content width.
+  var inkCtx = null;
   var fitTitles = function () {
     document.querySelectorAll('.ptitle').forEach(function (t) {
       t.style.fontSize = '';
@@ -14,9 +15,25 @@
     document.querySelectorAll('.fit').forEach(function (t) {
       var cs = getComputedStyle(t);
       var room = (t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) * (parseFloat(t.getAttribute('data-fit')) || 1);
+      // Measured at 100px with the letters at rest: split into letters they may still be up in the air
+      // and tilted, ready to fall, which made the box read wider than the word.
+      var chars = t.querySelectorAll('.ch'), held = [], i;
+      for (i = 0; i < chars.length; i++) { held[i] = chars[i].style.transform; chars[i].style.transform = 'none'; }
       t.style.fontSize = '100px';
       var r = document.createRange(); r.selectNodeContents(t);
-      t.style.fontSize = (100 * room / r.getBoundingClientRect().width) + 'px';
+      var width = r.getBoundingClientRect().width, reach = 0;
+      if (chars.length) {
+        // Some letters' ink reaches past their own box (the k of Work). The word is centred, so keep that
+        // much clear on both sides, or the wrap (which clips) cuts the letter off at the edge.
+        inkCtx = inkCtx || document.createElement('canvas').getContext('2d');
+        inkCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' 100px ' + cs.fontFamily;
+        var first = chars[0], last = chars[chars.length - 1];
+        reach = Math.max(0, inkCtx.measureText(first.textContent).actualBoundingBoxLeft || 0,
+          (inkCtx.measureText(last.textContent).actualBoundingBoxRight || 0) - last.getBoundingClientRect().width);
+      }
+      for (i = 0; i < chars.length; i++) chars[i].style.transform = held[i];
+      // (and a pixel to spare on each side where ink does reach out, for rounding in the browser)
+      t.style.fontSize = (100 * (room - (reach > 0 ? 2 : 0)) / (width + 2 * reach)) + 'px';
     });
   };
   fitTitles();
@@ -33,6 +50,10 @@
 
   // ---- Smooth scroll (GSAP ScrollSmoother; skipped for reduced motion, native on touch) ----
   var smoother = null;
+  // Phones and tablets scroll natively: the browser moves the page on its own, ahead of the script, so
+  // anything the script holds or drifts against the scroll lands a frame late and shakes (iPhone). There,
+  // what holds still is held by the browser itself (position: sticky) and pictures don't drift.
+  var nativeScroll = false;
   // Arriving on a spot in a page (careers.html#apply): go there once the layout has settled, and again
   // if something that loads late (the open roles) pushes it down before the visitor has scrolled.
   var spotAt = null;
@@ -63,27 +84,43 @@
       smoothTouch: false
     });
     document.documentElement.classList.add('has-smoother');
-    // position: sticky can't work inside the smoothed content, so pin the project photo instead.
+    nativeScroll = !smoother.smooth();
+    if (nativeScroll) document.documentElement.classList.add('is-native-scroll');
     document.querySelectorAll('.pstory').forEach(function (story) {
-      // Hold the photo until the next section has slid all the way over it ('bottom top').
-      ScrollTrigger.create({ trigger: story, start: 'top top', end: 'bottom top', pin: story.querySelector('.pstory-bg'), pinSpacing: false });
-      // The photo drifts up slower than the text, and a thin black veil builds as you read.
       var scrub = { trigger: story, start: 'top top', end: 'bottom top', scrub: true };
-      gsap.to(story.querySelector('.pstory-bg img'), { yPercent: -15, ease: 'none', scrollTrigger: scrub });
+      if (!nativeScroll) {
+        // position: sticky can't work inside the smoothed content, so pin the project photo instead.
+        // Hold the photo until the next section has slid all the way over it ('bottom top').
+        ScrollTrigger.create({ trigger: story, start: 'top top', end: 'bottom top', pin: story.querySelector('.pstory-bg'), pinSpacing: false });
+        // The photo drifts up slower than the text.
+        gsap.to(story.querySelector('.pstory-bg img'), { yPercent: -15, ease: 'none', scrollTrigger: scrub });
+      }
+      // A thin black veil builds as you read.
       gsap.fromTo(story.querySelector('.pstory-shade'), { opacity: 0 }, { opacity: 0.35, ease: 'none', scrollTrigger: scrub });
     });
-    // Careers: the gradient hero holds while the page slides up over it, like a curtain
-    document.querySelectorAll('.cr-hero').forEach(function (hero) {
+    // Careers: the gradient hero holds while the page slides up over it, like a curtain (sticky when native)
+    if (!nativeScroll) document.querySelectorAll('.cr-hero').forEach(function (hero) {
       ScrollTrigger.create({ trigger: hero, start: 'top top', end: 'bottom top', pin: hero, pinSpacing: false });
     });
 
     // ---- Home landing: scroll-driven transitions ----
     if (document.querySelector('.h-hero')) {
-      // Hero sinks and darkens while the black section slides over it.
-      gsap.timeline({ scrollTrigger: { trigger: '.h-black', start: 'top bottom', end: 'top top', scrub: true } })
-        .to('.h-hero-inner', { yPercent: 80, ease: 'none' }, 0)
-        .to('.h-hero-shade', { opacity: 0.8, ease: 'none' }, 0)
+      // Hero sinks and darkens while the black section slides over it. Scrolling natively it holds still
+      // instead (sticky), and once it is well under the black section it is hidden, so it can't show
+      // through anywhere further down.
+      var heroTl = gsap.timeline({ scrollTrigger: { trigger: '.h-black', start: 'top bottom', end: 'top top', scrub: true } });
+      if (!nativeScroll) heroTl.to('.h-hero-inner', { yPercent: 80, ease: 'none' }, 0);
+      heroTl.to('.h-hero-shade', { opacity: 0.8, ease: 'none' }, 0)
         .fromTo(['.h-hero-title', '.h-hero-sub'], { opacity: 1 }, { opacity: 0, duration: 0.6, ease: 'none', immediateRender: false }, 0);
+      if (nativeScroll) {
+        // (a plain scroll listener, not a ScrollTrigger: right after a scripted scroll, like the intro's
+        // hand-back, ScrollSmoother takes the next scroll event for its own and skips the update, which
+        // here would leave the hero hidden at the top of the page)
+        var heroEl = document.querySelector('.h-hero'), blackEl = document.querySelector('.h-black');
+        var cover = function () { heroEl.classList.toggle('is-covered', blackEl.getBoundingClientRect().top < -0.5 * window.innerHeight); };
+        window.addEventListener('scroll', cover, { passive: true });
+        ScrollTrigger.addEventListener('refresh', cover);
+      }
 
       // The intro holds on screen with the plus — a glyph just before the intro line — at rest. A little
       // scroll into it and the rest plays on its own, accordion.net.au-style, at its own pace however
@@ -277,8 +314,8 @@
       overlapWork();
       ScrollTrigger.addEventListener('refreshInit', overlapWork);
 
-      // Full-bleed photo drifts against the scroll.
-      gsap.fromTo('.h-full-bg', { yPercent: 4 }, { yPercent: -4, ease: 'none', scrollTrigger: { trigger: '.h-full', start: 'top bottom', end: 'bottom top', scrub: true } });
+      // Full-bleed photo drifts against the scroll (not when scrolling natively: it would shake).
+      if (!nativeScroll) gsap.fromTo('.h-full-bg', { yPercent: 4 }, { yPercent: -4, ease: 'none', scrollTrigger: { trigger: '.h-full', start: 'top bottom', end: 'bottom top', scrub: true } });
 
       // End panel (Contact + footer): it lies beneath the page and is uncovered as the light section
       // above slides up off it — drifting up from 60% of a screen higher, so it reads as further back,
@@ -288,9 +325,10 @@
       if (end) {
         // The inner layer moves; the outer box stays put and is what the scroll is measured against
         // (measured while shifted up, the panel would put the whole range 60% of a screen too early).
-        gsap.timeline({ scrollTrigger: { trigger: end, start: 'top bottom', end: 'top top', scrub: true, invalidateOnRefresh: true } })
-          .fromTo(end.querySelector('.h-end-in'), { yPercent: -60 }, { yPercent: 0, ease: 'none' }, 0)
-          .fromTo(end.querySelector('.h-end-veil'), { opacity: 0.9 }, { opacity: 0, ease: 'power1.in' }, 0);
+        // Scrolling natively it doesn't drift (it would shake): it scrolls in, out of the veil.
+        var endTl = gsap.timeline({ scrollTrigger: { trigger: end, start: 'top bottom', end: 'top top', scrub: true, invalidateOnRefresh: true } });
+        if (!nativeScroll) endTl.fromTo(end.querySelector('.h-end-in'), { yPercent: -60 }, { yPercent: 0, ease: 'none' }, 0);
+        endTl.fromTo(end.querySelector('.h-end-veil'), { opacity: 0.9 }, { opacity: 0, ease: 'power1.in' }, 0);
       }
     }
   }
@@ -582,6 +620,20 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
     fitTitles();
     if (window.ScrollTrigger) ScrollTrigger.refresh();
+    // Safari can call the fonts ready before the bold face has even started loading, so the giant titles
+    // were fitted in the stand-in font and spilled past the edge once Heros arrived: fit again as each
+    // font lands, and re-measure the scroll only if a title actually changed size.
+    if (!document.querySelector('.fit') || !document.fonts.addEventListener) return;
+    var refit = function () {
+      var fits = document.querySelectorAll('.fit, .ptitle'), was = [];
+      fits.forEach(function (t, i) { was[i] = parseFloat(t.style.fontSize) || 0; });
+      fitTitles();
+      var moved = false;
+      fits.forEach(function (t, i) { if (Math.abs((parseFloat(t.style.fontSize) || 0) - was[i]) > 0.1) moved = true; });
+      if (moved && window.ScrollTrigger) ScrollTrigger.refresh();
+    };
+    document.fonts.addEventListener('loadingdone', refit);
+    if (document.fonts.load) document.fonts.load('700 1em Heros').then(refit, function () {});
   });
 
   // ---- Menu overlay ----
@@ -768,8 +820,9 @@
     if (!motionOK || !window.ScrollTrigger) { return; }
 
     var desktop = window.matchMedia('(min-width: 761px)').matches;
-    if (desktop && smoother) {
+    if (desktop && smoother && !nativeScroll) {
       // position: sticky can't work inside the smoothed page, so hold the side columns with pins
+      // (tablets scroll natively: there the stylesheet's sticky holds them, smoothly)
       [side, rail].forEach(function (el) {
         ScrollTrigger.create({ trigger: jl, start: 'top top', end: 'bottom bottom', pin: el, pinSpacing: false });
       });
@@ -781,11 +834,13 @@
       it._rise = rise;
       ScrollTrigger.create({ trigger: it, start: 'top 95%', onEnter: function () { if (!arriving) rise.play(); } });
       ScrollTrigger.create({ trigger: it, start: 'top bottom', onLeaveBack: function () { rise.pause(0); } });
-      gsap.fromTo(it.querySelector('.jl-media'), { yPercent: -4 }, { yPercent: 4, ease: 'none',
-        scrollTrigger: { trigger: it, start: 'top bottom', end: 'bottom top', scrub: true } });
-      // the words drift the other way, so title and picture visibly part as the card passes
-      gsap.fromTo(it.querySelector('.jl-title'), { y: function () { return dpx(70); } }, { y: function () { return dpx(-70); }, ease: 'none',
-        scrollTrigger: { trigger: it, start: 'top bottom', end: 'bottom top', scrub: true, invalidateOnRefresh: true } });
+      if (!nativeScroll) { // (scrolling natively these drifts shake: phones and tablets go without)
+        gsap.fromTo(it.querySelector('.jl-media'), { yPercent: -4 }, { yPercent: 4, ease: 'none',
+          scrollTrigger: { trigger: it, start: 'top bottom', end: 'bottom top', scrub: true } });
+        // the words drift the other way, so title and picture visibly part as the card passes
+        gsap.fromTo(it.querySelector('.jl-title'), { y: function () { return dpx(70); } }, { y: function () { return dpx(-70); }, ease: 'none',
+          scrollTrigger: { trigger: it, start: 'top bottom', end: 'bottom top', scrub: true, invalidateOnRefresh: true } });
+      }
       // its thumb widens and lights up while the card crosses the screen
       if (thumbs[i]) thumbTls[i] = gsap.timeline({ scrollTrigger: { trigger: it, start: 'top bottom', end: 'bottom top', scrub: 1 } })
         .fromTo(thumbs[i], { width: '3.056vw', opacity: 0.45 }, { width: '3.889vw', opacity: 1, ease: 'none', duration: 0.5 })
