@@ -105,9 +105,10 @@
 
     // ---- Home landing: scroll-driven transitions ----
     if (document.querySelector('.h-hero')) {
-      // Hero sinks and darkens while the black section slides over it. Scrolling natively it holds still
-      // instead (sticky), and once it is well under the black section it is hidden, so it can't show
-      // through anywhere further down.
+      // The hero photo sinks and darkens while the black section slides over it; its words, on their own
+      // layer in front, rise with the page and fade. Scrolling natively the photo holds still instead
+      // (sticky), and once it is well under the black section it is hidden, so it can't show through
+      // anywhere further down.
       var heroTl = gsap.timeline({ scrollTrigger: { trigger: '.h-black', start: 'top bottom', end: 'top top', scrub: true } });
       if (!nativeScroll) heroTl.to('.h-hero-inner', { yPercent: 80, ease: 'none' }, 0);
       heroTl.to('.h-hero-shade', { opacity: 0.8, ease: 'none' }, 0)
@@ -116,7 +117,7 @@
         // (a plain scroll listener, not a ScrollTrigger: right after a scripted scroll, like the intro's
         // hand-back, ScrollSmoother takes the next scroll event for its own and skips the update, which
         // here would leave the hero hidden at the top of the page)
-        var heroEl = document.querySelector('.h-hero'), blackEl = document.querySelector('.h-black');
+        var heroEl = document.querySelector('.h-hero-bg'), blackEl = document.querySelector('.h-black');
         var cover = function () { heroEl.classList.toggle('is-covered', blackEl.getBoundingClientRect().top < -0.5 * window.innerHeight); };
         window.addEventListener('scroll', cover, { passive: true });
         ScrollTrigger.addEventListener('refresh', cover);

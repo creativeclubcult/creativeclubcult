@@ -236,19 +236,21 @@ html.is-loading .site-header > * { opacity: 0; }
 /* the hero's own veil, drawn in as the window becomes the hero */
 .h-load-box::after { content: ""; position: absolute; inset: 0; background: rgba(5, 7, 12, 0.35); opacity: var(--shade, 0); }
 
-/* Hero: sinks and darkens while the black section slides over it */
-.h-hero { position: relative; z-index: 0; height: 100svh; min-height: 560px; overflow: hidden; background: #000; }
-.h-hero-inner { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; will-change: transform; }
+/* Hero: the photo sinks and darkens while the black section slides over it; the words sit in front of
+   it on their own layer and rise with the page, so words and photo move at different speeds */
+.h-hero-bg { position: relative; z-index: 0; height: 100svh; min-height: 560px; margin-bottom: calc(-1 * max(100svh, 560px)); overflow: hidden; background: #000; }
+.h-hero-inner { position: absolute; inset: 0; will-change: transform; }
 .h-hero-media { position: absolute; inset: 0; }
 .h-hero-media img { width: 100%; height: 100%; object-fit: cover; }
 .h-hero-media::after { content: ""; position: absolute; inset: 0; background: rgba(5, 7, 12, 0.35); }
 .h-hero-shade { position: absolute; inset: 0; background: #000; opacity: 0; }
+.h-hero { position: relative; z-index: 1; display: grid; place-items: center; height: 100svh; min-height: 560px; text-align: center; }
 .h-hero-title { position: relative; z-index: 1; padding-inline: var(--pad); font-size: var(--t-display); font-weight: 400; line-height: 1; letter-spacing: -0.04em; }
 .h-hero-sub { position: absolute; z-index: 1; left: 0; right: 0; bottom: clamp(20px, 3vw, 32px); font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; }
-/* Scrolling natively (phones, tablets) it holds still instead, held by the browser, so it can't shake;
-   app.js hides it once the black section is well over it, so it never shows through further down */
-html.is-native-scroll .h-hero { position: sticky; top: 0; }
-html.is-native-scroll .h-hero.is-covered { visibility: hidden; }
+/* Scrolling natively (phones, tablets) the photo holds still instead, held by the browser, so it can't
+   shake; app.js hides it once the black section is well over it, so it never shows through further down */
+html.is-native-scroll .h-hero-bg { position: sticky; top: 0; }
+html.is-native-scroll .h-hero-bg.is-covered { visibility: hidden; }
 
 /* Black section: how-we-work rows + pinned intro */
 /* z-index 2 and no own background: the work section overlaps the intro's last screen from below */
@@ -1039,6 +1041,21 @@ a.cap-link:hover .cap-go, a.cap-link:focus-visible .cap-go { translate: 0.25em 0
 }
 .apply [data-choice="track"] .tag[aria-pressed="true"] { gap: 10px; padding-right: 18px; }
 .apply [data-choice="track"] .tag[aria-pressed="true"] .tag-go { width: 14px; opacity: 1; }
+/* Pills: the font sits its letters low in the line, so the words looked dropped inside the outline.
+   Where the browser can, the line is trimmed to the capitals and the baseline, and the padding takes
+   back exactly what was trimmed: same pill size, words centred in it. (A flex box's bare text can't be
+   trimmed, so those pills become inline blocks; the track buttons keep flex for their arrow and trim a
+   span around their word instead.) */
+@supports (text-box: trim-both cap alphabetic) {
+  .nav-links { align-items: baseline; }
+  .nav-careers { text-box: trim-both cap alphabetic; padding-block: calc(2px + (1lh - 1cap) / 2); margin-block: -4px; }
+  .menu-tag { text-box: trim-both cap alphabetic; padding-block: calc(4px + (1lh - 1cap) / 2); }
+  .tag { display: inline-block; text-box: trim-both cap alphabetic; padding-block: calc(8px + (1lh - 1cap) / 2); }
+  .apply [data-choice="track"] .tag { display: inline-flex; padding-block: 14px; }
+  .tag-tx { text-box: trim-both cap alphabetic; padding-block: calc((1lh - 1cap) / 2); }
+  .dept-state { display: inline-block; text-box: trim-both cap alphabetic; padding-block: calc(6px + (1lh - 1cap) / 2); }
+  .job-more { text-box: trim-both cap alphabetic; padding-block: calc(6px + (1lh - 1cap) / 2); }
+}
 .apply[data-track] [data-track-hint] { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .apply[data-track] > :not(.form-note):not(.track-field) { animation: apply-open .6s cubic-bezier(.2, .8, .2, 1) both; }
