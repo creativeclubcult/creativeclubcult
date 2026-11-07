@@ -130,6 +130,13 @@ button{font:inherit;color:inherit}
 .sw{width:10px;height:10px;border-radius:3px;flex:none}
 .sw.paid{background:var(--lime-mark)} .sw.late{background:var(--red)} .sw.due{background:var(--line-2)}
 .stats b{font-size:15px;color:var(--ink);white-space:nowrap}
+/* a KPI card too narrow for three amounts side by side lists them as rows, the amount on the right.
+   380px holds three amounts up to Rp 9.999.999.999 (about 120px each at 15px) with the two gaps */
+.kpis>.kpi{container-type:inline-size}
+@container (max-width:379px){
+  .stats{grid-template-columns:minmax(0,1fr);gap:6px}
+  .stats li{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+}
 
 .hbars{display:grid;gap:12px}
 .hb{display:grid;grid-template-columns:30px minmax(0,1fr) 112px;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
@@ -828,10 +835,10 @@ a.pfc:hover{box-shadow:0 0 0 1.5px var(--line-2)}
 .tog[aria-checked=true] i{background:var(--lime-ink)}
 .tog[aria-checked=true] i::after{transform:translateX(14px)}
 .tog[disabled]{cursor:default;color:var(--ink)}
-.roles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
-.roles div{padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2)}
-.roles b{display:block;font-size:13px}
-.roles span{font-size:12px;color:var(--ink-2)}
+div.roles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+div.roles div{padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2)}
+div.roles b{display:block;font-size:13px}
+div.roles span{font-size:12px;color:var(--ink-2)}
 .addteam{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 150px auto auto;gap:12px;align-items:end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 .addteam .f>div{display:flex;align-items:center;min-height:42px}
 .addteam+.src,.roles+.src{margin-top:12px}
@@ -853,7 +860,7 @@ a.pfc:hover{box-shadow:0 0 0 1.5px var(--line-2)}
   .rgrid{grid-template-columns:minmax(0,1fr)}
   .dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .pfgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .roles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  div.roles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .addteam{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 }
 @media (max-width:960px){
@@ -908,7 +915,7 @@ a.pfc:hover{box-shadow:0 0 0 1.5px var(--line-2)}
   .dr-foot{padding:12px 16px}
   .dr-foot .dst{width:100%}
   .dr-foot .btn{flex:1 1 calc(50% - 4px);height:44px}
-  .roles{grid-template-columns:1fr 1fr}
+  div.roles{grid-template-columns:1fr 1fr}
   .addteam{grid-template-columns:1fr}
   .addteam .f>div{min-height:44px}
   .addteam .btn,.bk .btn{height:44px}
@@ -1615,6 +1622,10 @@ button.doc{width:100%;border:0;font:inherit;text-align:left;cursor:pointer}
 .lane-x{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
 .lane-x+.board{margin-top:12px}
 .tbl.roles .pj div span{max-width:420px}
+/* from 761 to 1280 a role's title and summary on one line push On the site out of the card: they wrap instead */
+@media (min-width:761px) and (max-width:1280px){
+  .tbl.roles .pj div b,.tbl.roles .pj div span{max-width:none;white-space:normal}
+}
 @media (max-width:760px){
   .notes .by .btn{min-height:44px}
   .tbl.roles .pj div span{max-width:none;white-space:normal}

@@ -44,8 +44,11 @@
   var shortStamp = function (t) { var d = jkt(t); return thisYear(d) ? day(d, { year: false }) : day(d); };
   // a planned day, short when it's this year: "Fri 7 Nov"
   var when = function (s) { return thisYear(s) ? day(s, { weekday: true, year: false }) : day(s); };
-  // how long something has been waiting: "12 min", "5 h", "3 days"
+  // how long something has been waiting: "12 min", "5 h", "3 days". A calendar day from the Sheet ("2026-11-01") counts
+  // whole days in Jakarta, as "Oldest unpaid" does; read as a moment it starts at 07:00 WIB and comes out a day short
+  // from midnight to 7 in the morning
   var waited = function (t) {
+    if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return plural(Math.max(0, days(t, today())), 'day');
     var m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000));
     if (m < 60) return plural(m, 'minute');
     if (m < 1440) return plural(Math.round(m / 60), 'hour');
