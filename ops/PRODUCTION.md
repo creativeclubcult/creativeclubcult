@@ -254,7 +254,7 @@ From the portfolio video session: the owner approved the landing reel (v5) and t
 
 The mockup was a copy of the main checkout, which still has the old `site` branch (`2f2bc2d`, 2026-11-03). The three commits the other session took for unreleased work (`877923b`, `41a1300`, `2f2bc2d`) have been on `main` since 2026-11-05. So only the four marked changes were carried over, onto the current page with its `.h-hero-bg` layer, without the mockup-only hooks (`?still`, `?t=`, `?img=`).
 
-Generator: `Work CCC/_tools/gen_pages.py` (the same file in both checkouts, last edited 2026-11-07 in the morning) still has the old hero and no JSON-LD, so it was already behind `7fcff27` and `3ca8346`. Changing only the hero there would protect nothing, so it was left alone. Running it now would undo those two releases and this one: sync it with the live pages before it is used again.
+Generator: `Work CCC/_tools/gen_pages.py` (the same file in both checkouts, last edited 2026-11-07 in the morning) still has the old hero and no JSON-LD, so it was already behind `7fcff27` and `3ca8346`. Changing only the hero there would protect nothing, so it was left alone. Running it now would undo those two releases and this one: sync it with the live pages before it is used again. Synced on 2026-11-09, see "Page generator synced with the live pages" below.
 
 Checked locally and live in headless Chrome (desktop 1440 by 900; phone 390 by 844 with an iPhone user agent; reduced motion on both):
 - The reel starts within 3 ms of the loader handing over, from its first frame; on a second visit it starts at once. Desktop loads only the desktop file and poster, phones only the phone ones; nothing loads the Noxon photo now.
@@ -269,6 +269,19 @@ Bandwidth: Vercel Hobby includes the first 100 GB of Fast Data Transfer a month.
 Release: `site` and `main` at `6c004f9` (Vercel production `dpl_4EePuduB7oPG6dRNqsZ3PBNF4sXr`, created 16:25 UTC, 23:25 WIB; the previous `main` is `3ca8346`). The notes commit `9ecd7e8` went out with it.
 
 Rollback: push `3ca8346` to `main` and `site` again, or Vercel's instant rollback to `dpl_Ch5CDGbenX3dfiH2LcKjNT7dSp9G`.
+
+## Page generator synced with the live pages, 2026-11-09
+
+`Work CCC/_tools/gen_pages.py` (gitignored, so not in this repo) builds the pages as they are live again. The hand edits of the last three releases are now in its templates:
+- `7fcff27`: the hero photo layer `.h-hero-bg` behind `header.h-hero`, and the word in each "I'm applying as" button on Careers wrapped in `span.tag-tx`.
+- `3ca8346`: the JSON-LD block in the home `<head>`, built by `home_jsonld()` from the home meta description.
+- `6c004f9`: the hero `<video>` with both sources, the loader's last picture as the reel poster `<picture>`, and the reel script at the end of the home page, added through the new `page(post=...)` argument.
+
+Checked: run into a scratch folder, all 24 files it writes (the pages and `sitemap.xml`) are byte for byte the committed files at `d880b96`, the same as `main` (`6c004f9`), and a second run gives the same output. All 24 were also fetched from the live site: 23 are identical, and `/project` is not served (`vercel.json` redirects it to `/work`). A made-up work added in a throwaway copy changed only the home slider, `work.html`, the new page, the previous and next links of its neighbours, `work/view.html` and `sitemap.xml`. `maintenance.html` was never generated.
+
+Both copies (main checkout and this worktree) are the same file, md5 `2d6f727ea2b0c586ef7cfea2d9f0b5c3`. The version before the sync sits next to each as `gen_pages.py.bak-sync-live` (md5 `e2912d084178ae53e41a489ea7494a06`). No page, admin, database, function or Sheet change, and nothing released.
+
+Before the next run into the repo, diff a scratch run against `HEAD` first: only the new work's pages should differ. A hand edit to a generated page goes back into the generator in the same change.
 
 ## What the owner does
 
