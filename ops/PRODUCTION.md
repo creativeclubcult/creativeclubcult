@@ -207,6 +207,24 @@ Known and left as it was: a scripted jump three screens down lands in the intro,
 
 Rollback: push `defd803` to `main` and `site` again, or Vercel's instant rollback to `dpl_HYXTgXSm4Xg9MRGLquxZJ6iqnKbp`.
 
+## Email authentication (Google DKIM and DMARC), 2026-11-08
+
+From the gap list the owner approved ("gas mulai yang penting dulu"): the domain had SPF for Google and Resend's own DKIM, but no DMARC and no Google DKIM. Mail sent through Google (hello@ in Gmail, the Sheet's Apps Script, the sign in code and team emails that go through Gmail SMTP) carried SPF only. No code, database or release change.
+
+- Hostinger DNS (hPanel, DNS / Nameservers): two TXT records, TTL 14400. Claude filled the form; the safety check stops Claude from saving DNS changes, so the owner clicked "Add 2 records".
+  - `_dmarc`: `v=DMARC1; p=none; rua=mailto:hello@creativeclubcult.com`. Monitoring only, nothing is blocked. Daily reports ("Report domain: creativeclubcult.com") arrive at hello@.
+  - `google._domainkey`: the 2048-bit key from Google Admin (410 characters). Hostinger stores it as two strings that join to Google's value exactly.
+- Google Admin, Apps, Google Workspace, Gmail, Authenticate email: the key was already generated; the owner clicked Start authentication. Status: "Authenticating email with DKIM", nothing left unsaved.
+- Untouched: every record from 2026-11-06 (Resend DKIM, `send` SPF and MX, `rsend`), the root SPF, MX, A, `www` and the Google site verification.
+
+Checked: both records answer on atlas and hyperion (the domain's own nameservers) and on 8.8.8.8 and 1.1.1.1; the DKIM value matches Google's character for character. Not checked yet: a real message showing DKIM pass and DMARC pass; the first daily reports will show it.
+
+Next: after about two weeks of reports with nothing unexpected (around 2026-11-22), change `p=none` to `p=quarantine`.
+
+Rollback: delete the two TXT rows in hPanel, and Stop authentication in Google Admin.
+
+Same day, still with the owner: Supabase is on the Free plan with no card on file (Pro gives daily backups kept 7 days; keeping `ccc-website-dev` in the same organization makes it about $35 a month), `pay_settings` is still empty, and hello@ has no recovery phone, an unverified recovery email and no backup codes. The admin's Download backup made its file (120 records), but the browser pane does not save downloads, so it has to be clicked in the owner's own browser.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
