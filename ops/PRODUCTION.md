@@ -228,6 +228,21 @@ Same day, the other items from the list:
 - Supabase: the owner chose to stay on the Free plan for now ("mau gratis dulu"). Pro would add daily backups kept 7 days, about $35 a month with `ccc-website-dev` in the same organization. On Free the backup is the admin's Download backup (one JSON file of every table, no uploaded files), clicked in the owner's own browser, since the browser pane does not save downloads (it made the file, 120 records, but nothing reached the disk). At this point the database was 17 MB of 500 MB and Storage was empty; the project stays awake through the Sheet sync and the keep-alive workflow.
 - hello@: the owner added the recovery phone (the same number as 2-Step Verification, 15:41 WIB), generated backup codes (10 available, 15:46) and verified the recovery email (15:48). Checked read-only on the account's Security page.
 
+## Structured data on the home page, 2026-11-08
+
+Next on the gap list ("gas"): the home page had no structured data, so search engines had to guess the site's name and logo. The owner approved the release with "naikin". Commit `3ca8346` adds 27 lines to `index.html` and nothing else: one `<script type="application/ld+json">` in the head, after the favicon link, holding two items that point at each other. Nothing on the page looks or moves differently. No admin, `/pay`, database, function or Sheet change.
+
+- Organization: name "Creative Club Cult", alternate name "CCC", the home URL, the logo `favicon.png` (128 by 128, above Google's 112 minimum), the page's own meta description, hello@ and the Instagram profile.
+- WebSite: the same name and alternate name, the home URL, language `en`, published by the Organization.
+
+Checked before the release on the local server: the JSON parses, both items carry the fields Google lists as required, and the page and console were as before. Live: `/`, `app.js`, `styles.css` and `/careers` byte for byte the same as local, `/ops/PRODUCTION.md` still 404, and no console errors. Google's Rich Results Test on the live URL found 1 valid item, the Organization "Creative Club Cult", with no warnings (crawled 16:02 WIB); the WebSite item was checked by parsing the live page. Google decides if and when the name and logo show in search, which can take days to weeks.
+
+Vercel: the project stays on the Hobby plan for now, the owner's choice ("vercel gapap deh yang ini dulu"). Vercel's fair use guidelines allow Hobby for non-commercial use only; Pro is $20 a month. To revisit when the owner wants.
+
+Release: `site` and `main` at `3ca8346` (Vercel production `dpl_Ch5CDGbenX3dfiH2LcKjNT7dSp9G`, created 09:02 UTC, 16:02 WIB; the previous `main` is `7fcff27`). The notes commits `9bdc4f1`, `524c6f3`, `d16d894` and `7b9e80b` went out with it; `ops/` is not served.
+
+Rollback: push `7fcff27` to `main` and `site` again, or Vercel's instant rollback to `dpl_3YHZvSxMLQgPuuY6wEnhL9jB6QrT`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
