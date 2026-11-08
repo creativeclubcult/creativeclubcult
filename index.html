@@ -107,7 +107,7 @@
           <img src="images/loader/02.jpg" alt="" />
           <img src="images/loader/03.jpg" alt="" />
           <img src="images/loader/04.jpg" alt="" />
-          <img src="images/projects/noxon/spike-embrace.jpg" alt="" />
+          <picture><source media="(max-aspect-ratio: 1/1)" srcset="videos/landing-reel_mobile.jpg" /><img src="videos/landing-reel_desktop.jpg" alt="" /></picture>
         </span>
         <span class="h-load-half is-r"><span class="h-load-text">Club Cult</span></span>
       </div>
@@ -117,7 +117,7 @@
   <main>
     <div class="h-hero-bg" aria-hidden="true">
       <div class="h-hero-inner">
-        <div class="h-hero-media"><img src="images/projects/noxon/spike-embrace.jpg" alt="" width="1776" height="1404" fetchpriority="high" /></div>
+        <div class="h-hero-media"><video muted loop playsinline preload="auto"><source media="(max-aspect-ratio: 1/1)" src="videos/landing-reel_mobile.mp4" type="video/mp4" /><source src="videos/landing-reel_desktop.mp4" type="video/mp4" /></video></div>
         <span class="h-hero-shade"></span>
       </div>
     </div>
@@ -334,6 +334,19 @@
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
       var va = document.createElement('script'); va.defer = true; va.src = '/_vercel/insights/script.js'; document.head.appendChild(va);
     }
+  </script>
+  <script>
+    // Hero reel: it waits on its first frame (the poster, picked for the screen's orientation) while the
+    // opening loader runs, then plays as the loader hands over. With reduced motion it stays on that frame.
+    (function () {
+      var v = document.querySelector('.h-hero-media video'); if (!v) return;
+      v.poster = 'videos/landing-reel_' + (matchMedia('(max-aspect-ratio: 1/1)').matches ? 'mobile' : 'desktop') + '.jpg';
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var root = document.documentElement, go = function () { v.play().catch(function () {}); };
+      if (!root.classList.contains('is-loading')) return go();
+      new MutationObserver(function (m, o) { if (!root.classList.contains('is-loading')) { o.disconnect(); go(); } })
+        .observe(root, { attributes: true, attributeFilter: ['class'] });
+    })();
   </script>
 </body>
 </html>

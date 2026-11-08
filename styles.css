@@ -241,7 +241,7 @@ html.is-loading .site-header > * { opacity: 0; }
 .h-hero-bg { position: relative; z-index: 0; height: 100svh; min-height: 560px; margin-bottom: calc(-1 * max(100svh, 560px)); overflow: hidden; background: #000; }
 .h-hero-inner { position: absolute; inset: 0; will-change: transform; }
 .h-hero-media { position: absolute; inset: 0; }
-.h-hero-media img { width: 100%; height: 100%; object-fit: cover; }
+.h-hero-media img, .h-hero-media video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .h-hero-media::after { content: ""; position: absolute; inset: 0; background: rgba(5, 7, 12, 0.35); }
 .h-hero-shade { position: absolute; inset: 0; background: #000; opacity: 0; }
 .h-hero { position: relative; z-index: 1; display: grid; place-items: center; height: 100svh; min-height: 560px; text-align: center; }
