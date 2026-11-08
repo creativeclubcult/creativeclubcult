@@ -226,7 +226,7 @@ Rollback: delete the two TXT rows in hPanel, and Stop authentication in Google A
 Same day, the other items from the list:
 - Bank details: the owner typed them in Settings (row complete, saved 08:40 UTC, 15:40 WIB), so invoice links can be made. Only set or not set was checked, never the values.
 - Supabase: the owner chose to stay on the Free plan for now ("mau gratis dulu"). Pro would add daily backups kept 7 days, about $35 a month with `ccc-website-dev` in the same organization. On Free the backup is the admin's Download backup (one JSON file of every table, no uploaded files), clicked in the owner's own browser, since the browser pane does not save downloads (it made the file, 120 records, but nothing reached the disk). At this point the database was 17 MB of 500 MB and Storage was empty; the project stays awake through the Sheet sync and the keep-alive workflow.
-- hello@: recovery phone added (the same number as 2-Step Verification). The recovery email is still unverified and there are no backup codes yet.
+- hello@: the owner added the recovery phone (the same number as 2-Step Verification, 15:41 WIB), generated backup codes (10 available, 15:46) and verified the recovery email (15:48). Checked read-only on the account's Security page.
 
 ## What the owner does
 
