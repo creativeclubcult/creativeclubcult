@@ -243,6 +243,33 @@ Release: `site` and `main` at `3ca8346` (Vercel production `dpl_Ch5CDGbenX3dfiH2
 
 Rollback: push `7fcff27` to `main` and `site` again, or Vercel's instant rollback to `dpl_3YHZvSxMLQgPuuY6wEnhL9jB6QrT`.
 
+## Home hero plays the landing reel, 2026-11-08
+
+From the portfolio video session: the owner approved the landing reel (v5) and the hero mockup there, asked for it to go live from this session ("okkay bro lempar ke chat room "Creative Club Cult" buat push ke live"), and approved the release here ("Naikin sekarang"). Commit `6c004f9` changes `index.html` in three places and one rule in `styles.css`, and adds the four reel files in `videos/`. No admin, `/pay`, database, function or Sheet change.
+
+- Files: copied, not moved, from the owner's SSD (`000_CCC/Portfolio CCC/Video Portfolio/Thumbnail Web Landing`), byte for byte: `landing-reel_desktop.mp4` (1920 by 1080, 31.36 s, 15.6 MB), `landing-reel_mobile.mp4` (720 by 1280, 23.24 s, 5.3 MB) and their first frames as JPEG posters. H.264 video only, no sound track, index at the front.
+- Loader: its last picture is the reel's first frame (a `<picture>`; portrait screens get the phone poster), so it opens out into the hero without a jump. app.js still finds five `img` elements in the box.
+- Hero: `<video muted loop playsinline preload="auto">` with two sources; portrait screens (`max-aspect-ratio: 1/1`) get the phone cut. A small script at the end of the body sets the poster for the orientation, then plays the reel when `is-loading` goes, or at once when there is no loader. With reduced motion it stays on the poster.
+- `.h-hero-media img, .h-hero-media video` get `display: block` and fill the box as the photo did.
+
+The mockup was a copy of the main checkout, which still has the old `site` branch (`2f2bc2d`, 2026-11-03). The three commits the other session took for unreleased work (`877923b`, `41a1300`, `2f2bc2d`) have been on `main` since 2026-11-05. So only the four marked changes were carried over, onto the current page with its `.h-hero-bg` layer, without the mockup-only hooks (`?still`, `?t=`, `?img=`).
+
+Generator: `Work CCC/_tools/gen_pages.py` (the same file in both checkouts, last edited 2026-11-07 in the morning) still has the old hero and no JSON-LD, so it was already behind `7fcff27` and `3ca8346`. Changing only the hero there would protect nothing, so it was left alone. Running it now would undo those two releases and this one: sync it with the live pages before it is used again.
+
+Checked locally and live in headless Chrome (desktop 1440 by 900; phone 390 by 844 with an iPhone user agent; reduced motion on both):
+- The reel starts within 3 ms of the loader handing over, from its first frame; on a second visit it starts at once. Desktop loads only the desktop file and poster, phones only the phone ones; nothing loads the Noxon photo now.
+- The headline sits over the video, nothing scrolls sideways, and the console shows no errors.
+- Reduced motion: no loader, the poster stays and the reel never plays (the browser still fetches the file, `preload="auto"`).
+- Live: `/`, `styles.css`, `app.js`, both videos and both posters byte for byte as local; `admin/ui.css` and `pay/pay.js` unchanged; Range requests answer 206 with `video/mp4`, which Safari needs; `/ops/PRODUCTION.md` still 404.
+- One live phone run ended the loader at 9 s instead of about 6, because the page's scripts were late that once. Two reruns ended at 6.2 and 6.5 s, and runs with the videos blocked at 6.3 and 6.2 s, so the reel does not hold the loader up.
+- Not checked in Safari itself (no WebKit runner on this Mac).
+
+Bandwidth: Vercel Hobby includes the first 100 GB of Fast Data Transfer a month. The home page had 92 views (34 visitors) from 2026-10-09 to 2026-11-08; at one full desktop reel each, that is about 1.4 GB.
+
+Release: `site` and `main` at `6c004f9` (Vercel production `dpl_4EePuduB7oPG6dRNqsZ3PBNF4sXr`, created 16:25 UTC, 23:25 WIB; the previous `main` is `3ca8346`). The notes commit `9ecd7e8` went out with it.
+
+Rollback: push `3ca8346` to `main` and `site` again, or Vercel's instant rollback to `dpl_Ch5CDGbenX3dfiH2LcKjNT7dSp9G`.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
