@@ -223,7 +223,10 @@ Next: after about two weeks of reports with nothing unexpected (around 2026-11-2
 
 Rollback: delete the two TXT rows in hPanel, and Stop authentication in Google Admin.
 
-Same day, still with the owner: Supabase is on the Free plan with no card on file (Pro gives daily backups kept 7 days; keeping `ccc-website-dev` in the same organization makes it about $35 a month), `pay_settings` is still empty, and hello@ has no recovery phone, an unverified recovery email and no backup codes. The admin's Download backup made its file (120 records), but the browser pane does not save downloads, so it has to be clicked in the owner's own browser.
+Same day, the other items from the list:
+- Bank details: the owner typed them in Settings (row complete, saved 08:40 UTC, 15:40 WIB), so invoice links can be made. Only set or not set was checked, never the values.
+- Supabase: the owner chose to stay on the Free plan for now ("mau gratis dulu"). Pro would add daily backups kept 7 days, about $35 a month with `ccc-website-dev` in the same organization. On Free the backup is the admin's Download backup (one JSON file of every table, no uploaded files), clicked in the owner's own browser, since the browser pane does not save downloads (it made the file, 120 records, but nothing reached the disk). At this point the database was 17 MB of 500 MB and Storage was empty; the project stays awake through the Sheet sync and the keep-alive workflow.
+- hello@: recovery phone added (the same number as 2-Step Verification). The recovery email is still unverified and there are no backup codes yet.
 
 ## What the owner does
 
