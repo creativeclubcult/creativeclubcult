@@ -283,6 +283,16 @@ Both copies (main checkout and this worktree) are the same file, md5 `2d6f727ea2
 
 Before the next run into the repo, diff a scratch run against `HEAD` first: only the new work's pages should differ. A hand edit to a generated page goes back into the generator in the same change.
 
+## Pinterest claims the site, 2026-11-09
+
+The home `<head>` carries `<meta name="p:domain_verify" content="8fc599bc0984c9082bc11d35c418d2ce" />`, the tag Pinterest gave the CCC Pinterest account (pinterest.com/creativeclubcult, Settings, Link to Pinterest, Websites). The generator adds it to the home page only (`PINTEREST_VERIFY` in `head()`), so a regenerated `index.html` keeps it. Nothing visible changed.
+
+Checked: a scratch run of the generator writes all 24 files byte for byte as committed, and only `index.html` has the tag. Both generator copies are md5 `25cb65f1e3ad1d884d99ece161cf00df`; the version before sits next to each as `gen_pages.py.bak-pinterest`. After the release the live home page served the tag within about 20 seconds, Home, Work, CCC, Journal, Careers, Contact and /admin answered 200, and Pinterest's claim said "Connected" for creativeclubcult.com.
+
+Release: `site` and `main` at `c018dcc` (Vercel production `dpl_4DiaZB8iLpKUa96eAwfwkq4LNQtS`; the previous `main` is `6c004f9`). The notes commits `d880b96` and `17334b9` went out with it. The owner approved with "Ya, naikin ke live".
+
+Rollback: push `6c004f9` to `main` and `site` again, or Vercel's instant rollback to `dpl_4EePuduB7oPG6dRNqsZ3PBNF4sXr`. Removing the tag would unclaim the site on Pinterest.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
