@@ -97,13 +97,15 @@ The split of the project price sits under the internal summary of every v2 RAB t
 | Fee PR / freelance | 5%, typed, may be 0 | `=ROUND(L41*J42;0)` |
 | Fee internal (yang bawa project) | 3%, typed, may be 0 | `=ROUND(L41*J43;0)` |
 | DANA DIBAGI | 100% | `=L41-L42-L43` |
-| Net profit | 10% to 25%, default 25%, validated | `=ROUND(L44*J45;0)` |
+| Net profit | 0% to 25% (10% to 25% until 2026-11-11), default 25%, validated | `=ROUND(L44*J45;0)` |
 | Kas CCC | 5% | `=ROUND(L44*J46;0)` |
 | BUDGET PRODUKSI | `=1-J45-J46` | `=L44-L45-L46` |
 | Biaya produksi (RAB) | | `=M32` (Total biaya keluar) |
 | SISA BUDGET | | `=L47-L48`, red below 0 |
 
-The rows are found by their labels, so the cells above are the template's; a tab with another layout gets the same formulas on its own rows. The admin reads the block into `project_money.rab.internal.alloc` and writes only Net profit (`rab_meta` with `net_profit_pct`, 0.10 to 0.25).
+The rows are found by their labels, so the cells above are the template's; a tab with another layout gets the same formulas on its own rows. The admin reads the block into `project_money.rab.internal.alloc` and writes only Net profit (`rab_meta` with `net_profit_pct`, 0 to 0.25; an empty rate is refused and shows as "Not set" in the admin). Kas CCC and the fees are read from each tab, never assumed.
+
+Net profit may be 0% since 2026-11-11 (a job whose whole budget goes to the team, first RAB 014): the J45 rule reads "Net profit 0% sampai 25%." in `Template RAB` and the v2 tabs, see `ops/PRODUCTION.md`. `syncAlokasiTab_` in Sync.gs 1.3.0 still gives a block it adds the old 10% to 25% rule; that only happens for a v2 tab without the block (none is left, new tabs copy the template), so carry 0 to 0.25 over when Sync.gs is next installed.
 
 To add it, deploy the web app version first, then run `syncAlokasiSetup` from the editor. It adds the block to `Template RAB` and to every v2 RAB tab that does not have it, and logs one line per tab. It skips a tab whose target rows are not empty, never touches v1 tabs (001 to 009), and running it again changes nothing. In this order the first pull reads every tab with the block; in the other order, clear the digests as in section 3.
 

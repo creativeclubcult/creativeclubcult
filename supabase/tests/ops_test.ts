@@ -123,3 +123,13 @@ Deno.test('M6: a line reply commits the RAB and clears Rekap and Keuangan for th
     eq([p.rab?.map((x) => [x.gid, x.client_code]), p.digests, p.null_digests], [[[3010, 'ACME']], { 'tab:3010': 'tab-3010-b' }, ['keuangan', 'rekap']], op);
   }
 });
+
+Deno.test('rab_meta: net profit takes 0% to 25% and refuses an empty rate', () => {
+  const np = (v: unknown) => err('rab_meta', { set: { net_profit_pct: v } });
+  eq([np(0), np(0.07), np(0.1), np(0.25)], ['ok', 'ok', 'ok', 'ok']);
+  for (const v of [-0.01, 0.26, 1, '0.1', true]) eq(np(v), 'net_profit_pct must be between 0% and 25%.', String(v));
+  for (const v of [null, '']) eq(np(v), "net_profit_pct can't be empty.", String(v));
+  // the rate the admin saw goes along unchecked as expect (0 included), so a first write onto 0% isn't refused
+  const r = run('rab_meta', { set: { net_profit_pct: 0.15 }, expect: { net_profit_pct: 0 } });
+  eq(r.ok && r.args, { project_id: PID, set: { net_profit_pct: 0.15 }, expect: { net_profit_pct: 0 }, force: false });
+});

@@ -251,19 +251,25 @@
 
   // The split of the project price: the ALOKASI DANA block of the RAB tab. The PR and internal fees come off first,
   // net profit and the Kas share are taken from what is left, and the rest is the production budget. Net profit
-  // (10% to 25%) is the one rate that changes here; it is written to the RAB tab like any other RAB setting.
+  // (0% to 25%) is the one rate that changes here; it is written to the RAB tab like any other RAB setting.
   var SPLIT = [['Project price (Omset)', 'price'], ['PR fee', 'pr'], ['Internal fee', 'internal'], ['After fees', 'shared', 'mid'],
     ['Net profit', 'net_profit'], ['Kas CCC', 'kas'], ['Production budget', 'budget', 'sum'],
     ['Production cost in the RAB', 'production_cost', 'mid', true], ['Left in the budget', 'left', 'sum', true]];
   function allocation(p, a, canSet) {
     var tb = h('tbody'), cur = E.n(a.net_profit_pct), msg = h('span', { class: 'fmsg', role: 'status' }), pick = null;
     if (canSet) {
-      var opts = [];
-      for (var i = 10; i <= 25; i++) opts.push([String(i / 100), i + '%']);
-      // a rate typed in the Sheet that isn't a whole percent stays visible
-      if (cur != null && !opts.some(function (o) { return Number(o[0]) === cur; })) opts.push([String(cur), E.pct(cur)]);
+      var rates = [];
+      for (var i = 0; i <= 25; i++) rates.push(i / 100);
+      // a rate typed in the Sheet that isn't a whole percent stays visible, in its place in the list
+      if (cur != null && rates.indexOf(cur) < 0) rates.push(cur);
+      rates.sort(function (x, y) { return x - y; });
+      var opts = rates.map(function (r) { return [String(r), E.pct(r)]; });
+      // an empty or unreadable rate shows as Not set, never as the first rate in the list (0%), and can't be picked
+      if (cur == null) opts.unshift(['', 'Not set']);
       pick = A.select(opts, cur == null ? '' : String(cur), { class: 'field', 'aria-label': 'Net profit' });
+      if (cur == null) pick.options[0].disabled = true;
       pick.addEventListener('change', function () {
+        if (pick.value === '') return;
         var v = Number(pick.value), before = cur;
         pick.disabled = true; msg.textContent = 'Saving to the Sheet…'; msg.classList.remove('is-err');
         var undo = function (t) { pick.disabled = false; pick.value = before == null ? '' : String(before); msg.textContent = t; msg.classList.add('is-err'); };
@@ -295,7 +301,7 @@
     paint(a);
     return [paneH('Allocation', src('RAB internal summary')),
       h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact alloc' }, E.thead(['Split of the project price', ['%', 'num'], ['Rp', 'num']]), tb)),
-      canSet ? h('p', { class: 'help' }, 'Net profit can be 10% to 25%. Changing it saves to the RAB tab in the Sheet. ', msg) : null];
+      canSet ? h('p', { class: 'help' }, 'Net profit can be 0% to 25%. Changing it saves to the RAB tab in the Sheet. ', msg) : null];
   }
 
   function show(d) {

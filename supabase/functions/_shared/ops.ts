@@ -124,8 +124,9 @@ const RAB_META: Record<string, FieldRule> = {
   shooting_days: { kind: 'text', max: 200 }, usage: { kind: 'text', max: 200 }, location: { kind: 'text', max: 200 },
   language: { kind: 'text', max: 200 }, discount_pct: { kind: 'pct' }, ppn_pct: { kind: 'pct' }, dp_pct: { kind: 'pct' },
   pph23_pct: { kind: 'pct' },
-  // ALOKASI DANA block: net profit share of the money left after the PR and internal fees
-  net_profit_pct: { kind: 'pct', min: 0.1, max: 0.25, required: true },
+  // ALOKASI DANA block: net profit share of the money left after the PR and internal fees, 0% to 25% (0% since
+  // 2026-11-11: a job whose whole budget goes to the team). Empty is refused, so a missing rate never becomes 0%.
+  net_profit_pct: { kind: 'pct', min: 0, max: 0.25, required: true },
 };
 
 export const KAS_RULES: Record<string, FieldRule> = {
