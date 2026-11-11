@@ -319,7 +319,7 @@ Rollback (all three together; the old admin and the old server refuse 0, so 014 
 - Sheet: put J45 in `Template RAB` and 010 to 013 back to "number between 0.1 and 0.25" with "Net profit 10% sampai 25%.", only where the rate is 10% or more by then. Leave 014.
 - Admin: push `c018dcc` to `main` and `site` again, or Vercel's instant rollback to `dpl_4DiaZB8iLpKUa96eAwfwkq4LNQtS`.
 
-Noticed, not changed: the Sheet has a tab `013 ALURA - Music Video`, but PROD has no project for it, and 012 still has no RAB layout (its RAB is not read).
+Noticed, not changed: the tab `013 ALURA - Music Video` has no row in Rekap Project, so PROD has no project for it (its rule changed with the others); 012 still has no RAB layout in PROD, so its RAB is not read.
 
 ## What the owner does
 
