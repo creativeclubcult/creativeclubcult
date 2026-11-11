@@ -293,6 +293,34 @@ Release: `site` and `main` at `c018dcc` (Vercel production `dpl_4DiaZB8iLpKUa96e
 
 Rollback: push `6c004f9` to `main` and `site` again, or Vercel's instant rollback to `dpl_4EePuduB7oPG6dRNqsZ3PBNF4sXr`. Removing the tag would unclaim the site on Pinterest.
 
+## Net profit can be 0%, 2026-11-11
+
+The owner's rule changed: a job whose whole budget goes to the team has 0% net profit (the first is RAB 014 Denri, typed in the Sheet with net profit 0% and Kas 0%). Net profit is now 0% to 25% in whole percents for every v2 RAB tab. Before, the admin picker offered 10% to 25% (014's 0% was added at the end of the list) and the server refused 0, so once changed, 014 could not go back to 0% from the admin, and an empty cell showed as the first rate, 10%.
+
+- Server, `supabase/functions/_shared/ops.ts`: `rab_meta` takes `net_profit_pct` from 0 to 0.25. An empty rate is still refused, so a missing rate never becomes 0%. New test in `supabase/tests/ops_test.ts`; all 95 tests pass.
+- Admin, `admin/eco/projects.js` (Money, Allocation): the picker lists 0% to 25% in whole percents, and a rate typed in the Sheet that isn't a whole percent keeps its place in the list. An empty or unreadable rate shows as a disabled "Not set" and is never sent. The help line reads "Net profit can be 0% to 25%. Changing it saves to the RAB tab in the Sheet." People who may see money but not change it still see the rate as text.
+- Sheet: the rule on J45 in `Template RAB`, 010, 011, 012 and 013 went from "number between 10% and 25%" (help text "Net profit 10% sampai 25%.") to 0% to 25% with "Net profit 0% sampai 25%.", and invalid input is still rejected. The values stayed as they were: Template 25%, 010 25%, 011 10%, 012 25%, 013 25%. 014 already had 0% to 25% and was not touched; 001 to 009 have no block.
+  - Done with a one-off script file `TmpNetProfit` in the bound project. A dry run at 10:25 WIB listed exactly those five cells with the old rule; the apply at 10:27 WIB read each new rule back from the cell; the file was deleted at 10:28 WIB. No authorization prompt.
+  - `Kode.gs` and `Sync.gs` (1.3.0) have the same length and hash before and after. The web app deployment was not touched.
+  - `syncAlokasiTab_` in Sync.gs 1.3.0 still gives a block it adds the old 10% to 25% rule. That only happens for a v2 tab without the block (new tabs copy the template), so carry 0 to 0.25 over at the next Sync.gs install.
+- DEV (`jvhhcehzhgpcphtpynnx`) still runs the old rule until its functions are deployed again.
+
+Release, in the order the owner approved ("Ya, naikin ke live"):
+1. Functions: `sheets-write` at 03:18 UTC and `sheets-sync` at 03:19 UTC, both from `2088e7f` (version 7 each, verify JWT off as before), through the dashboard's code editor; the MCP deploy call was refused because its schema sent booleans and lists as text. `sheets-bridge` stays on `6dd7712`. Without credentials both answer 401, and every scheduled pull after the deploy was accepted (202).
+2. Sheet rule, as above.
+3. Pushed: `admin-ecosystem` at `2088e7f`, then `site` and `main` (fast forward from `c018dcc`; the notes commit `9a78f34` went out with it). Vercel production `dpl_BzZRgSAhnxFySzKfGXXnhHGbkbt2`, created 03:29 UTC (10:29 WIB). The live `/admin/eco/projects.js` is byte for byte the commit's and is served `no-store`; `/`, `/admin`, `/pay` and `/work` answer 200. Only that admin file changed on the site; `ops/` and `supabase/` stay out of the deployment.
+
+Checked locally in the harness (owner, 1280 px and 390 px): 014 shows 0% with 26 rates from 0%; picking 5% sends set 0.05 with expect 0; picking 0% from 15% sends set 0 with expect 0.15; an empty rate shows "Not set", picking it sends nothing, and 20% from empty sends expect null; 12.5% sits in its place; a money viewer sees text only; no console errors.
+
+Live, signed in: not checked yet. The admin session in the browser pane had expired, and only the owner types the password. Still to do: open 014, Money, Allocation (0% selected, help line as above, clean console), then pick 0% on 014 again, which must save as a no change.
+
+Rollback (all three together; the old admin and the old server refuse 0, so 014 could not be set back to 0% from the admin):
+- Functions: deploy `sheets-write` and `sheets-sync` again with the import at `6dd7712399ac60dbcd1a1030d9a43ff7fbd6080b`.
+- Sheet: put J45 in `Template RAB` and 010 to 013 back to "number between 0.1 and 0.25" with "Net profit 10% sampai 25%.", only where the rate is 10% or more by then. Leave 014.
+- Admin: push `c018dcc` to `main` and `site` again, or Vercel's instant rollback to `dpl_4DiaZB8iLpKUa96eAwfwkq4LNQtS`.
+
+Noticed, not changed: the Sheet has a tab `013 ALURA - Music Video`, but PROD has no project for it, and 012 still has no RAB layout (its RAB is not read).
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).
