@@ -312,7 +312,7 @@ Release, in the order the owner approved ("Ya, naikin ke live"):
 
 Checked locally in the harness (owner, 1280 px and 390 px): 014 shows 0% with 26 rates from 0%; picking 5% sends set 0.05 with expect 0; picking 0% from 15% sends set 0 with expect 0.15; an empty rate shows "Not set", picking it sends nothing, and 20% from empty sends expect null; 12.5% sits in its place; a money viewer sees text only; no console errors.
 
-Live, signed in: not checked yet. The admin session in the browser pane had expired, and only the owner types the password. Still to do: open 014, Money, Allocation (0% selected, help line as above, clean console), then pick 0% on 014 again, which must save as a no change.
+Live, signed in as the owner (the pane's old session had expired; the owner signed in again in the pane): 014, Money, Allocation shows 0% selected with 26 rates from 0% to 25% and the new help line; price 6.000.000, fees 300.000 and 180.000, net profit 0, Kas 0%, production budget 5.520.000, left 0; no sideways scroll at 931 px. The only console errors are the expired session's `team-access` 401 and `logout` 403 at page load, before the sign in; every call after it answered 200. A no change save, `rab_meta` with set 0 and expect 0 on 014 (op `b255c75f-717e-4c04-bedc-058338ad05f9`, 03:44 UTC), answered 200 in about 10 seconds, which the old rule refused; the Sheet's answer was `noop: ["net_profit_pct"]` with nothing written, and the outbox has no open rows.
 
 Rollback (all three together; the old admin and the old server refuse 0, so 014 could not be set back to 0% from the admin):
 - Functions: deploy `sheets-write` and `sheets-sync` again with the import at `6dd7712399ac60dbcd1a1030d9a43ff7fbd6080b`.
