@@ -321,7 +321,7 @@ Rollback (all three together; the old admin and the old server refuse 0, so 014 
 
 Noticed, not changed: the tab `013 ALURA - Music Video` has no row in Rekap Project, so PROD has no project for it (its rule changed with the others); 012 still has no RAB layout in PROD, so its RAB is not read.
 
-## Portfolio photos, gallery layout, uploaded films and RAB numbering, 2026-11-12 (DEV only, not released)
+## Portfolio photos, gallery layout, uploaded films and RAB numbering, 2026-11-12 (live since 10:45 WIB, Sheet numbered at 11:00)
 
 From the owner's notes of 2026-11-11. The owner chose: photos and the gallery layout; films stored in Supabase ("Supabase (gratis, berisiko)": about 20 MB each, the Free plan's storage and traffic risk accepted); the NO column numbering itself in each section of `Template RAB`, 010, 011 and 014, never 001 to 009, 012 or 013; and the bug to fix is "numbers skip after a delete or an add". Held until the owner ticks them: services and industries typed by hand, and the Behance style image preview on the project page.
 
@@ -351,13 +351,14 @@ Checked: six build suites, then six adversarial verifiers (33 findings: 3 high, 
 
 Open:
 - Not tried on a device: iPhone (iOS 26 Safari) and Mac Safari for the photos (no WebP there), the film check and poster, the MOV route, and a stored film playing on the public page. iPhone video loading was only emulated in Chrome.
-- The real upload round trip on DEV needs the owner's sign in.
-- Low, not fixed: a photo that comes out upside down or mirrored isn't caught in a browser whose createImageBitmap ignores the camera's orientation (current Safari and Chrome apply it); try an upside down camera JPEG from the iPhone before the release. A Half pair of a 10:1 panorama and a 2:3 portrait, set by hand, shrinks the portrait (the preview shows it; Auto layout makes the panorama full width).
+- No real upload round trip yet, on DEV or PROD: it needs the owner's sign in. The owner's first use from the iPhone (release step 5) is the first one.
+- Low, not fixed: a photo that comes out upside down or mirrored isn't caught in a browser whose createImageBitmap ignores the camera's orientation (current Safari and Chrome apply it); try an upside down camera JPEG from the iPhone in that first use. A Half pair of a 10:1 panorama and a 2:3 portrait, set by hand, shrinks the portrait (the preview shows it; Auto layout makes the panorama full width).
 - Next Sync.gs install: Make PDF should warn while the NO column shows #REF!; `syncSpillColumn_` should find the formula anywhere in A of a section (after a row is inserted above a section's first line, Remove line on that row is refused); the DEV M6 line test still sends `no`; and `syncAlokasiTab_` still needs 0 to 0.25 (2026-11-11).
 - Uploads stay in the drafts buckets when the tab or the browser closes before a save (filmLeft doesn't run then). A server side sweep of draft files no row uses would close it.
 - A save that fails on the network says "Failed to fetch" as it is.
 - The migration's header says portfolio.js fails as a whole before the migration; with the 42703 retry it only loses the films. The order stays, because admin.js writes the film columns.
-- On a real Sheet NoOtomatis.gs has not yet met merged cells, text or another formula in A, or a row inserted above a first line (DEV had none); those paths ran only in the simulator. Its first run on a 014 tab is the live one.
+- On a real Sheet NoOtomatis.gs has not yet met merged cells, text or another formula in A, or a row inserted above a first line (neither DEV nor the live Sheet had one); those paths ran only in the simulator.
+- Not yet done live: INSTALL-LIVE.md check 4 (Add line, then Remove line, on a numbered tab from the admin). It writes in a client's quote, so it waits for the owner's yes.
 
 Release, each step with the owner's yes, in this order:
 1. PROD migration: `Work CCC/migrations/20261112_portfolio_video.sql` through apply_migration on `zneckeqsvwbavqxpolri`. Then anon reads `video_path, video_poster_path, video_w, video_h` (200), the advisors show nothing new, both video buckets exist (20 MB, video/mp4 only) and the fingerprint matches DEV.
@@ -365,6 +366,18 @@ Release, each step with the owner's yes, in this order:
 3. Reload every open admin tab: an old tab still sends `no`, and saves no film.
 4. Live Sheet: NoOtomatis as `Work CCC/rab-numbering/INSTALL-LIVE.md` says (Template RAB, 010, 011, 014).
 5. First real use: a batch of photos and a short MP4 on a draft, publish, and look at it on the iPhone.
+
+Released on 2026-11-12. The owner answered "Naikin live" for the whole order, and "Pasang sekarang" after seeing noOtomatisCek's numbers:
+1. About 10:41 WIB, PROD migration `portfolio_video` through apply_migration on `zneckeqsvwbavqxpolri`. Its fingerprint (4 functions with grants, 4 columns, 4 constraints, 1 trigger, 2 buckets, 6 storage policies, 1 function comment) equals DEV's, `cecfa63aeed67a563595243418c3594b`. The security advisors list nothing new. Anon with the public key: the four film columns 200, `created_by` 401, `rpc/portfolio_storage_used` 42501.
+2. 10:45 WIB, `7a1aa22` pushed to `admin-ecosystem`, `site` and `main`, all three fast forwards. Production deploy `dpl_EdRzktDdAHQu8nZMe26LCLdacc7J` READY. Live `admin/admin.js`, `admin/admin.css`, `admin/eco/rab.js` (keepPick), `/admin`, `portfolio.js` and `styles.css` are byte for byte the commit's. `/work` shows the same four projects as before (PROD has no published portfolio item yet), and its `portfolio_items` read with the film columns answers 200. Consoles clean on `/work`, a project page and the admin. `/ops/PRODUCTION.md` and `Work CCC` answer 404.
+3. The Team is one person, the owner. Settings showed no Changes waiting before the Sheet step.
+4. 10:54 to 11:01 WIB, live Sheet. NoOtomatis.gs added to its script project `1z_LudaBt1FbwnMgbDRjzlcJOAW9JvnMnymeVqMLEOXzu9T7I2n-xPISZ` ("Project tak berjudul", 13924 chars, `98f3015cb101fd4a`), by hello@ in the pane.
+   - The live `Kode.gs` is not DEV's: 37949 chars, sha256 prefix `1426d907ab38c04c` (DEV `5552113afb35daf8`). Checked before the paste: no name in common with NoOtomatis.gs and no top level statement. `buatRabBaru` writes only H8, F11, F14, J13 and J14. `onEdit` acts on column I only. `onChangeRab`, `rapikanAlat_` and `siapkanAlatRab_` write column A only inside Equipment. `removeRows_` runs only on Kas and Rekap Project. Its formulas use `;`.
+   - `Sync.gs` is DEV's (`d147dadf5c33f54b`). Both files were unchanged after the install, and the admin kept reading the Sheet (11:02, 11:05).
+   - noOtomatisCek at 10:55 planned 35 sections. Numbers change only in 010 (A72, A78 to A82, A151, A157, A163 and A164) and 014 (A148 to A151): empty NO cells of lines with a description, none to 1 and up. 010 and 014 are Draft.
+   - noOtomatisPasang ran 10:59:58 to 11:00:42 (44 s). It wrote 35 sections, every read back matched, and no CHECK THIS line came up. 011's typed numbers were cleared and show the same numbers from the formula. A second run said "already numbered" for all 35 (011 has no LOCATION & PERMIT).
+5. Check: the gviz CSV of Template RAB, 010, 011 and 014, taken before and after, compared cell by cell. Template RAB and 011 are identical. 010 differs in exactly the 10 cells of A above, and 014 in the 4. The totals stayed: 010 Rp 12.253.600, 011 Rp 33.435.250 and 014 Rp 6.000.000, with no new change log entry, nothing waiting and no new open issue.
+6. File > Print of 014: this Sheet's print settings have Show notes ticked, so the notes page lists the nine new NO header notes next to the template's own ([1] to [11] and more). The admin's Make PDF leaves notes out (`printnotes=false`).
 
 Rollback, in this order:
 - Sheet: run noOtomatisLepas (INSTALL-LIVE.md, Undo) before the admin goes back to any version before this rab.js, such as `2088e7f` or `c018dcc`. An old admin sends `no`, and the formula refuses it.
