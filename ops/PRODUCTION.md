@@ -343,7 +343,9 @@ RAB (`admin/eco/rab.js`): the admin no longer sends `no`, because the Sheet numb
 
 Not in git (`Work CCC/`): `migrations/20261112_portfolio_video.sql` with `_rollback.sql` and `_tests.sql` (104 cases); `rab-numbering/NoOtomatis.gs` (noOtomatisCek writes nothing, noOtomatisPasang installs, noOtomatisLepas undoes) and `rab-numbering/INSTALL-LIVE.md`. The formula sits in A on each section's first item row and counts the rows with a description down to the section's TOTAL, so a deleted or added line renumbers the rest.
 
-DEV (`jvhhcehzhgpcphtpynnx`): the migration is applied (version `20261111195359`), and the tests file passes 104/104 in a transaction that rolls back. The DEV Sheet's `Template RAB` carries the formula; the DEV Apps Script project holds only `Kode.gs` and `Sync.gs`, both unchanged.
+DEV (`jvhhcehzhgpcphtpynnx`): the migration is applied (version `20261111195359`), and the tests file passes 104/104 in a transaction that rolls back. On the DEV Sheet, `Template RAB`, `010` and `011` carry the formula and the note on each NO header (DEV has no `014`). The DEV Apps Script project holds only `Kode.gs` and `Sync.gs`, both unchanged (sha256 prefixes `5552113afb35daf8` and `d147dadf5c33f54b`).
+
+NoOtomatis.gs rehearsal on the DEV Sheet, 2026-11-12 10:20 to 10:32 WIB, with the file as it is in `Work CCC/rab-numbering` (13924 bytes, sha256 prefix `98f3015cb101fd4a`) pasted as a third script file and deleted afterwards: noOtomatisCek planned 27 sections (Template RAB, 010, 011; 014 logged as no such tab); noOtomatisPasang wrote them in 47 s, every section's read back matched, and each NO header got its note; noOtomatisCek then found all 27 already numbered; noOtomatisLepas kept every number as a typed number and took the formulas and notes out in 27 s, and noOtomatisCek after it said the numbers stay the same in all 27; noOtomatisPasang again left DEV numbered. Editor quirk: the function list next to Run once showed noOtomatisPasang while Run still ran noOtomatisCek (picked with the keyboard), so INSTALL-LIVE.md now says to pick with the mouse and read the log's first line (`Check only, nothing written`, `Install` or `Undo`).
 
 Checked: six build suites, then six adversarial verifiers (33 findings: 3 high, 9 medium, 21 low), three fixers (30 fixed), then every suite again from fresh headless Chrome profiles with PROD's hosts unresolvable: no regression. 57 admin and public pages at desktop and phone have clean consoles; the 23 public pages have 0 DOM differences from HEAD at desktop and phone, and project pages differ only by the new rows.
 
@@ -355,7 +357,7 @@ Open:
 - Uploads stay in the drafts buckets when the tab or the browser closes before a save (filmLeft doesn't run then). A server side sweep of draft files no row uses would close it.
 - A save that fails on the network says "Failed to fetch" as it is.
 - The migration's header says portfolio.js fails as a whole before the migration; with the 42703 retry it only loses the films. The order stays, because admin.js writes the film columns.
-- The newest NoOtomatis.gs (the note on each NO header, the script lock, the merged cell check, noOtomatisLepas) has run only in a simulator: run its three functions once on the DEV Sheet before the live install.
+- On a real Sheet NoOtomatis.gs has not yet met merged cells, text or another formula in A, or a row inserted above a first line (DEV had none); those paths ran only in the simulator. Its first run on a 014 tab is the live one.
 
 Release, each step with the owner's yes, in this order:
 1. PROD migration: `Work CCC/migrations/20261112_portfolio_video.sql` through apply_migration on `zneckeqsvwbavqxpolri`. Then anon reads `video_path, video_poster_path, video_w, video_h` (200), the advisors show nothing new, both video buckets exist (20 MB, video/mp4 only) and the fingerprint matches DEV.
