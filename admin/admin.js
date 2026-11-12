@@ -486,6 +486,20 @@
     ['photography', 'Photography'], ['film', 'Film'], ['motion', 'Motion'], ['illustration', 'Illustration'], ['experience', 'Experience'],
     ['production', 'Production'], ['experimental', 'Experimental']];
   var INDUSTRIES = [['fashion', 'Fashion'], ['sport', 'Sport'], ['food-beverage', 'Food & Beverage']];
+  // Services and industries of the owner's own, typed in the editor beside the lists above (20261112_portfolio_categories:
+  // services_custom and industries_custom). The database checks the same rule: 2 to 30 characters of letters A to Z,
+  // digits, single spaces and & + / . ' with a hyphen only inside a word, and up to 6 of each kind on a project.
+  var OWN_MAX = 6, OWN_LEN = 30;
+  var OWN_RE = /^[A-Za-z0-9&+\/.']+(-[A-Za-z0-9&+\/.']+)*( [A-Za-z0-9&+\/.']+(-[A-Za-z0-9&+\/.']+)*)*$/;
+  // A label's key, as the database's private.category_key and the Work page's filter: case, spaces and signs don't
+  // count and the word "and" counts as "&", so Food and Beverage is food-beverage like Food & Beverage. A label that is
+  // only "and" keeps it. Two labels are one when their keys are.
+  var catKey = function (t) {
+    var s = String(t || '').toLowerCase(), slug = function (x) { return x.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); };
+    return slug(s.replace(/\band\b/g, '-')) || slug(s);
+  };
+  var catSame = function (a, b) { return catKey(a) === catKey(b); };
+  var byLabel = function (a, b) { return a.localeCompare(b, 'en', { sensitivity: 'base' }); };
   // the case studies written into the site's code, with the picture their Work card uses
   var BUILT_IN = [['MOVANA', 'movana', 2026, 'movana/thumb.jpg'], ['Whitebeard', 'whitebeard', 2026, 'whitebeard/tshirt.jpg'],
     ['NOXON', 'noxon', 2026, 'noxon/thumb.jpg'], ['Citarasa Tradisi', 'tradisi', 2026, 'tradisi/lychee-poster.jpg']];
@@ -525,6 +539,10 @@
     if (/video_url/.test(m)) return 'The video link must be a YouTube or Vimeo address.';
     if (/gallery/.test(m)) return 'A gallery image isn’t valid. Remove it and upload it again.';
     if (/credits/.test(m)) return 'Every credit needs both a role and a name.';
+    // services and industries of your own (20261112_portfolio_categories)
+    if (/categories_apart/.test(m)) return 'A label of your own can be a service or an industry, not both.';
+    if (/services_custom/.test(m)) return 'A service of your own can’t be saved. Use 2 to 30 letters, numbers, spaces or & + / . ’ and up to 6 on a project.';
+    if (/industries_custom/.test(m)) return 'An industry of your own can’t be saved. Use 2 to 30 letters, numbers, spaces or & + / . ’ and up to 6 on a project.';
     if (/row-level security|permission denied/.test(m)) return 'Your role can’t change the portfolio. Ask an owner.';
     return m || 'Something went wrong. Nothing was changed.';
   };
@@ -1152,8 +1170,9 @@
   })();
 
   // ---- the list: drafts and published items as cards, by status; the built in pages below them ----
-  // body: the open editor's form, while there is one
-  var pf = { panel: $('[data-panel="portfolio"]'), ui: null, got: null, turn: 0, view: 'active', from: null, body: null };
+  // body: the open editor's form, while there is one; own: whether this database keeps services and industries of
+  // your own (null until the list says); listed: the list's answer, for the editor's chips
+  var pf = { panel: $('[data-panel="portfolio"]'), ui: null, got: null, turn: 0, view: 'active', from: null, body: null, own: null, listed: null };
   var PF_TABS = [['active', 'Draft & published'], ['draft', 'Draft'], ['published', 'Published'], ['archived', 'Archived'], ['', 'Everything']];
   var PF_NONE = { active: 'No drafts or published items yet.', draft: 'No drafts.', published: 'Nothing is published yet.', archived: 'Nothing is archived.', '': 'No portfolio items yet.' };
   var inView = function (st, v) { return v === 'active' ? st !== 'archived' : !v || st === v; };
@@ -1226,8 +1245,19 @@
       PF_TABS.forEach(function (t) { $('.c', ui.tab[t[0]]).textContent = ''; });
       pfState('Couldn’t load the portfolio. ' + window.eco.ecoError(e), true, pfLoad);
     };
-    sb.from('portfolio_items').select('id, slug, title, client, year, status, featured, sort_order, cover_path, updated_at', { count: 'exact' })
-      .order('featured', { ascending: false }).order('sort_order').order('updated_at', { ascending: false }).limit(500)
+    // with each item's services and industries of your own, for the editor's chips. A database from before
+    // 20261112_portfolio_categories answers 42703 (no such column), and the list is asked for again without them.
+    var ask = function (own) {
+      return sb.from('portfolio_items').select('id, slug, title, client, year, status, featured, sort_order, cover_path, updated_at'
+          + (own ? ', services_custom, industries_custom' : ''), { count: 'exact' })
+        .order('featured', { ascending: false }).order('sort_order').order('updated_at', { ascending: false }).limit(500)
+        .then(function (r) {
+          if (own && r.error && r.error.code === '42703') return ask(false);
+          if (!r.error) pf.own = own;
+          return r;
+        });
+    };
+    (pf.listed = ask(pf.own !== false))
       .then(function (r) {
         if (r.error) return bad(r.error);
         if (mine !== pf.turn) return;
@@ -1237,6 +1267,25 @@
         ui.note.textContent = 'Only the first ' + pf.got.length + ' of ' + r.count + ' items are here, so the counts leave some out.';
         pfDraw();
       }, bad);
+  }
+  // The labels of your own that drafts and live items use, for the editor's chips: { services: [], industries: [] }
+  // in alphabetical order, one label per key. null while this database has none of them, or the list can't tell.
+  function pfVocab() {
+    var none = function () { return pf.own ? { services: [], industries: [] } : null; };
+    return (pf.listed || Promise.resolve(null)).then(function (r) {
+      if (!r || r.error || !pf.own) return none();
+      var out = { services: [], industries: [] };
+      (r.data || []).forEach(function (p) {
+        if (p.status === 'archived') return;
+        ['services', 'industries'].forEach(function (k) {
+          (p[k + '_custom'] || []).forEach(function (t) {
+            if (!out[k].some(function (x) { return catSame(x, t); })) out[k].push(t);
+          });
+        });
+      });
+      out.services.sort(byLabel); out.industries.sort(byLabel);
+      return out;
+    }, none);
   }
   loaders.portfolio = pfLoad;
   openers.portfolio = function (id) { var from = pf.from; pf.from = null; pfOpen(id === 'new' ? null : id, from); };
@@ -1261,6 +1310,12 @@
     var state = saved ? JSON.parse(JSON.stringify(saved)) : { status: 'draft', gallery: [], credits: [], services: [], industries: [], featured: false, sort_order: 0, project_id: null };
     // started from a project: its name, client and year, and the link back to it
     if (from) { state.title = from.title || ''; state.slug = slugify(state.title); state.client = from.client || null; state.year = from.year || null; state.project_id = from.id; }
+    // services and industries of your own: kept in alphabetical order, as their chips stand. withOwn: this database has
+    // them (the saved row carries the columns, or the list was read with them); until then the fields stay hidden and
+    // a save leaves the columns out, so an admin ahead of its database still saves everything else.
+    state.services_custom = (state.services_custom || []).slice().sort(byLabel);
+    state.industries_custom = (state.industries_custom || []).slice().sort(byLabel);
+    var withOwn = saved ? 'services_custom' in saved : pf.own === true;
     var slugTouched = !isNew;
     var busy = false;
     var lastSaved = JSON.stringify(collectFrom(state));
@@ -1268,6 +1323,8 @@
 
     function collectFrom(x) {
       return { slug: x.slug || '', title: x.title || '', client: x.client || null, year: x.year || null, services: x.services || [], industries: x.industries || [],
+        // services and industries of your own (20261112_portfolio_categories), as typed
+        services_custom: x.services_custom || [], industries_custom: x.industries_custom || [],
         summary: x.summary || null, brief: x.brief || null, approach: x.approach || null, outcome: x.outcome || null,
         cover_path: x.cover_path || null, cover_alt: x.cover_alt || null, cover_w: x.cover_w || null, cover_h: x.cover_h || null,
         gallery: x.gallery || [], video_url: x.video_url || null, credits: x.credits || [], seo_title: x.seo_title || null, seo_description: x.seo_description || null,
@@ -1310,17 +1367,98 @@
     };
     // on a live item a second line warns that a new slug breaks shared links (and is read out only then)
     var slugHint = help(f.slug, ''), liveHint = h('span', { class: 'hint', id: 'pf-h' + (++pfUid), 'aria-hidden': 'true', hidden: true, text: 'It’s live, so a new slug breaks the links already shared.' });
-    // Services and Industry: chips that stay pressed
-    var chips = function (label, list, chosen) {
+    // Services and Industry: chips that stay pressed. The fixed list first, then the labels of your own in alphabetical
+    // order: this item's, and the ones other drafts and live items use, so a label is typed once and picked after that.
+    // Under them a field adds one (or a few, split by commas); it shows once this database is known to keep them.
+    var chips = function (label, list, chosen, kind) {
       var lid = 'pf-l' + (++pfUid), box = h('div', { class: 'chips', role: 'group', 'aria-labelledby': lid });
-      list.forEach(function (o) {
-        var b = h('button', { type: 'button', value: o[0], 'aria-pressed': String(chosen.indexOf(o[0]) > -1), disabled: ro }, o[1]);
+      var g = { kind: kind, box: box };
+      g.chip = function (value, text, on, own) {
+        var b = h('button', { type: 'button', value: value, 'data-own': own ? '' : null, 'aria-pressed': String(on), disabled: ro }, text);
         b.addEventListener('click', function () { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); dirtyCheck(); });
-        box.appendChild(b);
-      });
-      return { el: h('div', { class: 'f full' }, h('span', { id: lid, text: label }), box), box: box };
+        return b;
+      };
+      list.forEach(function (o) { box.appendChild(g.chip(o[0], o[1], chosen.indexOf(o[0]) > -1, false)); });
+      // b (a new chip) takes its place among the labels of your own, which follow the fixed ones
+      g.place = function (b) {
+        $$('button[data-own]', box).concat(b ? [b] : []).sort(function (x, y) { return byLabel(x.value, y.value); })
+          .forEach(function (x) { box.appendChild(x); });
+      };
+      // the chip that already stands for a label (by its name, so Food and Beverage finds Food & Beverage)
+      g.has = function (t) { return $$('button', box).filter(function (b) { return catSame(b.textContent, t); })[0]; };
+      if (!ro) {
+        var a = kind === 'services' ? 'a service' : 'an industry';
+        g.input = h('input', { type: 'text', maxlength: 120, placeholder: 'Add ' + a, 'aria-label': 'Add ' + a + ' of your own',
+          autocomplete: 'off', autocapitalize: 'words', enterkeyhint: 'done' });
+        g.add = h('button', { class: 'btn', type: 'button' }, icon('plus', 's'), 'Add');
+        g.say = h('span', { class: 'help pf-own-say', 'aria-live': 'polite' });
+        g.row = h('div', { class: 'pf-own', hidden: !withOwn }, g.input, g.add);
+        g.add.addEventListener('click', function () { if (!tidy(g.input.value)) g.input.focus(); else addOwn(g); });
+        g.input.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter' || e.isComposing) return;
+          e.preventDefault();
+          // on a phone the keyboard's Done closes it once the label is in; on a computer the field stays for the next
+          if (!addOwn(g) && window.matchMedia && matchMedia('(pointer: coarse)').matches) g.input.blur();
+        });
+        g.input.addEventListener('input', function () { if (g.say.textContent) ownSay(g, ''); });
+      }
+      g.el = h('div', { class: 'f full' }, h('span', { id: lid, text: label }), box, g.row || null, g.say || null);
+      return g;
     };
-    var svc = chips('Services', SERVICES, state.services || []), ind = chips('Industry', INDUSTRIES, state.industries || []);
+    var svc = chips('Services', SERVICES, state.services || [], 'services'), ind = chips('Industry', INDUSTRIES, state.industries || [], 'industries');
+    svc.other = ind; ind.other = svc;
+    state.services_custom.forEach(function (t) { svc.box.appendChild(svc.chip(t, t, true, true)); });
+    state.industries_custom.forEach(function (t) { ind.box.appendChild(ind.chip(t, t, true, true)); });
+    // what the other drafts and live items use joins as chips not pressed
+    pfVocab().then(function (v) {
+      if (!v || !alive()) return;
+      withOwn = true;
+      [[svc, v.services], [ind, v.industries]].forEach(function (x) {
+        x[1].forEach(function (t) { if (!x[0].has(t)) x[0].box.appendChild(x[0].chip(t, t, false, true)); });
+        x[0].place();
+        if (x[0].row) x[0].row.hidden = false;
+      });
+    });
+    // a typed label tidied: curly apostrophes made straight (an iPhone types ’), spaces single, none at either end
+    var tidy = function (t) { return String(t || '').replace(/[‘’ʼ]/g, '\'').replace(/\s+/g, ' ').trim(); };
+    var ownSay = function (g, text, bad) {
+      g.say.textContent = text; g.say.classList.toggle('is-err', !!bad);
+      if (bad) g.input.setAttribute('aria-invalid', 'true'); else g.input.removeAttribute('aria-invalid');
+    };
+    // One label: { note } once it is picked (a new chip, or the one that already stands for it), or { bad: why not }
+    function takeOwn(g, t) {
+      var mine = $$('button[data-own][aria-pressed="true"]', g.box).length;
+      var full = { bad: 'Up to ' + OWN_MAX + ' ' + g.kind + ' of your own on a project.' };
+      if (t.length < 2) return { bad: 'Use at least 2 characters.' };
+      if (t.length > OWN_LEN) return { bad: 'Keep it to ' + OWN_LEN + ' characters.' };
+      if (!OWN_RE.test(t) || !/[A-Za-z0-9]/.test(t)) return { bad: 'Use letters, numbers, spaces and & + / . ’ only.' };
+      var same = g.has(t);
+      if (same) {
+        if (same.getAttribute('aria-pressed') === 'true') return { note: '“' + same.textContent + '” is picked already.' };
+        if (same.hasAttribute('data-own') && mine >= OWN_MAX) return full;
+        same.setAttribute('aria-pressed', 'true');
+        return { note: same.textContent === t ? '' : 'Picked “' + same.textContent + '” from the list.' };
+      }
+      var other = g.other.has(t);
+      if (other) return { bad: '“' + other.textContent + '” is already ' + (g.kind === 'services' ? 'an industry' : 'a service') + '.' };
+      if (mine >= OWN_MAX) return full;
+      g.place(g.chip(t, t, true, true));
+      return { note: '' };
+    }
+    // Add: every label in the field (split by commas). What can't be added stays in the field with the reason under it.
+    // Returns that reason, or '' when everything went in.
+    function addOwn(g) {
+      var parts = g.input.value.split(',').map(tidy).filter(Boolean), keep = [], bad = '', notes = [];
+      parts.forEach(function (t) {
+        var r = takeOwn(g, t);
+        if (r.bad) { keep.push(t); bad = bad || r.bad; } else if (r.note) notes.push(r.note);
+      });
+      g.input.value = keep.join(', ');
+      ownSay(g, bad || notes.join(' '), !!bad);
+      dirtyCheck();
+      return bad;
+    }
+    var ownTyped = function () { return [svc, ind].some(function (g) { return !!g.input && !!tidy(g.input.value); }); };
     // The project it came from: linked, the project page lists the item and its portfolio step is done. Until the
     // list is in (or when it can't load) the current link stays as an option, so a save never drops it.
     var proj = h('select', { disabled: ro }, h('option', { value: '' }, 'Not linked'));
@@ -2090,8 +2228,10 @@
     function collect() {
       state.title = f.title.value.trim(); state.slug = f.slug.value.trim(); state.client = f.client.value.trim();
       state.year = f.year.value ? +f.year.value : null;
-      state.services = $$('button[aria-pressed="true"]', svc.box).map(function (b) { return b.value; });
-      state.industries = $$('button[aria-pressed="true"]', ind.box).map(function (b) { return b.value; });
+      // the pressed chips in the order they stand: the fixed list's keys, then the labels of your own
+      var picked = function (g, own) { return $$('button[aria-pressed="true"]', g.box).filter(function (b) { return b.hasAttribute('data-own') === own; }).map(function (b) { return b.value; }); };
+      state.services = picked(svc, false); state.industries = picked(ind, false);
+      state.services_custom = picked(svc, true); state.industries_custom = picked(ind, true);
       ['summary', 'brief', 'approach', 'outcome', 'cover_alt', 'video_url', 'seo_title', 'seo_description'].forEach(function (k) { state[k] = f[k].value.trim(); });
       state.featured = f.featured.checked; state.sort_order = +f.sort_order.value || 0;
       state.project_id = proj.value || null;
@@ -2116,17 +2256,22 @@
       if (!x.cover_path) miss.push('cover image');
       if (!x.cover_alt) miss.push('cover alt text');
       if (!x.year) miss.push('year');
-      if (!x.services.length) miss.push('at least one service');
+      // the Work page files every project under a service from the fixed list (the database asks the same)
+      if (!x.services.length) miss.push(x.services_custom.length ? 'a service from the list' : 'at least one service');
       if (x.gallery.some(function (g) { return !(g.alt || '').trim(); })) miss.push(ALT_MISS);
       if (x.video_path && !x.video_poster_path) miss.push('video poster');
       return miss;
     }
-    var dirty = function () { return !ro && JSON.stringify(collect()) !== lastSaved; };
+    // a label typed in a field of your own and not added yet counts as a change too
+    var dirty = function () { return !ro && (JSON.stringify(collect()) !== lastSaved || ownTyped()); };
 
     // Saving. On a live item the new images are copied to the public bucket first, then the row is written, then the
     // public copies nothing uses any more come off. When a copy fails the row isn't written, so the live page keeps
     // what it had, and the copies just made come off again. Files no saved version uses leave the drafts bucket.
     function save(silent) {
+      // a label still in a field of your own goes in first, as Add would; one that can't stops the save
+      var owe = [svc, ind].map(function (g) { return g.input && tidy(g.input.value) ? addOwn(g) : ''; }).filter(Boolean)[0];
+      if (owe) { toast(owe, true); return Promise.reject(new Error(owe)); }
       var err = check();
       if (err) { toast(err, true); return Promise.reject(new Error(err)); }
       // a live item is checked the way publishing is (the database turns the save down otherwise)
@@ -2134,6 +2279,8 @@
       if (miss.length) { needs(miss, 'update'); return Promise.reject(new Error('Still needed: ' + miss.join(', '))); }
       // what is saved: the form as it is now, copied (text typed while the save is on its way isn't part of it)
       var sent = JSON.stringify(collect()), row = JSON.parse(sent), before = saved ? pathsOf(saved) : [];
+      // a database without services and industries of your own gets the row without them
+      if (!withOwn) { delete row.services_custom; delete row.industries_custom; }
       var go = function () {
         var live = isLive(), copied = [], late = '';
         var add = live ? pathsOf(row).filter(function (p) { return before.indexOf(p) < 0; }) : [];
@@ -2270,7 +2417,7 @@
     }
     function setBusy(on, text) {
       busy = on;
-      [bSave, bPreview, bPublish, bUnpublish, bArchive, coverBtn, galBtn, galAuto, addCredit, filmBtn, posterBtn, replaceBtn, removeBtn].forEach(function (b) { if (b) b.disabled = on; });
+      [bSave, bPreview, bPublish, bUnpublish, bArchive, coverBtn, galBtn, galAuto, addCredit, filmBtn, posterBtn, replaceBtn, removeBtn, svc.add, ind.add].forEach(function (b) { if (b) b.disabled = on; });
       if (on) stateText.textContent = text || 'Working…'; else refreshUi();
       // the editor closed while something ran: what the film left behind comes off now
       if (!on && film.left) filmLeft();

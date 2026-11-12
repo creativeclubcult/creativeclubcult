@@ -1678,3 +1678,12 @@ button.doc{width:100%;border:0;font:inherit;text-align:left;cursor:pointer}
   .pfrow.cr .mv{grid-column:2;grid-row:1/span 2}
   .pfrow .mv button{width:44px;height:44px}
 }
+
+/* the portfolio editor: a service or an industry of your own, typed under its chips (20261112_portfolio_categories) */
+.pf-own{display:flex;align-items:center;gap:8px;max-width:420px;margin-top:2px}
+.pf-own[hidden]{display:none}
+.pf-own input{flex:1 1 auto;min-width:0}
+.pf-own .btn{flex:none}
+.pf-own-say:empty{display:none}
+.pf-own-say.is-err{color:var(--red-ink)}
+@media (max-width:760px){.pf-own{max-width:none}}

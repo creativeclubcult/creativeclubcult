@@ -10,7 +10,7 @@
   var DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   var SB_URL = DEV ? 'https://jvhhcehzhgpcphtpynnx.supabase.co' : 'https://zneckeqsvwbavqxpolri.supabase.co';
   var SB_KEY = DEV ? 'sb_publishable_4h3nPS3LkYpy8xOe2vEM_A_y9ffqKEY' : 'sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU';
-  var COLS = 'id,slug,title,client,year,services,industries,summary,brief,approach,outcome,cover_path,cover_alt,cover_w,cover_h,'
+  var COLS = 'id,slug,title,client,year,services,industries,services_custom,industries_custom,summary,brief,approach,outcome,cover_path,cover_alt,cover_w,cover_h,'
     + 'gallery,video_url,video_path,video_poster_path,video_w,video_h,credits,seo_title,seo_description,featured,sort_order,published_at,status';
   var SERVICES = { 'creative-direction': 'Creative Direction', branding: 'Branding', 'visual-identity': 'Visual Identity',
     campaign: 'Campaign', photography: 'Photography', film: 'Film', motion: 'Motion', illustration: 'Illustration',
@@ -39,7 +39,16 @@
     return function (path) { return SB_URL + '/storage/v1/object/public/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'); };
   };
   var publicUrl = bucketUrl('portfolio'), videoUrl = bucketUrl('portfolio-video');
-  var tagLine = function (p) { return (p.services || []).slice(0, 3).map(function (k) { return SERVICES[k] || k; }).join(' · '); };
+  // Services and industries of the owner's own (20261112_portfolio_categories) come as typed, after the fixed ones.
+  // On the Work page each filters by a key kept apart from the fixed keys and from the other kind: Music Video typed as
+  // a service is service:music-video (its key as the database's private.category_key makes it)
+  var catKey = function (t) {
+    var s = String(t || '').toLowerCase(), slug = function (x) { return x.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); };
+    return slug(s.replace(/\band\b/g, '-')) || slug(s);
+  };
+  var own = function (p, kind) { return (p[kind + '_custom'] || []).filter(function (t) { return typeof t === 'string' && catKey(t); }); };
+  var services = function (p) { return (p.services || []).map(function (k) { return SERVICES[k] || k; }).concat(own(p, 'services')); };
+  var tagLine = function (p) { return services(p).slice(0, 3).join(' · '); };
   var href = function (p) { return 'work/view.html?p=' + encodeURIComponent(p.slug); };
   // featured first, then the order set in the admin, newest first
   var byOrder = function (a, b) {
@@ -55,22 +64,28 @@
     // weak mobile signal must not keep the page waiting
     return fetch(SB_URL + path, { headers: headers, signal: ctl ? ctl.signal : undefined }).then(function (r) {
       if (r.ok) return r.json();
-      // a failure keeps the database's error code, when it sent one (items() looks for 42703)
+      // a failure keeps the database's error code, when it sent one (items() looks for 42703 and 42501)
       return r.json().catch(function () { return null; }).then(function (b) {
         var e = new Error('HTTP ' + r.status); e.code = b && b.code; throw e;
       });
     }).then(function (d) { clearTimeout(timer); return d; }, function (e) { clearTimeout(timer); throw e; });
   }
-  // Projects, with every column above. A database from before the film columns (or rolled back) answers 42703, no
-  // such column, for the whole query: it is asked once more without them, so a site release that runs ahead of the
-  // database still shows every project, only without uploaded films, which that database can't hold. Any other
-  // failure, and a failed second try, still fails as before.
-  var OLD_COLS = COLS.split(',').filter(function (c) { return !/^video_(path|poster_path|w|h)$/.test(c); }).join(',');
+  // Projects, with every column above. A database from before a migration (or after its rollback) can't give some of
+  // them, and the whole query fails: 42703 when a column isn't there, 42501 when it is there but the public may not read
+  // it (the rollback of 20261112_portfolio_categories keeps its two columns). The query is then asked again without the
+  // services and industries of your own, and then also without the uploaded film's columns, so a site release that runs
+  // ahead of the database still shows every project with what that database holds. Any other failure, and a failed
+  // last try, still fails as before.
+  var without = function (cols, re) { return cols.split(',').filter(function (c) { return !re.test(c); }).join(','); };
+  var TRIES = [COLS, without(COLS, /_custom$/), without(without(COLS, /_custom$/), /^video_(path|poster_path|w|h)$/)];
   function items(query, token) {
-    return get('/rest/v1/portfolio_items?select=' + COLS + query, token).catch(function (e) {
-      if (!e || e.code !== '42703') throw e;
-      return get('/rest/v1/portfolio_items?select=' + OLD_COLS + query, token);
-    });
+    var go = function (i) {
+      return get('/rest/v1/portfolio_items?select=' + TRIES[i] + query, token).catch(function (e) {
+        if (!e || (e.code !== '42703' && e.code !== '42501') || i + 1 >= TRIES.length) throw e;
+        return go(i + 1);
+      });
+    };
+    return go(0);
   }
   var published = function () {
     return items('&status=eq.published&order=featured.desc,sort_order.asc,published_at.desc');
@@ -84,7 +99,9 @@
       var first = grid.firstElementChild;
       list.forEach(function (p) {
         var a = el('a', 'card reveal');
-        a.setAttribute('data-tags', (p.services || []).concat(p.industries || []).join(' '));
+        a.setAttribute('data-tags', (p.services || []).concat(p.industries || [],
+          own(p, 'services').map(function (t) { return 'service:' + catKey(t); }),
+          own(p, 'industries').map(function (t) { return 'industry:' + catKey(t); })).join(' '));
         a.href = href(p);
         var media = el('div', 'media'), img = el('img');
         img.src = publicUrl(p.cover_path); img.alt = p.cover_alt || ''; img.loading = 'lazy';
@@ -98,6 +115,27 @@
         if (p.featured && first) grid.insertBefore(a, first); else grid.appendChild(a);
       });
       if (grid.children.length > 4) grid.classList.remove('two');
+      // a service or industry of your own joins its list after the fixed entries, in alphabetical order, while a
+      // published project has it; hovering it shows the cover of the first such project, as the fixed entries do.
+      // Made before app.js starts, so its filters and hover work on them like on the others
+      [['services', 'service', '.wf-service .wf-list'], ['industries', 'industry', '.wf-industry .wf-list']].forEach(function (g) {
+        var ul = document.querySelector(g[2]), seen = {}, found = [];
+        if (!ul) return;
+        list.forEach(function (p) {
+          own(p, g[0]).forEach(function (t) {
+            var key = g[1] + ':' + catKey(t);
+            if (seen[key]) return;
+            seen[key] = true;
+            found.push({ key: key, label: t, thumb: p.cover_path ? publicUrl(p.cover_path) : '' });
+          });
+        });
+        found.sort(function (x, y) { return x.label.localeCompare(y.label, 'en', { sensitivity: 'base' }); }).forEach(function (f) {
+          var b = el('button', null, f.label);
+          b.type = 'button'; b.setAttribute('data-filter', f.key); b.setAttribute('aria-pressed', 'false');
+          if (f.thumb) b.setAttribute('data-thumb', f.thumb);
+          var li = el('li'); li.appendChild(b); ul.appendChild(li);
+        });
+      });
     }).catch(function () { /* the built-in projects stay; nothing to show the visitor */ }).then(start);
     return;
   }
@@ -198,8 +236,8 @@
     fact('Client', p.client);
     fact('Year', p.year ? String(p.year) : '');
     var scope = document.createDocumentFragment();
-    (p.services || []).forEach(function (k, i) { if (i) scope.appendChild(el('br')); scope.appendChild(document.createTextNode(SERVICES[k] || k)); });
-    if ((p.services || []).length) fact('Scope', scope);
+    services(p).forEach(function (t, i) { if (i) scope.appendChild(el('br')); scope.appendChild(document.createTextNode(t)); });
+    if (services(p).length) fact('Scope', scope);
     if ((p.credits || []).length) {
       var cr = document.createDocumentFragment();
       p.credits.forEach(function (c) { cr.appendChild(el('span', null, c.role)); cr.appendChild(el('span', null, c.name)); });
