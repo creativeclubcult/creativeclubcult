@@ -28,9 +28,10 @@
     equipment: [['item', 'Equipment', 'gear', 300], ['qty', 'Qty', 'n30'], ['days', 'Days', 'n30'], ['manual_price', 'Price per day (Rp)', 'money']]
   };
   var fieldsOf = function (key) { return FIELDS[key] || [DESC, COST, QTY, UNIT, DAYS]; };
-  // what the Sheet compares before it writes: every column of the line as the admin shows it, the number in A too
+  // what the Sheet compares before it writes: every column of the line as the admin shows it. Not the number in A: the
+  // Sheet numbers the lines itself, so a number moves when a line above it comes or goes
   var expectOf = function (key, l) {
-    var keys = key === 'equipment' ? ['item', 'qty', 'days', 'manual_price'] : ['no'].concat(fieldsOf(key).map(function (f) { return f[0]; }));
+    var keys = key === 'equipment' ? ['item', 'qty', 'days', 'manual_price'] : fieldsOf(key).map(function (f) { return f[0]; });
     var o = {};
     keys.forEach(function (k) { o[k] = l[k] === undefined ? null : l[k]; });
     return o;
@@ -103,11 +104,23 @@
   // c = {p, rab, edit, note, link, forms, saved(answer, text), refresh(text)}; gives the nodes of the Budget pane.
   // edit false: the lines only (an old RAB, Sheet writes paused, or an account that can't change the RAB)
   var closed = {};   // groups folded on a project stay folded when the page is drawn again
+  // Add a line opens in the section a line was last added to on the project, for as long as this browser tab is open
+  // (session storage; memory when the browser blocks it). After a line is added the page is drawn again with the
+  // Sheet's answer, and next[project] opens the form again in that section for the next line (within 30 seconds)
+  var lastPick = {}, next = {};
+  var PICK_KEY = 'eco-rab-section:';
+  function pickOf(id) {
+    if (lastPick[id]) return lastPick[id];
+    try { return window.sessionStorage.getItem(PICK_KEY + id); } catch (e) { return null; }
+  }
+  function keepPick(id, v) {
+    lastPick[id] = v;
+    try { window.sessionStorage.setItem(PICK_KEY + id, v); } catch (e) { /* kept in memory only */ }
+  }
   function budget(c) {
     var p = c.p, rab = c.rab, edit = c.edit !== false, open = null, seq = 0;
     var eq = rab.equipment && typeof rab.equipment === 'object' && Array.isArray(rab.equipment.groups) ? rab.equipment : null;
     var sectionOf = function (key) { return (rab.sections || []).filter(function (s) { return s.key === key; })[0] || null; };
-    var numbered = (rab.sections || []).some(function (s) { return (s.lines || []).some(function (l) { return E.n(l.no) != null; }); });
     var box = h('div', { class: 'rab' + (edit ? '' : ' ro') });
     if (edit) c.forms.push({ dirty: function () { return !!open && open.dirty(); } });
 
@@ -120,15 +133,8 @@
         return yes;
       });
     }
-    // a new line takes the next number in A when this RAB numbers its lines, as the rows above it do
-    function nextNo(key) {
-      if (!numbered || key === 'equipment') return null;
-      var s = sectionOf(key), max = 0;
-      ((s && s.lines) || []).forEach(function (l) { var x = E.n(l.no); if (x != null && x > max) max = x; });
-      return Math.min(Math.floor(max) + 1, 999);
-    }
-
-    // the fields of one line and their buttons; o = {key, group, line (null: a new line), close}
+    // the fields of one line and their buttons; o = {key, group, line, close}, or for a new line {pick, close}, where
+    // pick is the Section list's value ('pre', 'equipment:LIGHTING')
     function lineForm(o) {
       var l = o.line, adding = !l, key = o.key, grp = o.group || null;
       var send = E.writer(), ctrls = [], listId = 'eco-gear-' + p.id.slice(0, 8) + '-' + (++seq);
@@ -142,7 +148,9 @@
           if (s[0] !== 'equipment') opts.push([s[0], s[1]]);
           else if (eq) GEAR.forEach(function (g) { opts.push(['equipment:' + g[0], 'Equipment, ' + g[1]]); });
         });
-        pick = A.select(opts, o.pick || 'pre', { 'aria-label': 'Section' });
+        var at = opts.some(function (x) { return x[0] === o.pick; }) ? o.pick.split(':') : ['pre'];
+        key = at[0]; grp = at[1] || null;
+        pick = A.select(opts, at.join(':'), { 'aria-label': 'Section' });
         pick.addEventListener('change', function () { var v = pick.value.split(':'); draw(v[0], v[1] || null); say(''); });
       }
       function draw(k, g) {
@@ -151,7 +159,8 @@
         key = k; grp = g; ctrls = []; grid.innerHTML = '';
         if (pick) grid.appendChild(h('label', { class: 'f full' }, 'Section', pick));
         fieldsOf(key).forEach(function (f) {
-          var x = control(f, l ? l[f[0]] : null, listId);
+          // a new line starts at Qty 1 and Days 1
+          var x = control(f, l ? l[f[0]] : f[0] === 'qty' || f[0] === 'days' ? 1 : null, listId);
           x.was = x.read(x.el);
           if (keep[f[0] + '|' + f[2]] !== undefined) x.el.value = keep[f[0] + '|' + f[2]];
           ctrls.push(x);
@@ -216,6 +225,8 @@
         });
         return set;
       };
+      // something typed since the form opened (a new line's Qty 1 and Days 1 aren't)
+      var touched = function () { return ctrls.some(function (x) { return !same(x.read(x.el), x.was); }); };
       function problem(set) {
         for (var i = 0; i < ctrls.length; i++) {
           var x = ctrls[i], v = set[x.key];
@@ -231,7 +242,15 @@
       // the Sheet's answer: saved (or queued) draws the page again; a line that changed in the Sheet meanwhile is read
       // again; anything else stays here with the reason, and the refused change is cleared from the Sheet's list
       function settle(r, text) {
-        if (r.status === 200 || r.status === 202) return c.saved(r, text(r));
+        if (r.status === 200 || r.status === 202) {
+          if (adding) {
+            var at = key === 'equipment' ? 'equipment:' + grp : key;
+            keepPick(p.id, at);
+            // the Sheet has the line: the form opens again for the next one (a queued line has to go first)
+            if (r.status === 200) next[p.id] = { pick: at, at: Date.now() };
+          }
+          return c.saved(r, text(r));
+        }
         var mine = r.body.op_id && r.body.op_id === r.op_id;
         if (mine && (r.body.conflict || r.status === 422 || r.status === 423)) E.sheetWrite('outbox_discard', { op_id: r.op_id }).catch(function () {});
         if (r.body.conflict || r.body.code === 'line_moved') return c.refresh('This line changed in the Sheet meanwhile, so nothing was written. The Budget now shows it as the Sheet has it.');
@@ -240,11 +259,9 @@
       var failed = function (e) { busy(false); say(E.ecoError(e), true); };
       save.addEventListener('click', function () {
         var set = values();
-        if (!Object.keys(set).length) return say(adding ? (key === 'equipment' ? 'Pick or type the equipment.' : 'Type the line first.') : 'Nothing changed.');
+        if (!Object.keys(set).length || (adding && !touched())) return say(adding ? (key === 'equipment' ? 'Pick or type the equipment.' : 'Type the line first.') : 'Nothing changed.');
         var bad = problem(set);
         if (bad) return say(bad, true);
-        var no = adding ? nextNo(key) : null;
-        if (no != null) set.no = no;
         busy(true); say('Saving to the Sheet…');
         var args = adding ? { project_id: p.id, section: key, group: key === 'equipment' ? grp : null, set: set }
           : { project_id: p.id, section: key, lines: [{ row: l.row, set: set, expect: expectOf(key, l) }] };
@@ -273,8 +290,9 @@
       draw(key, grp);
       return {
         el: h('div', { class: 'ed' }, grid, list, h('div', { class: 'acts' }, save, cancel, msg, remove)),
-        dirty: function () { return Object.keys(values()).length > 0; },
-        focus: function () { var x = pick || (ctrls[0] && ctrls[0].el); if (x) x.focus(); }
+        dirty: touched,
+        // first: the line's first field, past the Section list
+        focus: function (first) { var x = (!first && pick) || (ctrls[0] && ctrls[0].el); if (x) x.focus(); }
       };
     }
 
@@ -348,21 +366,29 @@
     });
 
     var addBtn = edit ? h('button', { class: 'btn sm', type: 'button', 'aria-expanded': 'false' }, A.icon('plus', 's'), 'Add a line') : null;
+    // the form for a new line, at the top of the groups
+    function addForm(at) {
+      var shut = function () { f.el.remove(); addBtn.setAttribute('aria-expanded', 'false'); open = null; };
+      var f = lineForm({ pick: at, line: null, close: function () { shut(); addBtn.focus(); } });
+      addBtn.setAttribute('aria-expanded', 'true');
+      box.insertBefore(f.el, box.firstChild);
+      open = { dirty: f.dirty, close: shut, ask: function () { claim().then(function (yes) { if (yes) addBtn.focus(); }); } };
+      return f;
+    }
     if (addBtn) {
       addBtn.addEventListener('click', function () {
         if (addBtn.getAttribute('aria-expanded') === 'true') { if (open) open.ask(); return; }
-        claim().then(function (go) {
-          if (!go) return;
-          var shut = function () { f.el.remove(); addBtn.setAttribute('aria-expanded', 'false'); open = null; };
-          var f = lineForm({ key: 'pre', line: null, close: function () { shut(); addBtn.focus(); } });
-          addBtn.setAttribute('aria-expanded', 'true');
-          box.insertBefore(f.el, box.firstChild);
-          open = { dirty: f.dirty, close: shut, ask: function () { claim().then(function (yes) { if (yes) addBtn.focus(); }); } };
-          f.focus();
-        });
+        claim().then(function (go) { if (go) addForm(pickOf(p.id)).focus(); });
       });
     }
     var empty = !box.children.length;
+    // a line was just added here: the form is open again, the cursor in its first field once the page is in place
+    var again = next[p.id];
+    delete next[p.id];
+    if (addBtn && again && Date.now() - again.at < 30000) {
+      var form = addForm(again.pick);
+      setTimeout(function () { if (form.el.isConnected) form.focus(true); }, 0);
+    }
     return [
       h('div', { class: 'pane-h' }, h('h3', { text: 'Lines on the quote' }), known && !empty ? h('span', { class: 'cnt', text: E.rp(all) + ' in all' }) : null, addBtn),
       empty ? h('p', { class: 'empty', text: 'The RAB has no lines yet.' }) : null,

@@ -808,6 +808,16 @@ html.has-smoother:not(.is-native-scroll) .pstory-bg img { will-change: transform
 /* projects published from the admin (portfolio.js): a film row, and the label on a team preview */
 .pvideo { aspect-ratio: 16 / 9; background: var(--bg-soft); }
 .pvideo iframe { width: 100%; height: 100%; border: 0; display: block; }
+/* a film uploaded to the site: its own shape on black; an upright one is held to the screen height, centred */
+.pvideo.pf-film { aspect-ratio: var(--ar, 16 / 9); background: #000; }
+.pvideo.pf-film video { width: 100%; height: 100%; display: block; background: #000; }
+.pvideo.pf-film.is-tall { width: min(100%, calc(85vh * var(--ar))); align-self: center; }
+/* photos that share a row end at one height: portfolio.js sizes each column by its photo's shape (--cols).
+   Only on the rows it builds (the built-in project pages keep theirs) and not on phones, where they stack */
+@media (min-width: 601px) {
+  .pgallery[data-pf-rows] > .duo { grid-template-columns: var(--cols, 1fr 1fr); align-items: start; }
+  .pgallery[data-pf-rows] > .trio { grid-template-columns: var(--cols, repeat(3, minmax(0, 1fr))); align-items: start; }
+}
 .pf-preview { position: fixed; left: 50%; bottom: 20px; z-index: 60; translate: -50% 0; padding: 8px 16px; border-radius: var(--pill); background: var(--ink); color: var(--bg); font-size: var(--t-caption); text-transform: uppercase; letter-spacing: 0.02em; pointer-events: none; }
 .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 /* a big picture set off against a smaller one: the small one drops (stagger) or sits low on the left

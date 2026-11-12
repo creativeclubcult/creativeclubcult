@@ -179,7 +179,9 @@ a.ov-card:hover { border-color: var(--ash); }
 .adm-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
 .adm-check input { width: auto; }
 
-.adm-toast { position: fixed; left: 50%; bottom: 24px; z-index: 30; translate: -50% 0; padding: 10px 18px; border-radius: var(--pill); background: var(--ink); color: var(--bg); font-size: var(--t-body-sm); }
+/* centred at the foot of the screen, inside it at any width: a long message wraps (a long file name breaks too), and
+   one longer than the box scrolls in it */
+.adm-toast { position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 30; width: fit-content; max-width: 560px; max-height: 40vh; margin-inline: auto; overflow-y: auto; overflow-wrap: anywhere; padding: 10px 18px; border-radius: var(--pill); background: var(--ink); color: var(--bg); font-size: var(--t-body-sm); }
 .adm-toast.is-error { background: #E5484D; color: #fff; }
 
 @media (max-width: 1024px) {
@@ -203,4 +205,88 @@ a.ov-card:hover { border-color: var(--ash); }
   .pf-cr-row { grid-template-columns: 1fr; }
   .pf-actions { margin: 24px -18px 0; padding: 12px 18px; }
   .adm-drawer { padding: 24px 18px; }
+}
+
+/* Website & Portfolio editor. A gallery image's alt text that publishing still needs: marked in the admin's red, the
+   way .f.warn marks a template placeholder. ui.css loads after this file, so these selectors carry more weight. */
+.adm .pfrow .f.alt input[aria-invalid=true]:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]) { background: var(--red-soft); box-shadow: inset 0 0 0 1.5px var(--red-ink); }
+.adm .pfrow .f.alt input[aria-invalid=true]:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):focus { box-shadow: inset 0 0 0 2px var(--violet); }
+/* its hint a shade darker, so it still reads on the red (4.5:1 or more) */
+.adm .pfrow .f.alt input[aria-invalid=true]:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range])::placeholder { color: var(--ink-2); }
+/* the gallery while photos are dragged over it: the dashed edge of "Add a cover", around the whole section */
+.adm .sec.pf-drop { border-radius: var(--r-md); }
+.adm .sec.pf-drop.is-over { background: var(--surface-2); box-shadow: 0 0 0 10px var(--surface-2); outline: 1.5px dashed var(--ink-2); outline-offset: 10px; }
+/* the editor's bar: a long status line (the photo being uploaded, how many are done) wraps in its own space rather
+   than pushing the buttons onto a second row, or on a phone the bar past the screen's edge */
+.adm .dr-foot .dst { min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 761px) {
+  .adm .dr-foot .dst { flex: 1 1 0; }
+}
+/* on a phone that bar fills the foot of the screen, so a message shows above it rather than over Save and Publish */
+@media (max-width: 760px) {
+  .adm-app:has(.adm-drawer:not([hidden]) .dr-foot) ~ .adm-toast[data-toast] { bottom: calc(180px + env(safe-area-inset-bottom, 0px)); }
+}
+/* the gallery's layout: Auto layout beside Add images, a handle on each row to drag it by (the up and down buttons
+   stay for keyboards), and the layout preview under the list, its rows as the project page draws them */
+.adm .sec-hd .btn.pf-auto { margin-left: auto; }
+.adm .sec-hd .btn.pf-auto:not([hidden]) + .btn { margin-left: 0; }
+.adm .pfrow.has-grip { grid-template-columns: 16px 48px minmax(0, 1fr) 140px auto; }
+.adm .pfrow .grip { position: relative; display: grid; place-items: center; width: 16px; height: 64px; color: var(--ink-3); cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+/* a press a little either side of the dots takes the handle too */
+.adm .pfrow .grip::before { content: ""; position: absolute; inset: 0 -8px; }
+.adm .pfrow .grip:hover { color: var(--ink); }
+.adm .pfrow .grip .i { width: 16px; height: 16px; stroke-width: 3; }
+.adm .pfrows.is-sorting, .adm .pfrows.is-sorting .grip { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+.adm .pfrow.is-drag { opacity: .4; }
+.adm .pfrow.is-over { box-shadow: 0 -2px 0 var(--violet); }
+.adm .pfrow.is-end { box-shadow: 0 2px 0 var(--violet); }
+.adm .pfl { display: grid; gap: 8px; margin-top: 6px; }
+.adm .pfl-k { font-size: 13px; color: var(--ink-2); }
+.adm .pfl-box { display: grid; justify-items: center; padding: 20px 16px; border-radius: var(--r-md); background: var(--surface-2); }
+.adm .pfl-page { display: flex; flex-direction: column; gap: 4px; width: 240px; max-width: 100%; }
+.adm .pfl-row { display: flex; align-items: flex-start; gap: 4px; }
+.adm .pfl-row img { display: block; min-width: 0; height: auto; border-radius: 2px; background: var(--line); object-fit: cover; }
+@media (max-width: 760px) {
+  .adm .pfrow.has-grip { grid-template-columns: 16px 48px minmax(0, 1fr) auto; }
+  .adm .pfrow.has-grip .grip { grid-column: 1; grid-row: 1 / span 2; height: 100%; }
+  .adm .pfrow.has-grip .th { grid-column: 2; grid-row: 1 / span 2; }
+  .adm .pfrow.has-grip .alt { grid-column: 3 / -1; grid-row: 1; }
+  .adm .pfrow.has-grip .sz { grid-column: 3; grid-row: 2; }
+  .adm .pfrow.has-grip .mv { grid-column: 4; grid-row: 2; }
+  .adm .pfl-page { width: 200px; }
+}
+/* the Film section: an uploaded MP4 (the upload's line and its thin bar, then the film with a slider to pick the
+   poster's frame) with the YouTube link under it. The slider is a plain range input, so the field rules leave it alone
+   and only the violet ring of the keyboard shows on it. */
+.adm .pfv-box { display: grid; }
+.adm .pfv { display: grid; gap: 10px; justify-items: start; }
+.adm .pfv-up { display: grid; gap: 10px; }
+.adm .pfv-line { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; color: var(--ink-2); }
+.adm .pfv-line > span { min-width: 0; overflow-wrap: anywhere; }
+.adm .pfv-line b { font-weight: 700; color: var(--ink); }
+.adm .pfv-line .btn { margin-left: auto; margin-right: -13px; }
+.adm .pfv-bar { display: block; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.adm .pfv-bar i { display: block; width: 0; height: 100%; border-radius: 2px; background: var(--lime-mark); transition: width .2s ease; }
+.adm .pfv-done { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.adm .pfv-pick { display: grid; min-width: 0; }
+.adm .pfv-frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-md); background: var(--ink); }
+.adm .pfv-frame video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.adm .pfv-play { position: absolute; left: 10px; bottom: 10px; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgba(29, 32, 24, .72); color: #fff; cursor: pointer; }
+.adm .pfv-play:hover { background: rgba(29, 32, 24, .88); }
+.adm .pfv-play .i { width: 16px; height: 16px; fill: currentColor; stroke-width: 2.6; }
+.adm .pfv-pick input[type=range].pfv-scrub { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 28px; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer; }
+.adm .pfv-pick input[type=range].pfv-scrub:focus { outline: 0; box-shadow: none; }
+.adm .pfv-pick input[type=range].pfv-scrub:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.adm .pfv-scrub::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+.adm .pfv-scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border: 2px solid #fff; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1px var(--line-2); }
+.adm .pfv-scrub::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+.adm .pfv-scrub::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: var(--ink); }
+.adm .pfv-err { margin-top: 6px; color: var(--red-ink); }
+.adm .pfv-acts { display: flex; flex-wrap: wrap; gap: 4px; margin-left: -13px; }
+@media (max-width: 760px) {
+  .adm .pfv-done { grid-template-columns: 1fr; gap: 8px; }
+  .adm .pfv-pick input[type=range].pfv-scrub { height: 44px; min-height: 44px; margin: 0; }
+  .adm .pfv-play { width: 44px; height: 44px; left: 8px; bottom: 8px; }
+  .adm .pfv-line .btn { margin-right: -16px; }
+  .adm .pfv-acts { margin-left: -16px; }
 }

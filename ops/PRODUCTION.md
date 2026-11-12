@@ -321,6 +321,54 @@ Rollback (all three together; the old admin and the old server refuse 0, so 014 
 
 Noticed, not changed: the tab `013 ALURA - Music Video` has no row in Rekap Project, so PROD has no project for it (its rule changed with the others); 012 still has no RAB layout in PROD, so its RAB is not read.
 
+## Portfolio photos, gallery layout, uploaded films and RAB numbering, 2026-11-12 (DEV only, not released)
+
+From the owner's notes of 2026-11-11. The owner chose: photos and the gallery layout; films stored in Supabase ("Supabase (gratis, berisiko)": about 20 MB each, the Free plan's storage and traffic risk accepted); the NO column numbering itself in each section of `Template RAB`, 010, 011 and 014, never 001 to 009, 012 or 013; and the bug to fix is "numbers skip after a delete or an add". Held until the owner ticks them: services and industries typed by hand, and the Behance style image preview on the project page.
+
+Admin, Website & Portfolio editor (`admin/admin.js`, `admin/admin.css`, `admin/index.html`):
+- Photos: up to 30 MB a file (was 15 MB), JPG, PNG, WebP or AVIF. The browser turns each one the camera's way up, drops its metadata and resizes it to 2560 px on the long edge, then saves it as WebP 0.82 where it makes WebP (Safari doesn't), else JPEG 0.85, or PNG for a file with real transparency when there is no WebP. A stored file is at most 15 MiB. Several at once (a gallery holds up to 40), by Add images or by dropping them on the Gallery; one message names every file skipped and why. Paths `<item id>/<base36 time>-<6 random>.<ext>`, cached for a year, one retry per upload.
+- Gallery layout: a new image gets its size from its shape (wide, 1.2:1 or more, is Full width; portraits in pairs are Half; a run of three or more is halves, then thirds at the end; a lone one is Full). Auto layout sets every size again, and any size can still be changed by hand. Rows move by a drag handle or the up and down buttons (keyboard too). The Layout preview under the list draws the rows the way the project page does.
+- Alt text: Publish and a live Save mark each gallery image still without alt text, and a mark clears as its text is typed.
+- Film: an uploaded MP4 (H.264), up to 20 MB, in its own buckets. The admin reads the codec from the file (avc1 or avc3; MOV, HEVC, ProRes, AV1, VP9 and files cut short are refused with a message), checks that it plays, and takes the poster from the frame at 1 s; the slider and "Use this frame as the poster" pick another. An upload is refused when the project's storage would pass 700 MB (used plus twice the file), and a failed storage read refuses too, never read as 0. Progress, one retry, a stall watchdog (60 s, or 120 s once the file is sent) and Cancel. A project shows one film: an upload or a YouTube link.
+- From the verification round: uploads stay in the editor when the draft save after them fails; text typed while a save runs is kept; closing without saving removes this editor's unsaved photos, covers, films and posters from the drafts buckets, keeping anything the last save or the row as it is now uses; on a phone a message sits above the editor's bar and inside the screen; .m4v counts as MP4; on iPhone and iPad the MOV message says to save the MP4 to Files and pick it with Choose File; a video that loads only as far as its metadata until moved or played (iPhone Safari) is moved to the frame it needs.
+- CSP: `media-src` adds the two Supabase hosts, so the editor can play the film.
+
+Public project page (`portfolio.js`, and `styles.css` +10 lines scoped to `[data-pf-rows]` at 601 px and up):
+- Gallery rows: the images in a row share its height, and their widths follow their shapes. A lone half or third shows full width. Phones keep one column, as before.
+- Film: `<video controls playsinline preload="none" poster>`, so nothing loads until play. Projects with a YouTube link keep it.
+- `portfolio.js` reads the four film columns. When the database answers 42703 (no such column: before the migration, or after its rollback) it reads once more without them, so every project still shows, without uploaded films. Any other failure fails as before, never as an empty list.
+- Draft preview: photos and the poster are signed for 10 minutes, the film for an hour.
+
+RAB (`admin/eco/rab.js`): the admin no longer sends `no`, because the Sheet numbers itself. New lines start at Qty 1 and Days 1, Add a line opens in the section used last on that project, and after a saved add the form opens again in that section.
+
+Not in git (`Work CCC/`): `migrations/20261112_portfolio_video.sql` with `_rollback.sql` and `_tests.sql` (104 cases); `rab-numbering/NoOtomatis.gs` (noOtomatisCek writes nothing, noOtomatisPasang installs, noOtomatisLepas undoes) and `rab-numbering/INSTALL-LIVE.md`. The formula sits in A on each section's first item row and counts the rows with a description down to the section's TOTAL, so a deleted or added line renumbers the rest.
+
+DEV (`jvhhcehzhgpcphtpynnx`): the migration is applied (version `20261111195359`), and the tests file passes 104/104 in a transaction that rolls back. The DEV Sheet's `Template RAB` carries the formula; the DEV Apps Script project holds only `Kode.gs` and `Sync.gs`, both unchanged.
+
+Checked: six build suites, then six adversarial verifiers (33 findings: 3 high, 9 medium, 21 low), three fixers (30 fixed), then every suite again from fresh headless Chrome profiles with PROD's hosts unresolvable: no regression. 57 admin and public pages at desktop and phone have clean consoles; the 23 public pages have 0 DOM differences from HEAD at desktop and phone, and project pages differ only by the new rows.
+
+Open:
+- Not tried on a device: iPhone (iOS 26 Safari) and Mac Safari for the photos (no WebP there), the film check and poster, the MOV route, and a stored film playing on the public page. iPhone video loading was only emulated in Chrome.
+- The real upload round trip on DEV needs the owner's sign in.
+- Low, not fixed: a photo that comes out upside down or mirrored isn't caught in a browser whose createImageBitmap ignores the camera's orientation (current Safari and Chrome apply it); try an upside down camera JPEG from the iPhone before the release. A Half pair of a 10:1 panorama and a 2:3 portrait, set by hand, shrinks the portrait (the preview shows it; Auto layout makes the panorama full width).
+- Next Sync.gs install: Make PDF should warn while the NO column shows #REF!; `syncSpillColumn_` should find the formula anywhere in A of a section (after a row is inserted above a section's first line, Remove line on that row is refused); the DEV M6 line test still sends `no`; and `syncAlokasiTab_` still needs 0 to 0.25 (2026-11-11).
+- Uploads stay in the drafts buckets when the tab or the browser closes before a save (filmLeft doesn't run then). A server side sweep of draft files no row uses would close it.
+- A save that fails on the network says "Failed to fetch" as it is.
+- The migration's header says portfolio.js fails as a whole before the migration; with the 42703 retry it only loses the films. The order stays, because admin.js writes the film columns.
+- The newest NoOtomatis.gs (the note on each NO header, the script lock, the merged cell check, noOtomatisLepas) has run only in a simulator: run its three functions once on the DEV Sheet before the live install.
+
+Release, each step with the owner's yes, in this order:
+1. PROD migration: `Work CCC/migrations/20261112_portfolio_video.sql` through apply_migration on `zneckeqsvwbavqxpolri`. Then anon reads `video_path, video_poster_path, video_w, video_h` (200), the advisors show nothing new, both video buckets exist (20 MB, video/mp4 only) and the fingerprint matches DEV.
+2. Push `admin-ecosystem`, then `site`, then `main`, one ref per command. portfolio.js and styles.css go out together with admin.js.
+3. Reload every open admin tab: an old tab still sends `no`, and saves no film.
+4. Live Sheet: NoOtomatis as `Work CCC/rab-numbering/INSTALL-LIVE.md` says (Template RAB, 010, 011, 014).
+5. First real use: a batch of photos and a short MP4 on a draft, publish, and look at it on the iPhone.
+
+Rollback, in this order:
+- Sheet: run noOtomatisLepas (INSTALL-LIVE.md, Undo) before the admin goes back to any version before this rab.js, such as `2088e7f` or `c018dcc`. An old admin sends `no`, and the formula refuses it.
+- Code: push `2088e7f` to `main` and `site` again, or Vercel's instant rollback to `dpl_BzZRgSAhnxFySzKfGXXnhHGbkbt2`.
+- Database, after the code: `Work CCC/migrations/20261112_portfolio_video_rollback.sql`. It deletes no file; a video bucket that still holds files stays until it is emptied in the dashboard.
+
 ## What the owner does
 
 - Approve this rollout once (production database, functions, live Sheet script, release).

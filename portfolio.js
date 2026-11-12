@@ -11,7 +11,7 @@
   var SB_URL = DEV ? 'https://jvhhcehzhgpcphtpynnx.supabase.co' : 'https://zneckeqsvwbavqxpolri.supabase.co';
   var SB_KEY = DEV ? 'sb_publishable_4h3nPS3LkYpy8xOe2vEM_A_y9ffqKEY' : 'sb_publishable_-h0k4-TWYPa03dqcdAg4Eg_53_s0dFU';
   var COLS = 'id,slug,title,client,year,services,industries,summary,brief,approach,outcome,cover_path,cover_alt,cover_w,cover_h,'
-    + 'gallery,video_url,credits,seo_title,seo_description,featured,sort_order,published_at,status';
+    + 'gallery,video_url,video_path,video_poster_path,video_w,video_h,credits,seo_title,seo_description,featured,sort_order,published_at,status';
   var SERVICES = { 'creative-direction': 'Creative Direction', branding: 'Branding', 'visual-identity': 'Visual Identity',
     campaign: 'Campaign', photography: 'Photography', film: 'Film', motion: 'Motion', illustration: 'Illustration',
     experience: 'Experience', production: 'Production', experimental: 'Experimental' };
@@ -34,7 +34,11 @@
     if (text != null) e.textContent = text;
     return e;
   }
-  var publicUrl = function (path) { return SB_URL + '/storage/v1/object/public/portfolio/' + path.split('/').map(encodeURIComponent).join('/'); };
+  // a file in a public bucket: photos and posters live in portfolio, films in portfolio-video
+  var bucketUrl = function (bucket) {
+    return function (path) { return SB_URL + '/storage/v1/object/public/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'); };
+  };
+  var publicUrl = bucketUrl('portfolio'), videoUrl = bucketUrl('portfolio-video');
   var tagLine = function (p) { return (p.services || []).slice(0, 3).map(function (k) { return SERVICES[k] || k; }).join(' · '); };
   var href = function (p) { return 'work/view.html?p=' + encodeURIComponent(p.slug); };
   // featured first, then the order set in the admin, newest first
@@ -50,12 +54,26 @@
     // the time limit covers the whole answer, not just its first bytes: a reply that stalls halfway on a
     // weak mobile signal must not keep the page waiting
     return fetch(SB_URL + path, { headers: headers, signal: ctl ? ctl.signal : undefined }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+      if (r.ok) return r.json();
+      // a failure keeps the database's error code, when it sent one (items() looks for 42703)
+      return r.json().catch(function () { return null; }).then(function (b) {
+        var e = new Error('HTTP ' + r.status); e.code = b && b.code; throw e;
+      });
     }).then(function (d) { clearTimeout(timer); return d; }, function (e) { clearTimeout(timer); throw e; });
   }
+  // Projects, with every column above. A database from before the film columns (or rolled back) answers 42703, no
+  // such column, for the whole query: it is asked once more without them, so a site release that runs ahead of the
+  // database still shows every project, only without uploaded films, which that database can't hold. Any other
+  // failure, and a failed second try, still fails as before.
+  var OLD_COLS = COLS.split(',').filter(function (c) { return !/^video_(path|poster_path|w|h)$/.test(c); }).join(',');
+  function items(query, token) {
+    return get('/rest/v1/portfolio_items?select=' + COLS + query, token).catch(function (e) {
+      if (!e || e.code !== '42703') throw e;
+      return get('/rest/v1/portfolio_items?select=' + OLD_COLS + query, token);
+    });
+  }
   var published = function () {
-    return get('/rest/v1/portfolio_items?select=' + COLS + '&status=eq.published&order=featured.desc,sort_order.asc,published_at.desc');
+    return items('&status=eq.published&order=featured.desc,sort_order.asc,published_at.desc');
   };
 
   // ---------- Work page: published projects join the grid ----------
@@ -132,8 +150,24 @@
     var hash = m[2] || (/[?&]h=([0-9a-f]{6,20})/.exec(u) || [])[1];
     return 'https://player.vimeo.com/video/' + m[1] + '?' + (hash ? 'h=' + hash + '&' : '') + 'dnt=1';
   }
+  // a film uploaded to the site plays in the browser's own player. It never starts by itself and loads
+  // nothing until the visitor presses play (only the poster shows), which spares the free storage traffic
+  function film(p, src, vsrc) {
+    var box = el('div', 'pfull pvideo pf-film reveal'), v = document.createElement('video');
+    var w = +p.video_w, h = +p.video_h;
+    if (w > 0 && h > 0) {
+      box.style.setProperty('--ar', w + ' / ' + h); // the film's own shape (16:9 when it isn't known)
+      if (h >= w) box.classList.add('is-tall'); // upright or square: kept within the screen height
+    }
+    v.controls = true; v.preload = 'none'; v.setAttribute('playsinline', '');
+    if (p.video_poster_path) v.poster = src(p.video_poster_path);
+    v.setAttribute('aria-label', p.title + ' film');
+    v.src = vsrc(p.video_path);
+    box.appendChild(v);
+    return box;
+  }
 
-  function render(p, src) {
+  function render(p, src, vsrc) {
     var title = p.seo_title || p.title;
     document.title = title + ' · Creative Club Cult';
     var desc = p.seo_description || p.summary || '';
@@ -173,22 +207,43 @@
     }
 
     var gallery = document.querySelector('[data-pf-gallery]');
-    var embed = videoEmbed(p.video_url);
-    if (embed) {
-      var vrow = el('div', 'pfull pvideo reveal'), frame = document.createElement('iframe');
-      frame.src = embed; frame.title = p.title + ' film'; frame.loading = 'lazy';
-      frame.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
-      vrow.appendChild(frame); gallery.appendChild(vrow);
-    }
-    // images in the order set in the admin; neighbours of the same size share a row (one, two or three across)
-    var per = { full: 1, half: 2, third: 3 }, row = null, rowSize = null;
-    (p.gallery || []).forEach(function (g) {
-      if (!row || rowSize !== g.size || row.children.length >= per[g.size]) {
-        row = el('div', { full: 'pfull', half: 'duo', third: 'trio' }[g.size] + ' reveal'); rowSize = g.size; gallery.appendChild(row);
+    gallery.setAttribute('data-pf-rows', ''); // styles.css sizes these rows only, never the built-in pages' rows
+    if (p.video_path) {
+      gallery.appendChild(film(p, src, vsrc));
+    } else {
+      var embed = videoEmbed(p.video_url);
+      if (embed) {
+        var vrow = el('div', 'pfull pvideo reveal'), frame = document.createElement('iframe');
+        frame.src = embed; frame.title = p.title + ' film'; frame.loading = 'lazy';
+        frame.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+        vrow.appendChild(frame); gallery.appendChild(vrow);
       }
-      var img = el('img'); img.src = src(g.path); img.alt = g.alt || ''; img.loading = 'lazy';
-      if (g.w) { img.width = +g.w; img.height = +g.h; }
-      row.appendChild(img);
+    }
+    // images in the order set in the admin; neighbours of the same size share a row (up to one, two or three
+    // across) and an unknown size counts as full. A photo left alone in its row runs the full width. In a
+    // shared row each column is as wide as its photo's shape (width over height), so the photos end at one
+    // height and nothing is cropped; a row with a photo of unknown shape keeps equal columns. On phones every
+    // photo stacks, as before (styles.css)
+    var rows = [], run = null;
+    (p.gallery || []).forEach(function (g) {
+      var across = g.size === 'half' ? 2 : g.size === 'third' ? 3 : 1;
+      if (!run || run.across !== across || run.photos.length >= across) { run = { across: across, photos: [] }; rows.push(run); }
+      run.photos.push(g);
+    });
+    rows.forEach(function (r) {
+      var row = el('div', ['pfull', 'duo', 'trio'][r.photos.length - 1] + ' reveal');
+      var shapes = r.photos.map(function (g) { return +g.w > 0 && +g.h > 0 ? g.w / g.h : 0; });
+      if (shapes.length > 1 && shapes.every(Boolean)) {
+        // scaled so the narrowest is 1fr: the shares then add up to more than 1fr and always fill the row
+        var least = Math.min.apply(Math, shapes);
+        row.style.setProperty('--cols', shapes.map(function (s) { return 'minmax(0, ' + (s / least).toFixed(4) + 'fr)'; }).join(' '));
+      }
+      r.photos.forEach(function (g) {
+        var img = el('img'); img.src = src(g.path); img.alt = g.alt || ''; img.loading = 'lazy';
+        if (g.w) { img.width = +g.w; img.height = +g.h; }
+        row.appendChild(img);
+      });
+      gallery.appendChild(row);
     });
     if (!gallery.children.length) gallery.remove();
 
@@ -219,20 +274,26 @@
 
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) { notFound('This project could not be found.'); start(); return; }
 
-  var one = get('/rest/v1/portfolio_items?select=' + COLS + '&slug=eq.' + encodeURIComponent(slug) + (preview && token ? '' : '&status=eq.published'), preview ? token : null);
+  var one = items('&slug=eq.' + encodeURIComponent(slug) + (preview && token ? '' : '&status=eq.published'), preview ? token : null);
   Promise.all([one, published().catch(function () { return []; })]).then(function (res) {
     var p = res[0][0];
     if (!p) { notFound(preview && !token ? 'Sign in to the admin on this browser to preview drafts.' : 'This project could not be found.'); return; }
-    if (p.status === 'published' && !preview) { render(p, publicUrl); neighbours(res[1], p); return; }
-    // a preview: images are signed from the private drafts bucket for ten minutes
-    var paths = [p.cover_path].concat((p.gallery || []).map(function (g) { return g.path; })).filter(Boolean);
-    return fetch(SB_URL + '/storage/v1/object/sign/portfolio-drafts', {
-      method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: 600, paths: paths })
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (signed) {
-      var map = {};
-      (signed || []).forEach(function (s) { if (s.signedURL) map[s.path] = SB_URL + '/storage/v1' + s.signedURL; });
-      render(p, function (path) { return map[path] || publicUrl(path); });
+    if (p.status === 'published' && !preview) { render(p, publicUrl, videoUrl); neighbours(res[1], p); return; }
+    // a preview: images and the film's poster are signed from the private drafts bucket for ten minutes, the
+    // film from its own private drafts bucket for an hour, as nothing of it loads until play is pressed
+    var sign = function (bucket, paths, secs) {
+      return fetch(SB_URL + '/storage/v1/object/sign/' + bucket, {
+        method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: secs, paths: paths })
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (signed) {
+        var map = {};
+        (signed || []).forEach(function (s) { if (s.signedURL) map[s.path] = SB_URL + '/storage/v1' + s.signedURL; });
+        return map;
+      });
+    };
+    var paths = [p.cover_path, p.video_poster_path].concat((p.gallery || []).map(function (g) { return g.path; })).filter(Boolean);
+    return Promise.all([sign('portfolio-drafts', paths, 600), p.video_path ? sign('portfolio-video-drafts', [p.video_path], 3600) : {}]).then(function (maps) {
+      render(p, function (path) { return maps[0][path] || publicUrl(path); }, function (path) { return maps[1][path] || videoUrl(path); });
       neighbours(res[1], p);
     });
   }).catch(function () {
