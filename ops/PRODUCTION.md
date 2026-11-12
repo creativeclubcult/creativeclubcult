@@ -391,3 +391,27 @@ Rollback, in this order:
 - After the release: sign in at creativeclubcult.com/admin once so the pages can be checked signed in.
 - Codes by email (done 2026-11-05): on hello@, create an App Password (myaccount.google.com/apppasswords; 2-Step Verification has to be on), save it as the function secret `GMAIL_APP_PASSWORD` in Supabase (Edge Functions, Secrets), then sign in at /admin once with the password and the emailed code. That turns codes on for everyone.
 - Invoice links (live since 2026-11-07): type CCC's bank details once in Settings, Bank details (bank, account number, account holder, a note in Indonesian). Then, on Finance, Collect makes a link for an invoice at Deal that is still owed, by email, WhatsApp or copy.
+
+## Gallery viewer and typed services and industries, 2026-11-12 (live since 17:48 WIB)
+
+The owner's held notes of 2026-11-11, approved with direction B for the viewer and the default category rules.
+
+* Commits: 0b890d3 (viewer: app.js section, styles.css block), 38a7eda (typed categories: admin/admin.js,
+  admin/ui.css, portfolio.js), 38680e1 (review fixes: a list chip obeys the 6 limit and the other kind; the quiet save
+  after an upload leaves half typed labels in their field). Pushed to admin-ecosystem, site and main at 17:48 WIB as
+  fast forwards from 7a1aa22. Live app.js, styles.css, portfolio.js, admin.js and ui.css are byte for byte the commit's.
+* Database: migration portfolio_categories (Work CCC/migrations/20261112_portfolio_categories.sql) on DEV, then on
+  PROD at about 17:45 WIB. Fingerprint 8 parts 3cf191ce4a8ebcfabf3d20583d8c9894 on both. Tests 88/88 on DEV (one
+  transaction, rolled back). Security advisors unchanged on both. Anon reads the new column list (200) and the old one.
+* Checks: viewer integration on the real files (4 project pages and view.html, desk and phone, layout delta 0, pages
+  without a gallery untouched), category browser checks 75/75 plus the chip limit test, independent review (3 agents,
+  nothing high or medium). Live: Whitebeard opens its 12 pictures in the viewer, Work page shows the 4 projects and the
+  fixed filters, consoles clean.
+* Known, low, not fixed: after Close, the browser's Forward lands on a duplicate history entry, so the next Back looks
+  dead once.
+
+Rollback, in this order:
+1. Code: push 7a1aa22 back to main and site (or Vercel instant rollback to the deploy before 17:48 WIB). The viewer is
+   0b890d3 alone and can also be reverted on its own.
+2. Database, only after the code: Work CCC/migrations/20261112_portfolio_categories_rollback.sql on PROD. It keeps the
+   two columns and every label; the migration can run again later.
