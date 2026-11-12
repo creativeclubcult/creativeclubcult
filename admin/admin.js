@@ -1375,7 +1375,17 @@
       var g = { kind: kind, box: box };
       g.chip = function (value, text, on, own) {
         var b = h('button', { type: 'button', value: value, 'data-own': own ? '' : null, 'aria-pressed': String(on), disabled: ro }, text);
-        b.addEventListener('click', function () { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); dirtyCheck(); });
+        b.addEventListener('click', function () {
+          var on = b.getAttribute('aria-pressed') !== 'true';
+          // a label of your own picked from the list follows the rules a typed one does: up to 6, and not both kinds
+          if (on && own && g.say) {
+            var other = g.other && $$('button[aria-pressed="true"]', g.other.box).filter(function (x) { return catSame(x.textContent, b.textContent); })[0];
+            if (other) { ownSay(g, '“' + other.textContent + '” is already ' + (g.kind === 'services' ? 'an industry' : 'a service') + ' here.', true); return; }
+            if ($$('button[data-own][aria-pressed="true"]', box).length >= OWN_MAX) { ownSay(g, 'Up to ' + OWN_MAX + ' ' + g.kind + ' of your own on a project.', true); return; }
+            if (g.say.textContent) ownSay(g, '');
+          }
+          b.setAttribute('aria-pressed', String(on)); dirtyCheck();
+        });
         return b;
       };
       list.forEach(function (o) { box.appendChild(g.chip(o[0], o[1], chosen.indexOf(o[0]) > -1, false)); });
@@ -2270,7 +2280,8 @@
     // what it had, and the copies just made come off again. Files no saved version uses leave the drafts bucket.
     function save(silent) {
       // a label still in a field of your own goes in first, as Add would; one that can't stops the save
-      var owe = [svc, ind].map(function (g) { return g.input && tidy(g.input.value) ? addOwn(g) : ''; }).filter(Boolean)[0];
+      // (not in the quiet save after an upload: half typed text stays in its field until the owner adds it or saves)
+      var owe = silent ? '' : [svc, ind].map(function (g) { return g.input && tidy(g.input.value) ? addOwn(g) : ''; }).filter(Boolean)[0];
       if (owe) { toast(owe, true); return Promise.reject(new Error(owe)); }
       var err = check();
       if (err) { toast(err, true); return Promise.reject(new Error(err)); }
