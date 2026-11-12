@@ -1267,6 +1267,338 @@
     });
   }
 
+  // ---- Project gallery: every picture opens large in a viewer (as on Behance) ----
+  // A picture grows out of its place in the page onto the page's own black; Prev / Next (or the arrow keys,
+  // a swipe, a sideways trackpad swipe) step through the gallery in page order and stop at its ends; Close,
+  // Esc, a click beside the picture, a swipe down or the browser's Back put it back where it came from.
+  (function () {
+    var pics = Array.prototype.slice.call(document.querySelectorAll('.pgallery img'));
+    if (!pics.length) return;
+    var root = document.documentElement;
+    var EASE = 'power3.inOut'; // as the home slider's and the Journal's photo zooms
+    var lb = null, shade, stage, closeBtn, prevBtn, nextBtn, say;
+    var state = 'closed', cur = -1, first = -1, pic = null, held = [], pushed = false, popping = false;
+    var cache = {};
+
+    // the openers: each picture in a plain button (its alt names it; one without gets a name)
+    var openers = pics.map(function (img, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pgallery-open';
+      b.setAttribute('aria-haspopup', 'dialog');
+      if (!img.alt) b.setAttribute('aria-label', 'View image');
+      img.parentNode.insertBefore(b, img);
+      b.appendChild(img);
+      b.addEventListener('click', function () { open(i); });
+      return b;
+    });
+
+    var el = function (tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    };
+    var word = function (cls, text) { var b = el('button', 'pviewer-btn ' + cls, text); b.type = 'button'; return b; };
+    var build = function () {
+      if (lb) return;
+      lb = el('div', 'pviewer');
+      lb.setAttribute('role', 'dialog');
+      lb.setAttribute('aria-modal', 'true');
+      lb.setAttribute('aria-label', 'Gallery');
+      lb.tabIndex = -1;
+      lb.hidden = true;
+      shade = el('div', 'pviewer-shade');
+      stage = el('div', 'pviewer-stage');
+      closeBtn = word('pviewer-close', 'Close');
+      prevBtn = word('pviewer-prev', 'Prev');
+      nextBtn = word('pviewer-next', 'Next');
+      say = el('p', 'sr-only');
+      say.setAttribute('aria-live', 'polite');
+      [shade, stage, closeBtn, prevBtn, nextBtn, say].forEach(function (x) { lb.appendChild(x); });
+      document.body.appendChild(lb);
+      closeBtn.addEventListener('click', function () { close(); });
+      prevBtn.addEventListener('click', function () { step(-1); });
+      nextBtn.addEventListener('click', function () { step(1); });
+      wire();
+    };
+
+    // a picture's file (the one the page shows: a signed preview link stays as it is) and its shape
+    var url = function (i) { return pics[i].currentSrc || pics[i].src; };
+    var shape = function (i) {
+      var im = pics[i], c = cache[url(i)];
+      if (im.naturalWidth) return { w: im.naturalWidth, h: im.naturalHeight };
+      if (c && c.naturalWidth) return { w: c.naturalWidth, h: c.naturalHeight };
+      var w = +im.getAttribute('width'), h = +im.getAttribute('height');
+      return w > 0 && h > 0 ? { w: w, h: h } : null;
+    };
+    // as large as the stage allows, centred, never past the file's own size
+    var fit = function (s) {
+      var r = stage.getBoundingClientRect(), k = Math.min(r.width / s.w, r.height / s.h, 1);
+      var w = Math.round(s.w * k), h = Math.round(s.h * k);
+      return { left: Math.round(r.left + (r.width - w) / 2), top: Math.round(r.top + (r.height - h) / 2), width: w, height: h };
+    };
+    var put = function (box, f) {
+      box.style.left = f.left + 'px'; box.style.top = f.top + 'px';
+      box.style.width = f.width + 'px'; box.style.height = f.height + 'px';
+      box._f = f;
+    };
+    var preload = function (i) {
+      if (i < 0 || i >= pics.length || pics[i].complete && pics[i].naturalWidth) return;
+      var u = url(i);
+      if (cache[u]) return;
+      var im = new Image();
+      im.decoding = 'async';
+      im.src = u;
+      cache[u] = im;
+    };
+    // one picture in the viewer: a box at its fitted frame (the site's placeholder fill until it has loaded)
+    var make = function (i) {
+      var box = el('div', 'pviewer-pic'), im = pics[i].cloneNode(); // (a loaded picture shows at once)
+      ['class', 'loading', 'width', 'height', 'style', 'tabindex', 'fetchpriority'].forEach(function (a) { im.removeAttribute(a); });
+      im.draggable = false;
+      box.appendChild(im);
+      var s = shape(i);
+      if (s) put(box, fit(s)); else box.style.visibility = 'hidden';
+      if (!(im.complete && im.naturalWidth)) {
+        box.classList.add('is-loading');
+        im.style.opacity = 0;
+        var land = function () {
+          if (!box.isConnected) return;
+          if (!box._f || !s) put(box, fit({ w: im.naturalWidth, h: im.naturalHeight }));
+          box.style.visibility = '';
+          box.classList.remove('is-loading');
+          if (window.gsap && motionOK) gsap.to(im, { opacity: 1, duration: 0.4, ease: 'power2.out' });
+          else im.style.opacity = '';
+        };
+        var shown = function () { (im.decode ? im.decode() : Promise.resolve()).catch(function () {}).then(land); };
+        if (im.complete && im.naturalWidth) shown(); else im.addEventListener('load', shown, { once: true });
+        im.addEventListener('error', function () { box.classList.remove('is-loading'); }, { once: true });
+      }
+      box._i = i;
+      lb.insertBefore(box, closeBtn); // under the words
+      return box;
+    };
+    // Prev / Next only where there is one (the gallery stops at its ends)
+    var ends = function () {
+      var f = document.activeElement;
+      prevBtn.hidden = cur <= 0;
+      nextBtn.hidden = cur >= pics.length - 1;
+      // (a word that just went away can't keep the focus: it goes to the other one, or the viewer)
+      if ((f === prevBtn || f === nextBtn) && f.hidden) {
+        var other = f === prevBtn ? nextBtn : prevBtn;
+        (other.hidden ? lb : other).focus({ preventScroll: true });
+      }
+    };
+    var announce = function () { say.textContent = pics[cur].alt || 'Image'; };
+
+    // the page behind: held still (as the menu holds it) and out of reach (Tab, clicks, screen readers)
+    var hold = function (on) {
+      if (on) {
+        root.classList.add('viewer-open');
+        if (smoother) smoother.paused(true);
+        held = Array.prototype.filter.call(document.body.children, function (x) {
+          return x !== lb && !x.inert && !/^(SCRIPT|STYLE|LINK|TEMPLATE)$/.test(x.tagName);
+        });
+        held.forEach(function (x) { x.inert = true; });
+      } else {
+        held.forEach(function (x) { x.inert = false; });
+        held = [];
+        if (smoother) smoother.paused(false);
+        root.classList.remove('viewer-open');
+      }
+    };
+    var calm = function () { var c = document.querySelector('.cursor'); if (c) c.classList.remove('hover'); };
+    var onScreen = function (r) { return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight; };
+
+    var open = function (i) {
+      if (state !== 'closed') return;
+      if (root.classList.contains('menu-open')) { var mb = document.querySelector('.menu-btn'); if (mb) mb.click(); }
+      build();
+      var src = pics[i], r = src.getBoundingClientRect();
+      state = 'opening'; cur = first = i;
+      hold(true);
+      // the browser's Back (and the iPhone's edge swipe) closes the viewer instead of leaving the page
+      try { history.pushState({ pviewer: 1 }, ''); pushed = true; } catch (e) { pushed = false; }
+      var words = [closeBtn, prevBtn, nextBtn];
+      [lb, shade].concat(words).forEach(function (x) { x.style.opacity = ''; }); // (whatever a last close left)
+      lb.hidden = false;
+      pic = make(i);
+      ends(); preload(i + 1); preload(i - 1);
+      lb.focus({ preventScroll: true });
+      announce(); calm();
+      var done = function () { src.style.visibility = ''; if (state === 'opening') state = 'open'; };
+      if (!window.gsap) { done(); return; }
+      if (!motionOK) { gsap.fromTo(lb, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out', onComplete: done }); return; }
+      gsap.fromTo(shade, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power2.out' });
+      gsap.fromTo(words, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', delay: 0.6 });
+      var f = pic._f;
+      if (f && onScreen(r) && src.complete && src.naturalWidth) {
+        src.style.visibility = 'hidden'; // it lifts out of the page
+        gsap.fromTo(pic, { x: r.left - f.left, y: r.top - f.top, scaleX: r.width / f.width, scaleY: r.height / f.height },
+          { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.9, ease: EASE, onComplete: done });
+      } else {
+        gsap.fromTo(pic, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: done });
+      }
+    };
+
+    // how: nothing = the visitor closed it (animated); 'pop' = the browser went Back; 'hide' = the page is leaving
+    var close = function (how) {
+      if (state === 'closed' || state === 'closing') return;
+      state = 'closing';
+      drag = null;
+      var gone = Array.prototype.slice.call(lb.querySelectorAll('.pviewer-pic'));
+      if (window.gsap) gsap.killTweensOf(gone.concat([shade, lb, closeBtn, prevBtn, nextBtn]));
+      gone.forEach(function (b) { if (b !== pic) b.remove(); });
+      if (pushed && !how) { popping = true; history.back(); }
+      pushed = false;
+      var place = pics[cur], r = place.getBoundingClientRect(), row = place.closest('.reveal');
+      var back = !!pic && !!pic._f && !pic.classList.contains('is-loading') && onScreen(r) && (!row || row.classList.contains('in'));
+      var finish = function () {
+        place.style.visibility = '';
+        lb.hidden = true;
+        if (pic) pic.remove();
+        pic = null;
+        hold(false);
+        // focus: the picture just put back, or else the one that opened the viewer (both on screen: no jump)
+        var to = openers[back ? cur : first];
+        if (to) to.focus({ preventScroll: true });
+        calm();
+        state = 'closed';
+      };
+      if (how || !window.gsap) { finish(); return; }
+      gsap.to([closeBtn, prevBtn, nextBtn], { opacity: 0, duration: 0.2, ease: 'power2.out' });
+      if (!motionOK) { gsap.to(lb, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: finish }); return; }
+      if (back) {
+        var f = pic._f;
+        place.style.visibility = 'hidden';
+        gsap.to(pic, { x: r.left - f.left, y: r.top - f.top, scaleX: r.width / f.width, scaleY: r.height / f.height, opacity: 1,
+          duration: 0.9, ease: EASE, onComplete: finish });
+        gsap.to(shade, { opacity: 0, duration: 0.6, delay: 0.3, ease: 'power2.inOut' });
+      } else {
+        gsap.to([pic, shade], { opacity: 0, duration: 0.45, ease: 'power2.out', onComplete: finish });
+      }
+    };
+
+    var step = function (d) {
+      var j = cur + d;
+      if (state !== 'open' || j < 0 || j >= pics.length) return false;
+      var out = pic, dist = dpx(48);
+      pic = make(j); cur = j;
+      ends(); preload(j + d); preload(j - d); announce();
+      if (!window.gsap) { out.remove(); return true; }
+      gsap.killTweensOf(out);
+      if (!motionOK) {
+        gsap.to(out, { opacity: 0, duration: 0.25, ease: 'none', onComplete: function () { out.remove(); } });
+        gsap.fromTo(pic, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'none' });
+        return true;
+      }
+      // out the way it was going, in from the other side (as the Work page's filtered cards: 48 design px)
+      gsap.to(out, { x: gsap.getProperty(out, 'x') - d * dist, y: 0, scale: 1, opacity: 0, duration: 0.3, ease: 'power2.in',
+        onComplete: function () { out.remove(); } });
+      gsap.fromTo(pic, { x: d * dist, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out', delay: 0.15 });
+      return true;
+    };
+
+    // ---- touch: a sideways swipe steps, a swipe down closes (pointer events: the paused page keeps the
+    // touch events to itself on a sideways move, and touch-action: none hands the whole stream over) ----
+    var drag = null, moved = false;
+    var snap = function () {
+      if (!pic) return;
+      gsap.to(pic, { x: 0, y: 0, scale: 1, duration: motionOK ? 0.45 : 0.2, ease: 'power3.out' });
+      gsap.to([shade, closeBtn, prevBtn, nextBtn], { opacity: 1, duration: 0.3, ease: 'power2.out' });
+    };
+    var wire = function () {
+      lb.addEventListener('pointerdown', function (e) {
+        moved = false;
+        if (e.pointerType === 'mouse') return;
+        if (!e.isPrimary) { if (drag) { drag = null; snap(); } return; } // a second finger: no gesture
+        if (state !== 'open' || !pic || e.target.closest('button')) return;
+        gsap.getTweensOf(pic).forEach(function (t) { t.progress(1); }); // (a step still landing: land it now)
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: null, dx: 0, dy: 0, v: 0, t: e.timeStamp };
+      });
+      lb.addEventListener('pointermove', function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        var dx = e.clientX - drag.x, dy = e.clientY - drag.y, dt = Math.max(1, e.timeStamp - drag.t);
+        if (!drag.axis) {
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+          drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+          moved = true;
+          // (only now: a tap keeps its own target, so a tap on the picture isn't taken for one beside it)
+          try { lb.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+        if (drag.axis === 'x') {
+          drag.v = (dx - drag.dx) / dt;
+          var end = (dx > 0 && cur === 0) || (dx < 0 && cur === pics.length - 1);
+          gsap.set(pic, { x: end ? dx * 0.3 : dx }); // (at an end it gives a little, then comes back)
+        } else {
+          drag.v = (dy - drag.dy) / dt;
+          // down: it follows the finger and shrinks a little about its middle while the black thins out
+          var down = Math.max(0, dy), s = 1 - Math.min(down / window.innerHeight, 1) * 0.2, f = pic._f || { width: 0, height: 0 };
+          gsap.set(pic, { x: (1 - s) * f.width / 2, y: down + Math.min(0, dy) * 0.3 + (1 - s) * f.height / 2, scale: s });
+          gsap.set(shade, { opacity: 1 - Math.min(down / (window.innerHeight * 0.5), 1) * 0.6 });
+          gsap.set([closeBtn, prevBtn, nextBtn], { opacity: 1 - Math.min(down / (window.innerHeight * 0.2), 1) }); // (out of the picture's way)
+        }
+        drag.dx = dx; drag.dy = dy; drag.t = e.timeStamp;
+      });
+      var release = function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        var g = drag; drag = null;
+        if (e.type === 'pointercancel' || !g.axis) { if (g.axis) snap(); return; }
+        if (g.axis === 'x') {
+          var w = window.innerWidth, d = g.dx < 0 ? 1 : -1;
+          if ((Math.abs(g.dx) > w * 0.18 || Math.abs(g.v) > 0.35) && Math.sign(g.v || g.dx) === -d && step(d)) return;
+          snap();
+        } else if (g.dy > window.innerHeight * 0.16 || (g.v > 0.45 && g.dy > 30)) close();
+        else snap();
+      };
+      lb.addEventListener('pointerup', release);
+      lb.addEventListener('pointercancel', release);
+      // (iOS: no rubber band or pinch on the viewer, whatever the page's own handlers do)
+      lb.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+      lb.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      // a click (or tap) beside the picture closes; not the end of a swipe, not on the picture or a word
+      lb.addEventListener('click', function (e) {
+        if (moved) { moved = false; return; }
+        if (e.target.closest('.pviewer-pic, button')) return;
+        close();
+      });
+      // a sideways trackpad swipe steps once per swipe (its momentum is let run out); nothing scrolls the page
+      var wheel = { acc: 0, last: 0, fired: false };
+      lb.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        if (state !== 'open' || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (e.timeStamp - wheel.last > 250) { wheel.acc = 0; wheel.fired = false; }
+        wheel.last = e.timeStamp;
+        if (wheel.fired) return;
+        wheel.acc += e.deltaX;
+        if (Math.abs(wheel.acc) > 50) { wheel.fired = true; step(wheel.acc > 0 ? 1 : -1); }
+      }, { passive: false });
+    };
+
+    document.addEventListener('keydown', function (e) {
+      if (state === 'closed' || e.altKey || e.metaKey || e.ctrlKey) return;
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    });
+    window.addEventListener('popstate', function () {
+      if (popping) { popping = false; return; }
+      if (state !== 'closed') { pushed = false; close('pop'); }
+    });
+    window.addEventListener('resize', function () {
+      if (state !== 'open' || !pic) return;
+      var s = shape(cur);
+      if (s) put(pic, fit(s));
+    });
+    // leaving with it open (or into the back/forward cache): the page comes back as it was, viewer shut
+    window.addEventListener('pagehide', function () { if (state !== 'closed') close('hide'); });
+    // (reloaded while open, or back from the back/forward cache: this entry is no longer the viewer's)
+    var forget = function () { if (history.state && history.state.pviewer) try { history.replaceState(null, ''); } catch (e) {} };
+    forget();
+    window.addEventListener('pageshow', function (e) { if (e.persisted) forget(); });
+  })();
+
   // ---- Custom cursor (desktop / fine pointer only) ----
   (function () {
     var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;

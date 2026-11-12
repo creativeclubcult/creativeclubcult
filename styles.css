@@ -862,6 +862,52 @@ main + .bigfoot { margin-top: var(--section); } /* home: no prev/next row above 
 .pnav-preview img { width: 100%; height: 100%; object-fit: cover; }
 .pnav-preview.is-empty img { display: none; }
 
+/* ---------- Project gallery: the picture viewer (app.js) ---------- */
+/* Each gallery picture is wrapped in a plain button that keeps the picture's own box: in a shared row it is
+   as tall as its picture, not the row (a picture in a grid row sits at the top, or at the bottom in stagger-r) */
+.pgallery-open { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; background: none; cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+.duo > .pgallery-open, .trio > .pgallery-open { align-self: start; }
+.duo.stagger-r > .pgallery-open { align-self: end; }
+/* the page behind holds still while the viewer is open (with ScrollSmoother paused, as for the menu); the
+   scrollbar's room is kept so nothing behind shifts where scrollbars take room (Windows) */
+html.viewer-open { overflow: hidden; scrollbar-gutter: stable; }
+/* On the page's own black, above the header (100) and under the cursor (9999). No pan or pinch on it: the
+   viewer reads the finger itself (swipes), and the page behind can't scroll or zoom. */
+.pviewer {
+  position: fixed; inset: 0; z-index: 300; overflow: hidden;
+  touch-action: none; overscroll-behavior: contain;
+  color: var(--ink); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.pviewer[hidden] { display: none; }
+.pviewer:focus { outline: none; }
+.pviewer-shade { position: absolute; inset: 0; background: var(--bg); }
+/* the room a picture has: it is fitted inside this box, centred, never past its own size (app.js). 64 / 120
+   design px at 1440, and never so little that a word could touch a picture */
+.pviewer-stage { position: absolute; inset: max(56px, 4.444vw) max(96px, 8.333vw); pointer-events: none; }
+.pviewer-pic { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.pviewer-pic.is-loading { background: var(--media); }
+.pviewer-pic img { display: block; width: 100%; height: 100%; max-width: none; -webkit-user-drag: none; }
+/* Words, as in the header and the project nav: Close where the header's last word sits, Prev and Next at the
+   middle of the left and right edges. 44px boxes around 16px words. */
+.pviewer-btn {
+  position: absolute; z-index: 1; padding: 12px; border: 0; background: none;
+  font-size: var(--t-body); line-height: 1.25; letter-spacing: -0.01em; color: var(--graphite);
+  cursor: pointer; transition: color .25s;
+}
+.pviewer-btn[hidden] { display: none; }
+.pviewer-btn:hover, .pviewer-btn:focus-visible { color: var(--ink); }
+.pviewer-btn:focus-visible { outline-offset: -9px; } /* (the site's ring, 3px round the word, not the 44px box) */
+.pviewer-close { top: 4px; right: calc(var(--pad) - 12px); }
+.pviewer-prev, .pviewer-next { top: 50%; translate: 0 -50%; }
+.pviewer-prev { left: calc(var(--pad) - 12px); }
+.pviewer-next { right: calc(var(--pad) - 12px); }
+/* Phones: the picture runs the full width; Close stays where the header's Menu / Close is, and Prev and Next
+   sit in the bottom corners on the line of the menu's foot (24px up) */
+@media (max-width: 760px) {
+  .pviewer-stage { inset: 56px 0 80px; }
+  .pviewer-prev, .pviewer-next { top: auto; bottom: 12px; translate: none; }
+}
+
 /* ---------- CCC page ---------- */
 .caps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .cap { display: flex; flex-direction: column; padding: 20px 0 0; border-top: 1px solid var(--line); }
