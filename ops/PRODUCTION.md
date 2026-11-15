@@ -441,3 +441,32 @@ Rollback, in this order:
 2. Live script: paste Sync.gs from 32a49ad (1.3.0, SHA-256 d147dadf5c33…), New version, syncSelfTest.
 3. Functions: deploy the three one-line entries from 2088e7f (write, sync) and 6dd7712 (bridge) again.
 No database change.
+
+## Crew names internal (PERSON (INTERNAL) column), 2026-11-16 (live since about 02:20 WIB)
+
+The owner asked to keep crew names off the client PDF and to list several roles per person; released with "naikin live".
+
+* Commit c737873 (Sync.gs 1.5.0, ops, diff, snapshot, admin/eco/rab.js, projects.js, crew.js, ui.css). Pushed to
+  admin-ecosystem, site and main as fast forwards from 4981153 / 309aead. Live rab.js, projects.js, crew.js and ui.css
+  are byte for byte the commit's.
+* The person of a Pre-Production, Production Crew or Post Production line sits in column I under PERSON (INTERNAL); the
+  PDF prints A:H. The admin reads I and falls back to C, writes I and empties C. The project's Crew tab is grouped by
+  section, a person counts once, and the status is per person (their fees on the project against what the Kas paid).
+* DEV: syncDevLineTest all passed (about 12 minutes), web app version 8, syncPeopleSetup on Template, 010, 011, 012,
+  syncSelfTest ok, deploy-relay-dev back to the 410 stub (v22).
+* PROD functions sheets-write (v9), sheets-sync (v9), sheets-bridge (v8) import their index.ts from c737873 (GitHub serves
+  the commit's files byte for byte); without credentials all three answer 401.
+* Live script: Sync.gs replaced by 1.5.0 (SHA-256 de177889…, fetched from the commit and checked), web app version 5
+  "Sync 1.5.0", syncSelfTest ok on env prod with writes on. Kode.gs unchanged (1426d907…), NoOtomatis.gs untouched.
+* syncPeopleSetup on the live Sheet: header in I of the three section header rows and the C "PERSON" header cleared on
+  Template RAB, 010, 011, 012 and 014. 012 row 71: the note "2 designer @ 1,5jt" moved from C to I (it reads as the
+  person until the owner types a name). 014 Post Production: skipped, I147 holds the owner's "FEE TIM (internal, revisi)".
+  Tabs 001 to 009 untouched. Before the setup no crew row held a name in C apart from 012 row 71.
+* The tab digests were cleared (3 tabs) so the next pull reads column I.
+
+Rollback, in this order:
+1. Code: push 309aead to main and site (or Vercel instant rollback).
+2. Live script: paste Sync.gs from 309aead (1.4.0, SHA-256 8962d163…), New version, syncSelfTest. 1.4.0 reads the
+   person from C, so first copy I back to C on the crew rows (only 012 row 71 has one) and clear the I headers.
+3. Functions: deploy the three one-line entries from 309aead again.
+No database change.
