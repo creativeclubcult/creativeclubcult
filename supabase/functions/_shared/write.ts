@@ -1,6 +1,6 @@
 // Delivering one sync_outbox op to the Sheet and settling it (push, retry inside a pull, or the bridge tick).
 import { buildWriteCommit, type WriteReply } from './diff.ts';
-import { DbError, getState, insert, q, rpc, select, setState, update, upsert } from './db.ts';
+import { DbError, getState, insert, q, remove, rpc, select, selectAll, setState, update, upsert } from './db.ts';
 import { friendly, withoutMoney } from './ops.ts';
 import { callSheet, type SheetResult } from './sheet.ts';
 
@@ -110,21 +110,38 @@ async function openIssue(kind: string, key: string, message: string, detail: Rec
 
 /** The crew row in the database follows a rename (before the commit, which finds crew by name, so the id, its
  *  network profile link and its Kas links stay) or a removal (missing, as a pull would mark it). */
-async function crewInDb(row: OutboxRow, d: Record<string, unknown>) {
-  const from = String(row.args.name ?? '').trim();
+export async function crewInDb(row: OutboxRow, d: Record<string, unknown>) {
+  const key = (s: string) => s.trim().toLowerCase();
+  const from = key(String(row.args.name ?? ''));
   if (!from) return;
-  const was = await select<{ id: string; name: string }>('crew', `sheet_state=eq.present&select=id,name&limit=2000`);
-  const hit = was.filter((c) => c.name.trim().toLowerCase() === from.toLowerCase())[0];
+  type Crew = { id: string; name: string; sheet_state: string; network_profile_id: string | null; created_at: string; sheet_seen_at: string | null };
+  const all = await selectAll<Crew>('crew', 'select=id,name,sheet_state,network_profile_id,created_at,sheet_seen_at&order=id');
+  // A pull that read the Sheet while it was being written may already have marked this person missing,
+  // so the old row is looked up in any state: present first, then the one seen last.
+  const hit = all.filter((c) => key(c.name) === from)
+    .sort((a, b) => (a.sheet_state === 'present' ? 0 : 1) - (b.sheet_state === 'present' ? 0 : 1)
+      || String(b.sheet_seen_at ?? '').localeCompare(String(a.sheet_seen_at ?? '')))[0];
   if (!hit) return;
+  const now = new Date().toISOString();
   if (row.op === 'crew_rename') {
     const to = (d.renamed as { to?: string } | undefined)?.to;
-    if (!to || d.noop) return;
-    await update('crew', `id=eq.${q(hit.id)}`, { name: to });
+    // `noop` is a list of fields (['name'] on a replay); the row still needs the new name then, so it is not checked
+    if (!to) return;
+    const dup = all.find((c) => c.id !== hit.id && c.sheet_state === 'present' && key(c.name) === key(to));
+    if (dup) {
+      // That same pull may have added the new name as a new person. Fold it back so the id and its links stay,
+      // but only a row made after this op was queued and linked to nothing else; anything older is left alone.
+      const since = (await select<{ created_at: string }>('sync_outbox', `id=eq.${q(row.id)}&select=created_at`))[0]?.created_at;
+      if (!since || Date.parse(dup.created_at) < Date.parse(since) || dup.network_profile_id) return;
+      await update('kas_entries', `crew_id=eq.${q(dup.id)}`, { crew_id: hit.id });
+      await remove('crew', `id=eq.${q(dup.id)}`);
+    }
+    await update('crew', `id=eq.${q(hit.id)}`, { name: to, sheet_state: 'present', sheet_seen_at: now });
     await insert('activity_log', { actor_id: row.created_by, actor_email: row.actor_email, action: 'renamed', entity: 'crew',
       entity_id: hit.id, label: `${hit.name} to ${to}`.slice(0, 200), source: 'admin' });
   } else {
     if (!d.removed_crew) return;
-    await update('crew', `id=eq.${q(hit.id)}`, { sheet_state: 'missing', sheet_seen_at: new Date().toISOString() });
+    if (hit.sheet_state === 'present') await update('crew', `id=eq.${q(hit.id)}`, { sheet_state: 'missing', sheet_seen_at: now });
     await insert('activity_log', { actor_id: row.created_by, actor_email: row.actor_email, action: 'removed from the crew list', entity: 'crew',
       entity_id: hit.id, label: hit.name.slice(0, 200), source: 'admin' });
   }

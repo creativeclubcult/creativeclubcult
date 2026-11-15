@@ -57,6 +57,10 @@ export function update<T>(table: string, query: string, patch: Record<string, un
   return call<T[]>(`${table}?${query}`, { method: 'PATCH', body: JSON.stringify(patch), prefer: 'return=representation' });
 }
 
+export function remove(table: string, query: string): Promise<unknown> {
+  return call<unknown>(`${table}?${query}`, { method: 'DELETE' });
+}
+
 export function upsert<T>(table: string, rows: Record<string, unknown>[], onConflict: string): Promise<T[]> {
   return call<T[]>(`${table}?on_conflict=${encodeURIComponent(onConflict)}`, {
     method: 'POST', body: JSON.stringify(rows), prefer: 'return=representation,resolution=merge-duplicates',
