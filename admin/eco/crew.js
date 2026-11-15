@@ -178,11 +178,12 @@
 
   // ---------- one person ----------
   // the Crew tab's own fields (Owed and Paid this year are the Sheet's formulas); the note takes the whole width
-  var FIELDS = [['role', 'Role', 120], ['phone', 'Phone', 60], ['rate', 'Rate (Rp)', 0], ['rate_unit', 'Per', 40], ['note', 'Note', 1000, true]];
+  // a person can hold several roles: one line, the roles with commas between them
+  var FIELDS = [['role', 'Roles', 120], ['phone', 'Phone', 60], ['rate', 'Rate (Rp)', 0], ['rate_unit', 'Per', 40], ['note', 'Note', 1000, true]];
   var fieldEl = function (f, v) {
     if (f[0] === 'rate') return E.amountInput(v, 'Rate');
     if (f[3]) return h('textarea', { maxlength: f[2], value: v == null ? '' : String(v) });
-    return h('input', { type: f[0] === 'phone' ? 'tel' : 'text', maxlength: f[2], autocomplete: 'off', placeholder: f[0] === 'rate_unit' ? 'day' : null, value: v == null ? '' : String(v) });
+    return h('input', { type: f[0] === 'phone' ? 'tel' : 'text', maxlength: f[2], autocomplete: 'off', placeholder: f[0] === 'rate_unit' ? 'day' : f[0] === 'role' ? 'Videographer, Editor' : null, value: v == null ? '' : String(v) });
   };
   var readOf = function (f) { return f[0] === 'rate' ? E.amount : undefined; };
 
@@ -221,7 +222,8 @@
         return h('li', {}, canWrite() ? h('a', { class: 'r', href: '#finance/' + x.id, title: 'Open in the Kas' }, kids) : h('div', { class: 'r' }, kids));
       })), h('div', {}, h('a', { class: 'btn sm', href: '#finance/kas' }, 'Open the Kas'))];
 
-    // the RAB crew lines that name this person
+    // the RAB lines that name this person (Pre-Production, Production Crew, Post Production), with what they did there
+    var PART = { pre: 'Pre-Production', crew: 'Production Crew', post: 'Post Production' };
     var lines = [];
     if (!d.projects.e && !d.lines.e) {
       var byId = {}; d.projects.v.forEach(function (p) { byId[p.id] = p; });
@@ -231,14 +233,15 @@
     }
     var projList = d.projects.e || d.lines.e ? empty(E.ecoError(d.projects.e || d.lines.e), true) : !lines.length ? empty('Not named in any RAB yet.')
       : h('ul', { class: 'rlist' }, lines.map(function (x) {
-        return h('li', {}, h('a', { class: 'r', href: '#projects/' + x.p.id }, h('div', {}, h('b', { text: E.projectLine(x.p) }), x.l.desc ? h('span', { text: x.l.desc }) : null),
+        return h('li', {}, h('a', { class: 'r', href: '#projects/' + x.p.id }, h('div', {}, h('b', { text: E.projectLine(x.p) }),
+          h('span', { text: [x.l.desc, PART[x.l.section || 'crew']].filter(Boolean).join(', ') })),
           h('span', { class: 'amt', text: E.n(x.l.total) == null ? '' : E.rp(x.l.total) }), I('chev', 's')));
       }));
 
     // details: what the Crew tab holds, and for owners and admins with money access a form that writes to it
     var notSet = function () { return h('span', { class: 'muted', text: 'Not set' }); };
     var view = h('div', { class: 'cdet' }, E.props([
-      ['Role', c.role || notSet()], ['Phone', E.phoneLink(c.phone) || notSet()], ['Rate', E.n(c.rate) == null ? notSet() : E.rp(c.rate)],
+      ['Roles', c.role || notSet()], ['Phone', E.phoneLink(c.phone) || notSet()], ['Rate', E.n(c.rate) == null ? notSet() : E.rp(c.rate)],
       ['Per', c.rate_unit || notSet()], ['Note', c.note ? h('span', { class: 'pre', text: c.note }) : notSet()]]));
     var tab = E.sheetUrl(vals), edit = canWrite() && !gone, on = E.writesOn(vals), vErr = !!d.values.e, form = null, formBox = null, nameBox = null, nameForm = null;
     if (edit && on) {
@@ -332,7 +335,7 @@
         gone ? h('p', { class: 'note amber' }, I('alert'), h('span', { text: 'Not in the Crew tab of the Sheet any more, so these details can’t be edited here.' })) : null,
         figs,
         E.dsec('Payments', h('span', { class: 'src' }, I('sheet'), 'Kas'), payList),
-        E.dsec('Projects', h('span', { class: 'src' }, I('rab'), 'RAB crew lines'), projList),
+        E.dsec('Projects', h('span', { class: 'src' }, I('rab'), 'RAB lines, internal'), projList),
         E.dsec('Details', h('span', { class: 'src' }, I('sheet'), 'Crew tab'), view, formBox, nameBox))
     ], keep);
     A.guard(function () { return (!!form && form.dirty()) || (!!nameForm && nameForm.dirty()); });

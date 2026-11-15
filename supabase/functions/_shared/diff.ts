@@ -190,7 +190,7 @@ export function rabOut(gid: number, d: RabData): RabOut {
     };
   }
   const crew = d.crew_lines.map((l) => ({
-    row: l.row, person: text(l.person, 120), desc: text(l.desc, 300), cost: money(l.cost), qty: ratio(l.qty, 1e6),
+    section: l.section === 'pre' || l.section === 'post' ? l.section : 'crew', row: l.row, person: text(l.person, 120), desc: text(l.desc, 300), cost: money(l.cost), qty: ratio(l.qty, 1e6),
     days: ratio(l.days, 1e6), total: money(l.total),
   }));
   const names = [...new Set(crew.map((l) => l.person).filter((x): x is string => !!x))].sort().slice(0, 100);

@@ -22,9 +22,14 @@
   // [key, label, kind, max length]: the columns a section takes from the admin (the server's SECTION_RULES)
   var DESC = ['desc', 'Description', 'text', 500], COST = ['cost', 'Cost (Rp)', 'money'], QTY = ['qty', 'Qty', 'num'],
     UNIT = ['unit', 'Unit', 'text', 60], DAYS = ['days', 'Days', 'num'];
+  // pre, crew and post name who does the line: the Sheet keeps that in I, outside what the PDF prints
+  var PERSON = ['person', 'Person, internal only', 'person', 200], QUOTED = ['desc', 'Description, on the quote', 'text', 500];
+  var PEOPLE = { pre: 1, crew: 1, post: 1 };
   var FIELDS = {
+    pre: [QUOTED, PERSON, COST, QTY, UNIT, DAYS],
     talent: [DESC, COST, QTY, DAYS],
-    crew: [['desc', 'Role', 'text', 500], ['person', 'Person', 'text', 200], COST, QTY, DAYS],
+    crew: [['desc', 'Role, on the quote', 'text', 500], PERSON, COST, QTY, DAYS],
+    post: [QUOTED, PERSON, COST, QTY, UNIT, DAYS],
     equipment: [['item', 'Equipment', 'gear', 300], ['qty', 'Qty', 'n30'], ['days', 'Days', 'n30'], ['manual_price', 'Price per day (Rp)', 'money']]
   };
   var fieldsOf = function (key) { return FIELDS[key] || [DESC, COST, QTY, UNIT, DAYS]; };
@@ -76,7 +81,8 @@
       el = A.select(opts, x == null ? '1' : String(x), { 'aria-label': f[1] });
       read = function (s) { return Number(s.value); };
     } else {
-      el = h('input', { type: 'text', maxlength: f[3], autocomplete: 'off', value: v == null ? '' : String(v), 'aria-label': f[1], list: kind === 'gear' ? listId : null });
+      el = h('input', { type: 'text', maxlength: f[3], autocomplete: 'off', value: v == null ? '' : String(v), 'aria-label': f[1],
+        list: kind === 'gear' ? listId : kind === 'person' ? listId + '-who' : null });
     }
     return { key: f[0], f: f, el: el, read: read };
   }
@@ -97,6 +103,19 @@
     };
     var wait = ask(1).then(function (items) { catalog = { at: Date.now(), items: items }; return items; }, function (e) { catalog = null; throw e; });
     catalog = { wait: wait };
+    return wait;
+  }
+
+  // ---------- the crew list's names, for the Person field (kept for ten minutes; none when it can't be read) ----------
+  var people = null;
+  function loadPeople() {
+    if (people && Date.now() - people.at < 600000) return people.wait;
+    var wait = sb.from('crew').select('name,role').neq('sheet_state', 'missing').order('name').limit(2000).then(function (r) {
+      if (r.error) throw r.error;
+      return (r.data || []).filter(function (x) { return x.name; });
+    });
+    people = { at: Date.now(), wait: wait };
+    wait.catch(function () { people = null; });
     return wait;
   }
 
@@ -138,9 +157,10 @@
     function lineForm(o) {
       var l = o.line, adding = !l, key = o.key, grp = o.group || null;
       var send = E.writer(), ctrls = [], listId = 'eco-gear-' + p.id.slice(0, 8) + '-' + (++seq);
-      var grid = h('div', { class: 'ed-f' }), list = h('datalist', { id: listId });
+      var grid = h('div', { class: 'ed-f' }), list = h('datalist', { id: listId }), who = h('datalist', { id: listId + '-who' });
       var msg = h('span', { class: 'fmsg', role: 'status' });
       var hint = h('p', { class: 'help full', hidden: true, text: 'A price typed here is locked. Leave it empty to follow Katalog Alat.' });
+      var whoHint = h('p', { class: 'help full', hidden: true, text: 'The client sees the description only. The person goes into the internal column of the RAB tab, never on the PDF.' });
       var pick = null;
       if (adding) {
         var opts = [];
@@ -167,8 +187,16 @@
           grid.appendChild(h('label', { class: 'f' + (f[0] === 'desc' || f[0] === 'item' ? ' full' : '') }, f[1], x.el));
         });
         grid.appendChild(hint);
+        grid.appendChild(whoHint);
         hint.hidden = key !== 'equipment';
+        whoHint.hidden = !PEOPLE[key];
         if (key === 'equipment') gear();
+        if (PEOPLE[key] && !who.firstChild) {
+          loadPeople().then(function (got) {
+            if (who.firstChild) return;
+            got.forEach(function (x) { who.appendChild(h('option', { value: x.name }, x.role || '')); });
+          }, function () { /* no suggestions: the name is typed */ });
+        }
       }
       var ctrl = function (k) { return ctrls.filter(function (x) { return x.key === k; })[0]; };
       // the catalog's names for the picker, and its price as the hint in an empty price field. A locked price belongs
@@ -289,7 +317,7 @@
       }
       draw(key, grp);
       return {
-        el: h('div', { class: 'ed' }, grid, list, h('div', { class: 'acts' }, save, cancel, msg, remove)),
+        el: h('div', { class: 'ed' }, grid, list, who, h('div', { class: 'acts' }, save, cancel, msg, remove)),
         dirty: touched,
         // first: the line's first field, past the Section list
         focus: function (first) { var x = (!first && pick) || (ctrls[0] && ctrls[0].el); if (x) x.focus(); }
@@ -309,7 +337,7 @@
       var name = key === 'equipment' ? l.desc || l.item : l.desc, locked = key === 'equipment' && E.n(l.manual_price) != null;
       // equipment: the lock (said in words for a screen reader), then where the price is from
       var from = key === 'equipment' ? [l.vendor, l.price_date ? E.day(l.price_date, { year: false }) : null].filter(Boolean).join(', ') : '';
-      var sub = key === 'crew' ? (l.person ? h('span', { text: l.person }) : null)
+      var sub = PEOPLE[key] ? (l.person ? h('span', { text: l.person + ', internal' }) : null)
         : key === 'equipment' ? h('span', {}, A.icon(locked ? 'lock' : 'unlock', 'lk' + (locked ? ' on' : '')),
           from ? [h('span', { class: 'sr', text: locked ? 'Price locked, ' : 'Price not locked, ' }), from] : locked ? 'Price locked' : 'Price not locked')
           : null;

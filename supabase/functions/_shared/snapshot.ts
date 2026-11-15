@@ -129,7 +129,8 @@ export interface RabDataV2 {
   };
   sections: { key: string; title: string; row: number; end_row: number; subtotal: Cell; total_crew?: Cell; lines: RabLine[] }[];
   equipment: { row: number; end_row: number; subtotal: Cell; ppn_bsm: Cell; total: Cell; groups: { name: string; row: number; lines: RabEquipLine[] }[] } | null;
-  crew_lines: { row: number; person: Cell; desc: Cell; cost: Cell; qty: Cell; days: Cell; total: Cell }[];
+  // section: pre, crew or post (Sync.gs 1.5.0); missing before 1.5.0, when every line was Production Crew
+  crew_lines: { section?: string; row: number; person: Cell; desc: Cell; cost: Cell; qty: Cell; days: Cell; total: Cell }[];
   unlocked: number;
   placeholders: boolean;
 }

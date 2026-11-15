@@ -157,11 +157,13 @@ const LINE: Record<string, FieldRule> = {
 };
 const pickRules = (keys: string[]) => Object.fromEntries(keys.map((k) => [k, LINE[k]]));
 const PLAIN_SECTION = ['no', 'desc', 'cost', 'qty', 'unit', 'days'];
+// pre, crew and post name who does the line: Sync.gs 1.5.0 keeps that in I, internal, never on the client PDF
+const PEOPLE_SECTION = [...PLAIN_SECTION, 'person'];
 export const SECTION_RULES: Record<string, Record<string, FieldRule>> = {
-  pre: pickRules(PLAIN_SECTION), talent: pickRules(['no', 'desc', 'cost', 'qty', 'days']),
+  pre: pickRules(PEOPLE_SECTION), talent: pickRules(['no', 'desc', 'cost', 'qty', 'days']),
   crew: pickRules(['no', 'desc', 'person', 'cost', 'qty', 'days']), location: pickRules(PLAIN_SECTION),
   art: pickRules(PLAIN_SECTION), transport: pickRules(PLAIN_SECTION), catering: pickRules(PLAIN_SECTION),
-  post: pickRules(PLAIN_SECTION), others: pickRules(PLAIN_SECTION),
+  post: pickRules(PEOPLE_SECTION), others: pickRules(PLAIN_SECTION),
   equipment: {
     item: { kind: 'text', max: 300 }, qty: { kind: 'int', min: 1, max: 30 }, days: { kind: 'int', min: 1, max: 30 },
     manual_price: { kind: 'money' },

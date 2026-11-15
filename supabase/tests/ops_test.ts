@@ -1,6 +1,6 @@
 // The admin → Sheet op checks for RAB lines (M6) in supabase/functions/_shared/ops.ts, and what their Sheet replies
 // commit. Run: deno test --allow-read supabase/tests/
-import { buildWriteCommit } from '../functions/_shared/diff.ts';
+import { buildWriteCommit, rabOut } from '../functions/_shared/diff.ts';
 import { friendly, OPS } from '../functions/_shared/ops.ts';
 
 function eq(actual: unknown, expected: unknown, msg = '') {
@@ -30,7 +30,8 @@ Deno.test('M6: the four line ops are on, for editors, as money changes on the pr
 Deno.test('M6 rab_line_set: each section takes only its own columns', () => {
   const set = (section: string, s: Record<string, unknown>) => err('rab_line_set', { section, lines: [{ row: 70, set: s }] });
   eq(set('crew', { person: 'Andi' }), 'ok');
-  eq(set('pre', { person: 'Andi' }), "person can't be changed from the admin.");
+  eq([set('pre', { person: 'Andi' }), set('post', { person: 'Andi' })], ['ok', 'ok'], 'pre and post name their person too (I, internal)');
+  eq(set('talent', { person: 'Andi' }), "person can't be changed from the admin.");
   eq(set('talent', { unit: 'Org' }), "unit can't be changed from the admin.", 'talent F is the Person spill');
   eq(set('pre', { total: 5 }), "total can't be changed from the admin.", 'H is the formula');
   eq(set('equipment', { desc: 'x' }), "desc can't be changed from the admin.", 'gear B is the formula');
@@ -149,4 +150,18 @@ Deno.test('crew_rename and crew_delete: checked args, money ops, the commit re-r
   const del = buildWriteCommit({ removed_crew: { row: 4, name: 'Andi' } } as never,
     { op: 'crew_delete', seq: 10, actor_id: null, actor_email: null, outbox_id: OP, forced: false, project_id: null, tab_gid: null });
   eq([del.crew, del.kas_removed, del.null_digests], [undefined, undefined, ['crew']]);
+});
+
+Deno.test('people lines: pre, crew and post keep their section and their person; old replies read as crew', () => {
+  const line = (section: string | undefined, row: number, person: string) => ({ section, row, person, desc: 'Role', cost: 100, qty: 1, days: 1, total: 100 });
+  const data = {
+    layout: 'v2', meta: { client_code: 'ACME', doc_type: 'PENAWARAN' }, sections: [], equipment: null, unlocked: 0,
+    crew_lines: [line('pre', 66, 'Sari'), line('crew', 72, 'Andi'), line('post', 130, 'Andi'), line(undefined, 73, 'Budi')],
+    summary: { categories: [], discount_pct: 0, ppn_pct: 0, dp_pct: 0.5 }, internal: { pph23_pct: 0, unlocked_gear: 0 }, placeholders: false,
+  };
+  // deno-lint-ignore no-explicit-any
+  const out = rabOut(3010, data as any);
+  // deno-lint-ignore no-explicit-any
+  eq((out.money.crew_lines as any[]).map((l) => [l.section, l.row, l.person]), [['pre', 66, 'Sari'], ['crew', 72, 'Andi'], ['post', 130, 'Andi'], ['crew', 73, 'Budi']]);
+  eq(out.crew_names, ['Andi', 'Budi', 'Sari']);
 });

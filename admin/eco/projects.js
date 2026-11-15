@@ -351,8 +351,16 @@
     var gap = unbilled.reduce(function (t, c) { return t + E.n(c.estimate); }, 0);
     var loss = !!m && E.n(m.profit) < 0 && unbilled.length > 0 && gap >= -E.n(m.profit);
     var holders = Object.keys(meta).map(function (k) { return typeof meta[k] === 'string' ? meta[k].trim() : ''; }).filter(function (v) { return /^\[.+\]$/.test(v); });
-    var crewLines = m && Array.isArray(m.crew_lines) ? m.crew_lines : [];
+    // Production Crew lines, and the Pre-Production and Post Production lines that name a person (a moodboard or a
+    // music license on its own isn't crew)
+    var crewLines = (m && Array.isArray(m.crew_lines) ? m.crew_lines : []).filter(function (l) {
+      return !l.section || l.section === 'crew' || E.words(l.person).trim();
+    });
     var heads = crewLines.reduce(function (t, l) { return t + (E.n(l.qty) || 1); }, 0);
+    // the people named on the lines (one person can hold several); lines without names count by their qty
+    var named = {};
+    crewLines.forEach(function (l) { var n = E.words(l.person).trim().toLowerCase(); if (n) named[n] = 1; });
+    if (Object.keys(named).length) heads = Object.keys(named).length;
     var eq = rab && rab.equipment && typeof rab.equipment === 'object' && Array.isArray(rab.equipment.groups) ? rab.equipment : null;
     var gearLines = eq ? [].concat.apply([], eq.groups.map(function (g) { return Array.isArray(g.lines) ? g.lines : []; })) : [];
 
@@ -569,15 +577,24 @@
           var name = E.words(k.counterparty).trim();
           if (k.kind === 'Keluar' && name && k.paid === 'Sudah') paidTo[name] = (paidTo[name] || 0) + (E.n(k.amount) || 0);
         });
+        // a person on several lines (Videographer here, Editor there) is paid once for all of them: their status
+        // weighs what the Kas paid them on this project against all their fees on it
+        var feeOf = {};
+        crewLines.forEach(function (l) { var n = E.words(l.person).trim(); if (n) feeOf[n] = (feeOf[n] || 0) + (E.n(l.total) || 0); });
+        var row = function (l) {
+          var who = E.words(l.person).trim(), out = who ? paidTo[who] || 0 : 0, fee = who ? feeOf[who] : E.n(l.total) || 0;
+          var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= fee ? ['yes', 'Sudah'] : out > 0 ? ['busy', 'Partly, ' + E.rp(out)] : ['no', 'Belum'];
+          return h('li', {}, h('span', { class: 'av', 'aria-hidden': 'true' }, I('crew')),
+            h('div', {}, h('b', { text: l.desc || 'No role named' }), h('span', { text: l.person || 'No name yet' })),
+            h('span', { class: 'fee', text: E.num(l.total) }), h('span', { class: 'pill ' + st[0], text: st[1] }));
+        };
+        // lines from before the Sheet named its sections carry none: they are Production Crew
+        var parts = [['pre', 'Pre-Production'], ['crew', 'Production Crew'], ['post', 'Post Production']].map(function (s) {
+          return [s[1], crewLines.filter(function (l) { return (l.section || 'crew') === s[0]; })];
+        }).filter(function (x) { return x[1].length; });
         return [paneH('Crew in the RAB', crewLines.length ? h('span', { class: 'cnt', text: E.plural(heads, 'person', 'people') }) : null),
           !crewLines.length ? empty(rab ? 'No crew lines in the RAB yet.' : 'The crew lines of this RAB aren’t in the admin yet.')
-          : h('ul', { class: 'plist' }, crewLines.map(function (l) {
-            var out = l.person ? paidTo[E.words(l.person).trim()] || 0 : 0, fee = E.n(l.total) || 0;
-            var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= fee ? ['yes', 'Sudah'] : out > 0 ? ['busy', 'Partly, ' + E.rp(out)] : ['no', 'Belum'];
-            return h('li', {}, h('span', { class: 'av', 'aria-hidden': 'true' }, I('crew')),
-              h('div', {}, h('b', { text: l.desc || 'No role named' }), h('span', { text: l.person || 'No name yet' })),
-              h('span', { class: 'fee', text: E.num(l.total) }), h('span', { class: 'pill ' + st[0], text: st[1] }));
-          }))];
+          : parts.map(function (x) { return [h('h4', { class: 'plist-h', text: x[0] }), h('ul', { class: 'plist' }, x[1].map(row))]; })];
       }
       var names = p.crew_names || [];
       return [paneH('Crew in the RAB', names.length ? h('span', { class: 'cnt', text: E.plural(names.length, 'person', 'people') }) : null),

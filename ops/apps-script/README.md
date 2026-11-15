@@ -65,7 +65,7 @@ Same steps without the copy, in the live Sheet's own script as hello@. Leave `DR
 1. Paste the new file, then bump `SYNC_VERSION`.
 2. Choose **Deploy > Manage deployments > Edit > Version: New version**. This keeps the same `/exec` URL.
 3. Run `syncSelfTest`.
-4. On the DEV copy only, also run `syncDevLineTest` (the RAB line ops). It works on a copy of the template named `998 M6 TEST`, deletes it at the end and puts `SYNC_WRITES` back; it takes about 7 minutes. It refuses to run in the live Sheet.
+4. On the DEV copy only, also run `syncDevLineTest` (the RAB line ops). It works on a copy of the template named `998 M6 TEST`, deletes it at the end and puts `SYNC_WRITES` back; it takes about 13 minutes. It refuses to run in the live Sheet.
 
 The bridge compares the `hello` version with the last version seen through the web app. On a mismatch it opens a `webapp_version_mismatch` issue, which means the trigger code and the deployed web app differ. The next pull after the new version closes it by itself.
 
@@ -110,6 +110,16 @@ Net profit may be 0% since 2026-11-11 (a job whose whole budget goes to the team
 To add it, deploy the web app version first, then run `syncAlokasiSetup` from the editor. It adds the block to `Template RAB` and to every v2 RAB tab that does not have it, and logs one line per tab. It skips a tab whose target rows are not empty, never touches v1 tabs (001 to 009), and running it again changes nothing. In this order the first pull reads every tab with the block; in the other order, clear the digests as in section 3.
 
 The live Sheet got the block on 2026-11-05, before Sync.gs was installed there: a one-off script file with the same steps was added, run and deleted again. It sits at I40:M49 in `Template RAB`, 010, 011 and 012; every cell outside the block was unchanged. Once Sync.gs is live, `syncAlokasiSetup` reports `already there` for those tabs.
+
+## 5b. PERSON (INTERNAL) column (Sync.gs 1.5.0 and later)
+
+Crew names are internal. In the Pre-Production, Production Crew and Post Production sections of a RAB tab the person sits in column I, under the header `PERSON (INTERNAL)` on the section's header row. The PDF prints A:H, so the client sees the description or role only. Column C of a crew row stays empty.
+
+The admin reads the person from I and falls back to C for a tab that still has the name there; a write from the admin always fills I and empties C. Code.gs is unaffected: its column I edit handler works only inside the equipment block.
+
+To add it, deploy the web app version first, then run `syncPeopleSetup` from the editor. On `Template RAB` and every v2 tab (010 and later) it puts the header in I of the three section header rows, clears a C header that reads `PERSON`, and moves each crew name from C to I. It skips a row whose I already holds another name or is protected, logs one line per tab, never touches v1 tabs (001 to 009), and running it again changes nothing. Clear the digests afterwards (section 3) so the next pull reads the moved names.
+
+To undo on one tab: copy I back to C on the crew rows and clear the I header cells. Nothing else changes.
 
 ## 6. Local test harness (no Google account needed)
 

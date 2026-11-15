@@ -19,7 +19,7 @@
  *  Pairing (the only unsigned calls): here → bridge {kind:'pair', v:1, sheet, env, r}; the bridge asks this web
  *  app {v:1, op:'pair_check'} for SHA-256(r) and only then answers with a new SYNC_SECRET. Nobody types the secret.
  */
-const SYNC_VERSION = '1.4.0';
+const SYNC_VERSION = '1.5.0';
 // the live Sheet: "CCC - RAB & Keuangan" in the Shared Drive "CCC" of hello@creativeclubcult.com (since 2026-11-04)
 const SYNC_PROD_SHEET = '1a5bRCaYtcTrhDyJtpaeCAQeKV58-kvd3NOfuJWGkVtM';
 // the live Sheet before 2026-11-04, kept in the personal Drive as an archive
@@ -95,20 +95,24 @@ const SYNC_ALOKASI = [
 const SYNC_ALOKASI_ROWS = ['P', 'PR', 'IN', 'SH', 'NP', 'KAS', 'BUD', 'PC', 'LEFT'];
 // breakdown sections (column-A title → key, editable columns for M6)
 const SYNC_SECTIONS = [
-  ['PRE-PRODUCTION', 'pre', [1, 2, 4, 5, 6, 7]],
+  ['PRE-PRODUCTION', 'pre', [1, 2, 4, 5, 6, 7, 9]],
   ['TALENT & MODEL', 'talent', [1, 2, 4, 5, 7]],
-  ['PRODUCTION CREW', 'crew', [1, 2, 3, 4, 5, 7]],
+  ['PRODUCTION CREW', 'crew', [1, 2, 4, 5, 7, 9]],
   ['LOCATION & PERMIT', 'location', [1, 2, 4, 5, 6, 7]],
   ['ART, PROPERTY & WARDROBE', 'art', [1, 2, 4, 5, 6, 7]],
   ['TRANSPORTATION & ACCOMMODATION', 'transport', [1, 2, 4, 5, 6, 7]],
   ['KONSUMSI / CATERING', 'catering', [1, 2, 4, 5, 6, 7]],
-  ['POST PRODUCTION', 'post', [1, 2, 4, 5, 6, 7]],
+  ['POST PRODUCTION', 'post', [1, 2, 4, 5, 6, 7, 9]],
   ['LAIN-LAIN (OTHERS)', 'others', [1, 2, 4, 5, 6, 7]],
 ];
 const SYNC_EQ_GROUPS = ['CAMERA', 'LENS', 'CAMERA SUPPORT', 'BACKGROUND', 'LIGHTING', 'LIGHTING SUPPORT', 'AUDIO', 'LAINNYA'];
 // RAB line fields (M6): field → [column, value type]. A section writes only the columns SYNC_SECTIONS lists for it.
-const SYNC_LINE_FIELDS = { no: [1, 'int'], desc: [2, 'text'], person: [3, 'text'], cost: [4, 'money'], qty: [5, 'num'],
-  unit: [6, 'text'], days: [7, 'num'] };
+// The person who does a line (pre, crew, post) sits in I, outside the printed A:H, so the client sees the role only.
+// Tabs made before 1.5.0 kept the crew's person in C (printed); syncPeopleSetup moves it, and reads fall back to C.
+const SYNC_LINE_FIELDS = { no: [1, 'int'], desc: [2, 'text'], cost: [4, 'money'], qty: [5, 'num'],
+  unit: [6, 'text'], days: [7, 'num'], person: [9, 'text'] };
+const SYNC_PEOPLE = ['pre', 'crew', 'post'];
+const SYNC_PERSON_HEAD = 'PERSON (INTERNAL)';
 // equipment: I the item (Katalog N "Name (Vendor)" or typed), J qty and K days (the Sheet's lists 1 to 30), L manual price
 const SYNC_EQ_FIELDS = { item: [9, 'text'], qty: [10, 'n30'], days: [11, 'n30'], manual_price: [12, 'money'] };
 const SYNC_DOC_TYPES = ['PENAWARAN', 'INVOICE', 'KWITANSI'];
@@ -284,6 +288,60 @@ function syncAlokasiSetup() {
     Logger.log(report.join('\n'));
     return report;
   } finally { lock.releaseLock(); }
+}
+
+/** Run from the editor after deploying 1.5.0: in the template and every v2 RAB tab from 010 on (001 to 009 are never
+ *  touched), puts the header PERSON (INTERNAL) in I of the Pre-Production, Production Crew and Post Production header
+ *  rows, and moves each crew line's person from C (printed on the PDF) to I (internal). A line whose I already holds
+ *  another name is left alone and named in the log. Changes nothing else. */
+function syncPeopleSetup() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const report = SpreadsheetApp.getActive().getSheets().filter(function (sh) {
+      const n = sh.getName();
+      return (n === TEMPLATE || (SYNC_TAB_RE.test(n) && Number(n.slice(0, 3)) >= 10)) &&
+        String(sh.getRange('I13').getDisplayValue()).trim().toUpperCase() === 'NO. URUT INVOICE';
+    }).map(function (sh) { return sh.getName() + ': ' + syncPeopleTab_(sh); });
+    SpreadsheetApp.flush();
+    Logger.log(report.join('\n'));
+    return report;
+  } finally { lock.releaseLock(); }
+}
+
+function syncPeopleTab_(sh) {
+  const done = [];
+  SYNC_PEOPLE.forEach(function (key) {
+    let sec;
+    try { sec = syncSectionAt_(sh, key); } catch (err) { done.push(key + ' skipped (' + err.message + ')'); return; }
+    const head = sh.getRange(sec.head, 9);
+    if (syncProtected_(sh, sec.head, 9) || head.getFormula()) { done.push(key + ' skipped, I' + sec.head + ' is protected'); return; }
+    const was = String(head.getDisplayValue()).trim();
+    if (was !== SYNC_PERSON_HEAD) {
+      if (was) { done.push(key + ' skipped, I' + sec.head + ' holds "' + was + '"'); return; }
+      sh.getRange(sec.head, 2).copyTo(head, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      head.setValue(SYNC_PERSON_HEAD);
+    }
+    const c = sh.getRange(sec.head, 3);
+    if (String(c.getDisplayValue()).trim().toUpperCase() === 'PERSON' && !c.getFormula()) c.setValue('');
+    let moved = 0;
+    if (sec.last >= sec.first) {
+      const n = sec.last - sec.first + 1;
+      const vc = sh.getRange(sec.first, 3, n, 1).getValues(), fc = sh.getRange(sec.first, 3, n, 1).getFormulas();
+      const vi = sh.getRange(sec.first, 9, n, 1).getValues();
+      for (let i = 0; i < n; i++) {
+        const name = String(vc[i][0]).trim();
+        if (!name || fc[i][0]) continue;
+        const r = sec.first + i, there = String(vi[i][0]).trim();
+        if (there && there.toLowerCase() !== name.toLowerCase()) { done.push(key + ' row ' + r + ' left alone, I holds "' + there + '"'); continue; }
+        if (!there) sh.getRange(r, 9).setValue(name);
+        sh.getRange(r, 3).setValue('');
+        moved++;
+      }
+    }
+    done.push(key + ' ok' + (moved ? ', ' + moved + ' moved to I' : ''));
+  });
+  return done.join('; ');
 }
 
 function syncAlokasiTab_(sh) {
@@ -1131,15 +1189,16 @@ function syncRabRead_(sh, tz) {
     const lines = [];
     for (let x = h + 1; x < end; x++) {
       if (S(at(x, 2)) === '' && S(at(x, 3)) === '' && S(at(x, 4)) === '') continue;
-      lines.push({ row: x, no: cell(x, 1), desc: cell(x, 2), person: cell(x, 3), cost: cell(x, 4), qty: cell(x, 5),
+      const person = SYNC_PEOPLE.indexOf(def[1]) >= 0 && S(at(x, 9)) !== '' ? cell(x, 9) : cell(x, 3);
+      lines.push({ row: x, no: cell(x, 1), desc: cell(x, 2), person: person, cost: cell(x, 4), qty: cell(x, 5),
         unit: cell(x, 6), days: cell(x, 7), total: cell(x, 8) });
     }
     const sec = { key: def[1], title: def[0], row: r, end_row: subRow, subtotal: cell(subRow, 8), lines: lines };
     if (crewRow) sec.total_crew = cell(crewRow, 8);
     sections.push(sec);
-    if (def[1] === 'crew') {
-      crewLines = lines.map(function (l) {
-        return { row: l.row, person: l.person, desc: l.desc, cost: l.cost, qty: l.qty, days: l.days, total: l.total };
+    if (SYNC_PEOPLE.indexOf(def[1]) >= 0) {
+      lines.forEach(function (l) {
+        crewLines.push({ section: def[1], row: l.row, person: l.person, desc: l.desc, cost: l.cost, qty: l.qty, days: l.days, total: l.total });
       });
     }
     r = subRow;
@@ -2053,7 +2112,8 @@ function syncLineSame_(ctx, sh, row, t, expect, set) {
     const d = t.fields[f];
     if (!d) throw syncErr_('invalid', f + ' is not a field of ' + t.title);
     const has = Object.prototype.hasOwnProperty.call(set, f);
-    const cur = sh.getRange(row, d[0]).getValue();
+    let cur = sh.getRange(row, d[0]).getValue();
+    if (f === 'person' && cur === '') cur = sh.getRange(row, 3).getValue();          // a tab from before 1.5.0
     if (has && syncSame_(cur, syncValue_(f, set[f], ctx.tz, null, d[1]), ctx.tz)) return;
     if (has && f !== t.idKey) return;
     if (!syncSame_(cur, expect[f], ctx.tz)) moved.push(f);
@@ -2067,6 +2127,15 @@ function syncLineSame_(ctx, sh, row, t, expect, set) {
 function syncLineReply_(ctx, sh, res, extra) {
   return Object.assign({ rab: syncTabSection_(ctx, sh), project: syncProjectReply_(ctx, sh), tab: { name: sh.getName(), gid: sh.getSheetId() },
     written: res.written, noop: res.noop }, extra || {});
+}
+
+/** A person still in C (printed) on a pre, crew or post line of a tab from before 1.5.0: the write that empties it,
+ *  so a line whose person moves to I (or goes) no longer prints a name. Null when C is empty or a formula. */
+function syncPrintedPerson_(sh, t, row) {
+  if (t.equipment || SYNC_PEOPLE.indexOf(t.sec.key) < 0) return null;
+  const c = sh.getRange(row, 3);
+  if (c.getFormula() || c.getValue() === '') return null;
+  return { sh: sh, r: row, c: 3, v: null, type: 'text', field: 'person_printed@' + row };
 }
 
 /** Op rab_line_set {tab_gid, section, lines: [{row, set, expect}], force}: changes lines of one section (section
@@ -2092,9 +2161,18 @@ function api_rab_line_set(ctx, a) {
     Object.keys(set).forEach(function (f) {
       const d = t.fields[f];
       if (!d) throw syncErr_('invalid', f + " can't be changed in " + t.title);
-      writes.push({ sh: sh, r: row, c: d[0], v: set[f], type: d[1], field: f + '@' + row, spillCheck: t.spill,
-        expect: Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined });
+      let exp = Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined;
+      // a person the admin read from C (a tab from before 1.5.0, I still empty) is compared with C, not with I
+      if (f === 'person' && exp !== undefined && sh.getRange(row, 9).getValue() === '') {
+        const old = sh.getRange(row, 3).getValue();
+        if (a.force !== true && !syncSame_(old, exp, ctx.tz) && !syncSame_(old, syncValue_(f, set[f], ctx.tz, null, d[1]), ctx.tz)) {
+          throw syncErr_('conflict', 'Changed in the Sheet: ' + f + '@' + row, { field: f + '@' + row, sheet_value: syncCell_(old, ctx.tz), you_saw: exp });
+        }
+        exp = undefined;
+      }
+      writes.push({ sh: sh, r: row, c: d[0], v: set[f], type: d[1], field: f + '@' + row, spillCheck: t.spill, expect: exp });
     });
+    if (Object.prototype.hasOwnProperty.call(set, 'person')) { const w = syncPrintedPerson_(sh, t, row); if (w) writes.push(w); }
   });
   const res = syncWrite_(ctx, writes, { force: a.force === true, check: syncSumCheck_(sh, t) });
   return syncLineReply_(ctx, sh, res);
@@ -2244,6 +2322,8 @@ function api_rab_line_clear(ctx, a) {
     return { sh: sh, r: row, c: t.fields[f][0], v: null, type: t.fields[f][1], field: f + '@' + row, spillCheck: t.spill,
       expect: Object.prototype.hasOwnProperty.call(expect, f) ? expect[f] : undefined };
   });
+  const printed = syncPrintedPerson_(sh, t, row);
+  if (printed) writes.push(printed);
   const res = syncWrite_(ctx, writes, { check: syncSumCheck_(sh, t) });
   return syncLineReply_(ctx, sh, res);
 }
@@ -2322,13 +2402,15 @@ function syncDevLineTest() {
   const view = function (l, keys) { const o = {}; keys.forEach(function (k) { o[k] = l[k]; }); return o; };
   props.setProperty('SYNC_WRITES', 'on');
   try {
+    // NO (A) is the template's formula since 2026-11-12, so no line sends it
     // T20: every section takes 3 lines; its 2 template rows fill first, the third gets an inserted row
+    const unl0 = syncRabRead_(sh, ctx.tz).data.internal.unlocked_gear;
     let last = null;
     SYNC_SECTIONS.forEach(function (d) {
       const key = d[1];
       for (let i = 1; i <= 3; i++) {
-        const set = { no: i, desc: 'M6 ' + key + ' ' + i, cost: 1000 * i, qty: 1, days: 2 };
-        if (d[2].indexOf(3) >= 0) set.person = 'Test Person ' + i;
+        const set = { desc: 'M6 ' + key + ' ' + i, cost: 1000 * i, qty: 1, days: 2 };
+        if (d[2].indexOf(9) >= 0) set.person = 'Test Person ' + i;
         if (d[2].indexOf(6) >= 0) set.unit = 'pcs';
         const r = run('rab_line_add', { section: key, set: set });
         if (r.error) { ok(false, key + ' add ' + i + ': ' + r.error + ' ' + r.message); return; }
@@ -2340,6 +2422,13 @@ function syncDevLineTest() {
         last = r;
       }
     });
+    // 1.5.0: the person of a pre, crew or post line goes to I (not printed), C stays empty, the gear count doesn't move
+    const pl = last.rab.data.crew_lines;
+    ok(SYNC_PEOPLE.every(function (k) { return pl.filter(function (l) { return l.section === k && /^Test Person /.test(l.person); }).length === 3; }),
+      'people lines: 3 each in pre, crew and post, with their person');
+    const c1 = lineOf(last, 'crew', 'M6 crew 1');
+    ok(sh.getRange(c1.row, 9).getValue() === 'Test Person 1' && sh.getRange(c1.row, 3).getValue() === '', 'crew 1: person in I' + c1.row + ', C empty');
+    ok(last.rab.data.internal.unlocked_gear === unl0, 'ALAT BELUM DIKUNCI unchanged by people (' + unl0 + ' / ' + last.rab.data.internal.unlocked_gear + ')');
     const cats = last.rab.data.summary.categories, sumCats = cats.reduce(function (t, c) { return t + (Number(c.total) || 0); }, 0);
     ok(last.rab.data.summary.subtotal === sumCats, 'summary SUB TOTAL = the categories (' + sumCats + ')');
     // T20 equipment: 4 lines into CAMERA and into LAINNYA (3 template rows each)
@@ -2378,10 +2467,10 @@ function syncDevLineTest() {
     ok(!r.error && sec(r, 'pre').lines.length === 2, 'clear pre 2: 2 lines left');
     r = run('rab_line_clear', { section: 'pre', row: p2.row, expect: view(p2, ['no', 'desc', 'cost', 'qty', 'unit', 'days']) });
     ok(!r.error && r.written.length === 0, 'clear again: nothing written');
-    r = run('rab_line_add', { section: 'pre', set: { no: 2, desc: 'M6 pre 2b', cost: 2000, qty: 1, days: 2 } });
+    r = run('rab_line_add', { section: 'pre', set: { desc: 'M6 pre 2b', cost: 2000, qty: 1, days: 2 } });
     ok(!r.error && r.inserted === false && r.row === p2.row, 'add after clear: reuses row ' + p2.row);
     // a lost answer: the same op id again with its cached answer gone → found through ccc_op, not added twice
-    const key = Utilities.getUuid(), set = { no: 4, desc: 'M6 replay', cost: 100, qty: 1, days: 1 };
+    const key = Utilities.getUuid(), set = { desc: 'M6 replay', cost: 100, qty: 1, days: 1 };
     const a1 = run('rab_line_add', { section: 'others', set: set }, key);
     CacheService.getScriptCache().remove('op:' + key);
     const a2 = run('rab_line_add', { section: 'others', set: set }, key);
@@ -2390,12 +2479,22 @@ function syncDevLineTest() {
     r = run('rab_internal', { set: { actual_1: 50000, other_estimate: 7000, other_actual: 8000 }, expect: { actual_1: null, other_estimate: null, other_actual: null } });
     ok(!r.error && r.rab.data.summary.categories[0].actual === 50000 && r.rab.data.internal.other_actual === 8000, 'internal: actual 1 and Biaya lain saved'
       + (r.error ? ' (' + r.message + ')' : ''));
+    // 1.5.0: a person left in C by an older tab reads as the person, and a new person moves it to I and empties C
+    const c2 = lineOf(r, 'crew', 'M6 crew 2');
+    sh.getRange(c2.row, 9).setValue('');
+    sh.getRange(c2.row, 3).setValue('Old Name');
+    SpreadsheetApp.flush();
+    const legacy = syncRabRead_(sh, ctx.tz).data.crew_lines.filter(function (l) { return l.row === c2.row; })[0];
+    ok(legacy && legacy.person === 'Old Name', 'a person in C reads as the person');
+    r = run('rab_line_set', { section: 'crew', lines: [{ row: c2.row, set: { person: 'New Name' }, expect: { desc: 'M6 crew 2', person: 'Old Name' } }] });
+    ok(!r.error && sh.getRange(c2.row, 9).getValue() === 'New Name' && sh.getRange(c2.row, 3).getValue() === '',
+      'new person: I holds it, C emptied' + (r.error ? ' (' + r.message + ')' : ''));
     // T20 forced failure: a SUB TOTAL with a fixed range (like an old tab) leaves the inserted row out → undone, row gone
     const post = syncSectionAt_(sh, 'post');
     sh.getRange(post.sub, 8).setFormula('=SUM(H' + post.head + ':H' + post.last + ')');
     SpreadsheetApp.flush();
     const rows = sh.getLastRow();
-    r = run('rab_line_add', { section: 'post', set: { no: 4, desc: 'M6 post 4', cost: 4000, qty: 1, days: 1 } });
+    r = run('rab_line_add', { section: 'post', set: { desc: 'M6 post 4', cost: 4000, qty: 1, days: 1 } });
     ok(r.error === 'formula_guard' && sh.getLastRow() === rows && syncSectionAt_(sh, 'post').last === post.last,
       'fixed SUB TOTAL: refused and the row removed (' + (r.error || 'saved') + ')');
     // T22: no other sheet's formulas changed

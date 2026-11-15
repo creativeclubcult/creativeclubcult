@@ -424,6 +424,8 @@ select.field{appearance:none;padding-right:34px;font:inherit;color:var(--ink);ba
 .plist b{display:block;font-weight:400}
 .plist span{font-size:13px;color:var(--ink-2)}
 .plist .fee{font-weight:700;color:var(--ink);font-size:14px;white-space:nowrap}
+.plist-h{margin:18px 0 2px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.plist-h:first-of-type{margin-top:4px}
 .docs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .doc{display:grid;grid-template-columns:40px minmax(0,1fr) 16px;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--r-md);background:var(--surface-2);color:inherit;text-decoration:none}
 .doc:hover{box-shadow:inset 0 0 0 1px var(--line-2)}
