@@ -415,3 +415,29 @@ Rollback, in this order:
    0b890d3 alone and can also be reverted on its own.
 2. Database, only after the code: Work CCC/migrations/20261112_portfolio_categories_rollback.sql on PROD. It keeps the
    two columns and every label; the migration can run again later.
+
+## Crew rename and remove from the admin, 2026-11-16 (live since about 00:20 WIB)
+
+The owner asked for a way to delete crew and fix their names ("gas bro"); released with "naikin live".
+
+* Commits: 3908a6e (crew_rename and crew_delete: Sync.gs 1.4.0, ops, diff, write, admin/eco/crew.js) and 309aead
+  (the settle step keeps the person's id). Pushed to admin-ecosystem, site and main as fast forwards from 38680e1.
+  Live crew.js, admin.js, ui.css, core.js, finance.js and the home page are byte for byte the commit's.
+* Rename writes the Crew tab name and every Kas "Dibayar ke / Dari" cell with the old name; RAB tabs keep the old
+  name. Remove is refused while Belum Dibayar is above 0; the row is cleared and the rows below move up (values and
+  formats only, so the G:H formulas keep their references). Removed people are hidden behind "Show removed (n)".
+* Found on DEV: the Sheet's `noop: []` is truthy, so the first build skipped the database rename and the commit added
+  the new name as a new person. Fixed in 309aead with tests (supabase/tests/crew_settle_test.ts, 101/101 pass).
+* DEV, end to end with a dummy crew and two Kas entries (Belum 300.000, Sudah 200.000): rename kept the id, Owed and
+  Paid stayed, the Kas entries followed the new name; Remove was refused while owed, then worked after Mark paid.
+  DEV pulls paused again and deploy-relay-dev back to the 410 stub afterwards.
+* PROD functions sheets-write (v8), sheets-sync (v8), sheets-bridge (v7) import their index.ts from 309aead
+  (GitHub serves the commit's files byte for byte); without credentials all three answer 401.
+* Live script: Sync.gs replaced by 1.4.0 (SHA-256 8962d163…, the DEV-tested file), web app version 4 "Sync 1.4.0",
+  syncSelfTest ok on env prod with writes on. Kode.gs unchanged (1426d907…), NoOtomatis.gs untouched.
+
+Rollback, in this order:
+1. Code: push 38680e1 to main and site (or Vercel instant rollback). The old admin never sends the two new ops.
+2. Live script: paste Sync.gs from 32a49ad (1.3.0, SHA-256 d147dadf5c33…), New version, syncSelfTest.
+3. Functions: deploy the three one-line entries from 2088e7f (write, sync) and 6dd7712 (bridge) again.
+No database change.
