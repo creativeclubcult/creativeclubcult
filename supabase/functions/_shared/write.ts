@@ -44,6 +44,7 @@ export async function settle(row: OutboxRow, res: SheetResult): Promise<Outcome>
     const data = res.data as WriteReply & { seq?: number };
     const seq = Number(data.seq);
     let commit: unknown = null;
+    if (row.op === 'crew_rename' || row.op === 'crew_delete') await crewInDb(row, data).catch((e) => console.error('crew mirror', e));
     if (Number.isInteger(seq) && seq > 0) {
       const p = buildWriteCommit(data, {
         op: row.op, seq, actor_id: row.created_by, actor_email: row.actor_email, outbox_id: row.id, forced: row.forced,
@@ -97,7 +98,7 @@ export async function settle(row: OutboxRow, res: SheetResult): Promise<Outcome>
 
 function pickRecord(d: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of ['project', 'rab', 'kas', 'client', 'crew', 'file', 'tab', 'written', 'noop', 'locked', 'replayed', 'invoice_no', 'doc_type', 'folder_url', 'removed', 'row', 'inserted']) {
+  for (const k of ['project', 'rab', 'kas', 'client', 'crew', 'file', 'tab', 'written', 'noop', 'locked', 'replayed', 'invoice_no', 'doc_type', 'folder_url', 'removed', 'row', 'inserted', 'renamed', 'removed_crew']) {
     if (d[k] !== undefined) out[k] = d[k];
   }
   return out;
@@ -105,6 +106,28 @@ function pickRecord(d: Record<string, unknown>): Record<string, unknown> {
 
 async function openIssue(kind: string, key: string, message: string, detail: Record<string, unknown>, money: boolean) {
   await rpc('sheets_commit', { p: { seq: 1, kind: 'write', issues: [{ kind, key, message, detail, money }] } }).catch((e) => console.error('issue', e));
+}
+
+/** The crew row in the database follows a rename (before the commit, which finds crew by name, so the id, its
+ *  network profile link and its Kas links stay) or a removal (missing, as a pull would mark it). */
+async function crewInDb(row: OutboxRow, d: Record<string, unknown>) {
+  const from = String(row.args.name ?? '').trim();
+  if (!from) return;
+  const was = await select<{ id: string; name: string }>('crew', `sheet_state=eq.present&select=id,name&limit=2000`);
+  const hit = was.filter((c) => c.name.trim().toLowerCase() === from.toLowerCase())[0];
+  if (!hit) return;
+  if (row.op === 'crew_rename') {
+    const to = (d.renamed as { to?: string } | undefined)?.to;
+    if (!to || d.noop) return;
+    await update('crew', `id=eq.${q(hit.id)}`, { name: to });
+    await insert('activity_log', { actor_id: row.created_by, actor_email: row.actor_email, action: 'renamed', entity: 'crew',
+      entity_id: hit.id, label: `${hit.name} to ${to}`.slice(0, 200), source: 'admin' });
+  } else {
+    if (!d.removed_crew) return;
+    await update('crew', `id=eq.${q(hit.id)}`, { sheet_state: 'missing', sheet_seen_at: new Date().toISOString() });
+    await insert('activity_log', { actor_id: row.created_by, actor_email: row.actor_email, action: 'removed from the crew list', entity: 'crew',
+      entity_id: hit.id, label: hit.name.slice(0, 200), source: 'admin' });
+  }
 }
 
 async function recordPdf(row: OutboxRow, d: Record<string, unknown>) {

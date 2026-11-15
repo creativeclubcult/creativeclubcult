@@ -330,6 +330,27 @@ export const OPS: Record<string, OpDef> = {
       };
     },
   },
+  // a new name in the Crew tab and on the person's Kas entries; the database row keeps its id (write.ts renames it first)
+  crew_rename: {
+    perm: 'edit', milestone: 'M5', enabled: true,
+    check(a) {
+      const name = text(a.name, 120);
+      if (!name) return bad('A crew member needs a name.');
+      const to = typeof a.to === 'string' ? a.to.trim().replace(/\s+/g, ' ') : '';
+      if (!to || to.length > 120) return bad('Give the person a name of 1 to 120 characters.');
+      if (to === name) return bad('That is already their name.');
+      return { ok: true, args: { name, to }, target: `crew:${name.toLowerCase()}`, money: true };
+    },
+  },
+  // off the Crew tab; the Sheet refuses while the Kas still owes them. Their Kas entries stay
+  crew_delete: {
+    perm: 'edit', milestone: 'M5', enabled: true,
+    check(a) {
+      const name = text(a.name, 120);
+      if (!name) return bad('A crew member needs a name.');
+      return { ok: true, args: { name }, target: `crew:${name.toLowerCase()}`, money: true };
+    },
+  },
   rab_line_set: {
     perm: 'edit', milestone: 'M6', enabled: true,
     check(a) {

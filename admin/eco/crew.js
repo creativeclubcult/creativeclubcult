@@ -2,13 +2,15 @@
    next to the creative network (the Network tab, drawn by people.js). As in the mockup both tabs sit under the same
    figures: what the crew is still owed (the Kas), what they were paid this year (the Crew tab) and who is new in the
    network. Owners and admins with money access change a person's details and add people here; each change is written
-   to the Crew tab through sheets-write. The name is the key (Kas entries and RAB lines find people by it), so it never
-   changes from the admin. */
+   to the Crew tab through sheets-write. The name is the key (Kas entries and RAB lines find people by it): Rename
+   writes the new name to the Crew tab and to the person's Kas entries together; RAB tabs keep the name they were made
+   with. Remove clears the person's row (refused while the Kas still owes them); the database keeps them as removed,
+   hidden from the list until Show removed. */
 (function () {
   'use strict';
   if (!window.cccAdmin) return; // admin.js stopped early: the sign in library didn't load
   var A = window.cccAdmin, E = window.eco, sb = A.sb, h = A.h, I = A.icon;
-  var panel = A.$('[data-panel="crew"]'), netPanel = A.$('[data-panel="network"]'), ui = null, got = null, turn = 0;
+  var panel = A.$('[data-panel="crew"]'), netPanel = A.$('[data-panel="network"]'), ui = null, got = null, turn = 0, showGone = false;
   var empty = function (t, err) { return h('p', { class: 'empty' + (err ? ' is-err' : ''), text: t }); };
   var key = function (s) { return E.words(s).trim(); };
   var canWrite = function () { return A.canEdit() && A.canMoney(); };
@@ -69,7 +71,7 @@
         var f = fresh.v;
         list.push(tile('crew', 'New in the network', null, fresh.e ? { text: 'Couldn’t load', soft: true } : { text: String(f.count) },
           fresh.e ? 'Reload to try again' : !f.count ? 'Nobody new' : (f.count > 1 ? 'Newest: ' : '') + f.top.name + ', ' + E.shortStamp(f.top.created_at)));
-        tabs(crew.v ? crew.v.length : null, r[4].e ? null : r[4].v);
+        tabs(crew.v ? crew.v.filter(function (c) { return c.sheet_state !== 'missing'; }).length : null, r[4].e ? null : r[4].v);
       }
       box.tiles.className = 'tiles ' + (both ? 't3' : 't2');
       box.tiles.innerHTML = ''; A.add(box.tiles, list); box.tiles.hidden = false;
@@ -86,14 +88,15 @@
       src: h('span', { class: 'src r' }),
       note: h('p', { class: 'lnote', hidden: true, text: 'The Kas entries couldn’t be loaded, so how long each person has waited is left out. Reload to try again.' }),
       state: h('div', { class: 'lstate', hidden: true }),
-      body: h('tbody')
+      body: h('tbody'),
+      more: h('div', { class: 'lmore', hidden: true })
     };
     ui.tbl = h('table', { class: 'tbl people' }, h('thead', {}, h('tr', {}, ['Person', 'Rate', 'Owed', 'Paid this year'].map(function (t) { return h('th', { text: t }); }),
       h('th', {}, h('span', { class: 'sr', text: 'Open' })))), ui.body);
     ui.q.addEventListener('input', E.debounce(draw, 150));
     panel.innerHTML = '';
     A.add(panel, [ui.tiles, h('section', { class: 'card tablecard', 'aria-label': 'Crew list' },
-      h('div', { class: 'bar' }, ui.tabs, h('label', { class: 'field sm' }, I('search', 's'), ui.q), ui.src), ui.note, ui.state, ui.tbl)]);
+      h('div', { class: 'bar' }, ui.tabs, h('label', { class: 'field sm' }, I('search', 's'), ui.q), ui.src), ui.note, ui.state, ui.tbl, ui.more)]);
   }
   function state(text, err, retry) {
     ui.state.innerHTML = ''; ui.state.hidden = !text;
@@ -128,13 +131,18 @@
   function draw() {
     if (!got) return;
     var t = E.words(ui.q.value.trim());
-    var list = got.crew.filter(function (c) { return !t || [c.name, c.role, c.phone].some(function (v) { return E.words(v).indexOf(t) > -1; }); })
+    // people removed from the Crew tab stay in the database (the Kas still names them) but leave the list until asked for
+    var gone = got.crew.filter(function (c) { return c.sheet_state === 'missing'; }).length;
+    var list = got.crew.filter(function (c) { return (showGone || c.sheet_state !== 'missing') && (!t || [c.name, c.role, c.phone].some(function (v) { return E.words(v).indexOf(t) > -1; })); })
       .sort(function (a, b) { return (a.sheet_state === 'missing') - (b.sheet_state === 'missing') || key(a.name).localeCompare(key(b.name)); });
     var w = waits(got.crew, got.kas);
     ui.body.innerHTML = '';
     list.forEach(function (c) { ui.body.appendChild(row(c, w)); });
     ui.tbl.hidden = !list.length;
     state(list.length ? '' : t ? 'Nobody on the crew list matches that search.' : 'Nobody on the crew list yet. The Crew tab of the Sheet fills it.');
+    ui.more.innerHTML = ''; ui.more.hidden = !gone;
+    if (gone) ui.more.appendChild(h('button', { class: 'btn sm quiet', type: 'button', 'aria-expanded': String(showGone), onclick: function () { showGone = !showGone; draw(); } },
+      showGone ? 'Hide removed' : 'Show removed (' + gone + ')'));
     ui.note.hidden = !!got.kas || !got.crew.some(function (c) { return E.n(c.unpaid) > 0; });
     var seen = got.crew.reduce(function (m, c) { return c.sheet_seen_at && c.sheet_seen_at > m ? c.sheet_seen_at : m; }, '');
     ui.src.innerHTML = ''; A.add(ui.src, [I('sheet'), E.fromSheet(got.values, seen || null)]);
@@ -232,7 +240,7 @@
     var view = h('div', { class: 'cdet' }, E.props([
       ['Role', c.role || notSet()], ['Phone', E.phoneLink(c.phone) || notSet()], ['Rate', E.n(c.rate) == null ? notSet() : E.rp(c.rate)],
       ['Per', c.rate_unit || notSet()], ['Note', c.note ? h('span', { class: 'pre', text: c.note }) : notSet()]]));
-    var tab = E.sheetUrl(vals), edit = canWrite() && !gone, on = E.writesOn(vals), vErr = !!d.values.e, form = null, formBox = null;
+    var tab = E.sheetUrl(vals), edit = canWrite() && !gone, on = E.writesOn(vals), vErr = !!d.values.e, form = null, formBox = null, nameBox = null, nameForm = null;
     if (edit && on) {
       form = E.sheetForm({ label: 'Save details', look: 'mock sm', op: 'crew_upsert',
         args: function (set, expect) { return { name: c.name, set: set, expect: expect }; },
@@ -250,15 +258,65 @@
           return h('label', { class: 'f' + (f[3] ? ' full' : '') }, f[1], el);
         })),
         form.bar,
-        h('p', { class: 'src' }, I('sheet'), h('span', { text: 'Saved to the Crew tab in the Sheet. The name stays the same, because the Kas and RAB lines find people by it.' })));
+        h('p', { class: 'src' }, I('sheet'), h('span', { text: 'Saved to the Crew tab in the Sheet. Rename changes the name.' })));
       // Cancel draws the person again as the Sheet has them, and puts the cursor back on Edit details
       form.bar.insertBefore(h('button', { class: 'btn sm quiet', type: 'button', onclick: function () {
         show(d, true);
         var b = A.$('[data-drawer] [data-k="edit-details"]'); if (b) b.focus();
       } }, 'Cancel'), form.bar.children[1]);
-      view.appendChild(h('div', { class: 'formacts' }, h('button', { class: 'btn sm', type: 'button', 'data-k': 'edit-details', onclick: function () {
-        view.hidden = true; formBox.hidden = false; first.focus();
-      } }, I('edit', 's'), 'Edit details')));
+      // the name: written to the Crew tab and to every Kas entry that names this person, so Owed and Paid follow it
+      var nameForm = E.sheetForm({ label: 'Save name', look: 'mock sm', op: 'crew_rename',
+        args: function (set) { return { name: c.name, to: set.name }; },
+        check: function (set) {
+          var n = set.name;
+          if (!n) return 'Give the person a name.';
+          if (n.length > 120) return 'That name is too long.';
+          if (key(n) !== key(c.name) && taken.indexOf(key(n)) > -1) return n + ' is already on the crew list.';
+          return '';
+        },
+        done: function (res) {
+          A.toast(res.status === 202 ? E.writeText(res) : 'Renamed in the Crew tab and the Kas.');
+          forget(); open(c.id, true, 'rename');
+          if (ui && !panel.hidden) A.loaders.crew();
+          settle();
+        } });
+      var nameIn = nameForm.field('name', h('input', { type: 'text', maxlength: 120, autocomplete: 'off', value: c.name }), c.name,
+        function (el) { return el.value.trim().replace(/\s+/g, ' ') || null; });
+      var kasN = d.kas.e ? null : pays.length;
+      var nameBox = h('div', { class: 'cform', hidden: true },
+        h('div', { class: 'fgrid' }, h('label', { class: 'f full' }, 'Name', nameIn)),
+        nameForm.bar,
+        h('p', { class: 'src' }, I('sheet'), h('span', { text: 'Changes the name in the Crew tab' + (kasN == null ? ' and on their Kas entries.' : kasN ? ' and on their ' + E.plural(kasN, 'Kas entry', 'Kas entries') + '.' : '. They have no Kas entries yet.') + ' RAB quotes already made keep the old name.' })));
+      nameForm.bar.insertBefore(h('button', { class: 'btn sm quiet', type: 'button', onclick: function () {
+        show(d, true);
+        var b = A.$('[data-drawer] [data-k="rename"]'); if (b) b.focus();
+      } }, 'Cancel'), nameForm.bar.children[1]);
+      var taken = [];
+      crewList().then(function (cs) { taken = cs.filter(function (x) { return x.sheet_state !== 'missing'; }).map(function (x) { return key(x.name); }); }, function () {});
+      // removing: the row leaves the Crew tab; the Kas keeps their payments. Refused while the Kas still owes them
+      var remove = function () {
+        if (owed > 0) return A.ask('Settle ' + c.name + '’s payments first', c.name + ' is still owed ' + E.rp(owed) + ' in the Kas. Mark those entries paid, then remove them.', 'Open the Kas').then(function (yes) { if (yes) location.hash = '#finance/kas'; });
+        A.ask('Remove ' + c.name + ' from the crew list?', 'Their row is cleared from the Crew tab of the Sheet. Their payments stay in the Kas. To bring them back, add them again with the same name.', 'Remove', true).then(function (yes) {
+          if (!yes) return;
+          var b = A.$('[data-drawer] [data-k="remove"]'); if (b) b.disabled = true;
+          drop('crew_delete', { name: c.name, expect: { role: c.role || null, rate: E.n(c.rate) } }).then(function (res) {
+            if (res.status !== 200 && res.status !== 202) { if (b) b.disabled = false; return A.toast(E.writeText(res), true); }
+            A.guard(null); forget(); A.closeDrawer(true);
+            A.toast(res.status === 202 ? E.writeText(res) : c.name + ' was removed from the Crew tab.');
+            if (ui && !panel.hidden) A.loaders.crew();
+            settle();
+          }, function (e) { if (b) b.disabled = false; A.toast(E.ecoError(e), true); });
+        });
+      };
+      var drop = E.writer();
+      view.appendChild(h('div', { class: 'formacts' },
+        h('button', { class: 'btn sm', type: 'button', 'data-k': 'edit-details', onclick: function () {
+          view.hidden = true; formBox.hidden = false; first.focus();
+        } }, I('edit', 's'), 'Edit details'),
+        h('button', { class: 'btn sm', type: 'button', 'data-k': 'rename', onclick: function () {
+          view.hidden = true; nameBox.hidden = false; nameIn.focus(); nameIn.select();
+        } }, 'Rename'),
+        h('button', { class: 'btn sm quiet', type: 'button', 'data-k': 'remove', onclick: remove }, 'Remove')));
     } else if (edit) {
       view.appendChild(h('p', { class: 'src' + (vErr ? ' is-err' : '') }, I('sheet'), h('span', {},
         vErr ? 'The Sheet settings couldn’t be loaded, so the details can’t be changed here yet. Reload to try again.'
@@ -275,9 +333,14 @@
         figs,
         E.dsec('Payments', h('span', { class: 'src' }, I('sheet'), 'Kas'), payList),
         E.dsec('Projects', h('span', { class: 'src' }, I('rab'), 'RAB crew lines'), projList),
-        E.dsec('Details', h('span', { class: 'src' }, I('sheet'), 'Crew tab'), view, formBox))
+        E.dsec('Details', h('span', { class: 'src' }, I('sheet'), 'Crew tab'), view, formBox, nameBox))
     ], keep);
-    A.guard(function () { return !!form && form.dirty(); });
+    A.guard(function () { return (!!form && form.dirty()) || (!!nameForm && nameForm.dirty()); });
+  }
+
+  // after a rename or a removal the Kas and the Crew tab's totals are read again from the Sheet, then the list follows
+  function settle() {
+    E.pullSoon().then(function (ok) { if (!ok) return; forget(); if (ui && !panel.hidden) A.loaders.crew(); });
   }
 
   // ---------- a new person, added to the Crew tab ----------
@@ -328,7 +391,7 @@
       h('div', { class: 'dr-body' }, h('div', { class: 'fgrid' },
         h('label', { class: 'f full' }, 'Name', name),
         FIELDS.map(function (f) { return h('label', { class: 'f' + (f[3] ? ' full' : '') }, f[1], els[f[0]]); })),
-        h('p', { class: 'src' }, I('sheet'), h('span', { text: 'Kas entries and RAB lines find people by name, so the name can’t be changed from the admin later.' }))),
+        h('p', { class: 'src' }, I('sheet'), h('span', { text: 'Added to the Crew tab of the Sheet.' }))),
       h('div', { class: 'eco-actionbar' }, msg, btn)
     ]);
     A.guard(dirty);

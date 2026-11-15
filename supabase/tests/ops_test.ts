@@ -133,3 +133,20 @@ Deno.test('rab_meta: net profit takes 0% to 25% and refuses an empty rate', () =
   const r = run('rab_meta', { set: { net_profit_pct: 0.15 }, expect: { net_profit_pct: 0 } });
   eq(r.ok && r.args, { project_id: PID, set: { net_profit_pct: 0.15 }, expect: { net_profit_pct: 0 }, force: false });
 });
+
+Deno.test('crew_rename and crew_delete: checked args, money ops, the commit re-reads crew (and Kas after a rename)', () => {
+  const r = OPS.crew_rename.check({ name: ' Andi ', to: '  Andi   Pratama ' }, OP);
+  eq(r, { ok: true, args: { name: 'Andi', to: 'Andi Pratama' }, target: 'crew:andi', money: true });
+  eq(OPS.crew_rename.check({ name: 'Andi', to: 'Andi' }, OP).ok, false, 'same name');
+  eq(OPS.crew_rename.check({ name: 'Andi', to: ' ' }, OP).ok, false, 'empty');
+  eq(OPS.crew_rename.check({ name: 'Andi', to: 'x'.repeat(121) }, OP).ok, false, 'too long');
+  eq(OPS.crew_rename.check({ to: 'B' }, OP).ok, false, 'no name');
+  eq(OPS.crew_delete.check({ name: 'Budi', extra: 1 }, OP), { ok: true, args: { name: 'Budi' }, target: 'crew:budi', money: true });
+  eq(OPS.crew_delete.check({}, OP).ok, false);
+  const ren = buildWriteCommit({ crew: { row: 4, name: 'Andi Pratama', role: 'DOP', rate: 1, rate_unit: null, phone: null, note: null, unpaid: 0, paid_this_year: 0 } } as never,
+    { op: 'crew_rename', seq: 9, actor_id: null, actor_email: null, outbox_id: OP, forced: false, project_id: null, tab_gid: null });
+  eq([ren.crew?.length, ren.null_digests], [1, ['crew', 'kas', 'keuangan', 'rekap']]);
+  const del = buildWriteCommit({ removed_crew: { row: 4, name: 'Andi' } } as never,
+    { op: 'crew_delete', seq: 10, actor_id: null, actor_email: null, outbox_id: OP, forced: false, project_id: null, tab_gid: null });
+  eq([del.crew, del.kas_removed, del.null_digests], [undefined, undefined, ['crew']]);
+});

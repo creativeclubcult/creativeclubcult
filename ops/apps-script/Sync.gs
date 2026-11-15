@@ -19,7 +19,7 @@
  *  Pairing (the only unsigned calls): here → bridge {kind:'pair', v:1, sheet, env, r}; the bridge asks this web
  *  app {v:1, op:'pair_check'} for SHA-256(r) and only then answers with a new SYNC_SECRET. Nobody types the secret.
  */
-const SYNC_VERSION = '1.3.0';
+const SYNC_VERSION = '1.4.0';
 // the live Sheet: "CCC - RAB & Keuangan" in the Shared Drive "CCC" of hello@creativeclubcult.com (since 2026-11-04)
 const SYNC_PROD_SHEET = '1a5bRCaYtcTrhDyJtpaeCAQeKV58-kvd3NOfuJWGkVtM';
 // the live Sheet before 2026-11-04, kept in the personal Drive as an archive
@@ -353,6 +353,8 @@ function syncOps_() {
     kas_delete: { fn: api_kas_delete, write: true },
     client_upsert: { fn: api_client_upsert, write: true },
     crew_upsert: { fn: api_crew_upsert, write: true },
+    crew_rename: { fn: api_crew_rename, write: true },
+    crew_delete: { fn: api_crew_delete, write: true },
     rab_line_set: { fn: api_rab_line_set, write: true },
     rab_line_add: { fn: api_rab_line_add, write: true },
     rab_line_clear: { fn: api_rab_line_clear, write: true },
@@ -1869,6 +1871,87 @@ function api_crew_upsert(ctx, a) {
   const name = String(a.name || '').trim();
   if (!name || name.length > 120) throw syncErr_('invalid', 'A crew member needs a name');
   return syncUpsert_(ctx, 'crew', name, a);
+}
+
+/** The Crew rows (4 to 200) whose name (B) is `name`, ignoring case and outer spaces. */
+function syncCrewRows_(sh, name) {
+  const key = String(name).trim().toLowerCase();
+  const out = [];
+  sh.getRange(4, 2, 197, 1).getDisplayValues().forEach(function (r, i) { if (String(r[0]).trim().toLowerCase() === key) out.push(4 + i); });
+  return out;
+}
+
+/** A new name for a crew member: the Crew tab's name (B) and every Kas entry whose Nama (F) is the old name, in one
+ *  guarded write, so Belum Dibayar and Dibayar Tahun Ini (formulas over the Kas by name) keep adding up. RAB tabs keep
+ *  the name they were made with. */
+function api_crew_rename(ctx, a) {
+  const from = String(a.name || '').trim(), to = String(a.to || '').trim().replace(/\s+/g, ' ');
+  if (!from || from.length > 120) throw syncErr_('invalid', 'A crew member needs a name');
+  if (!to || to.length > 120) throw syncErr_('invalid', 'Give the person a name of 1 to 120 characters');
+  if (from === to) throw syncErr_('invalid', 'That is already their name');
+  const sh = ctx.ss.getSheetByName('Crew');
+  syncHead_(sh, 3, 1, SYNC_HEAD.crew, 'Crew');
+  const hits = syncCrewRows_(sh, from);
+  const same = from.toLowerCase() === to.toLowerCase();
+  const taken = same ? [] : syncCrewRows_(sh, to);
+  if (!hits.length) {
+    if (taken.length === 1) return { crew: syncTableRead_(ctx, 'crew', taken[0]), renamed: { from: from, to: to, kas: 0 }, noop: ['name'] };
+    throw syncErr_('not_found', '"' + from + '" is not in the Crew tab anymore');
+  }
+  if (hits.length > 1) throw syncErr_('invalid', '"' + from + '" appears more than once in the Crew tab');
+  if (taken.length) throw syncErr_('invalid', to + ' is already on the crew list');
+  const row = hits[0];
+  const k = ctx.ss.getSheetByName('Kas');
+  syncHead_(k, 8, 1, SYNC_HEAD.kas, 'Kas');
+  const col = SYNC_KAS_KEYS.indexOf('counterparty') + 1;
+  const last = k.getLastRow();
+  const names = last >= 9 ? k.getRange(9, col, last - 8, 1).getValues() : [];
+  const writes = [{ sh: sh, r: row, c: SYNC_CREW_COLS.name, v: to, type: 'text', field: 'name', expect: sh.getRange(row, SYNC_CREW_COLS.name).getValue() }];
+  names.forEach(function (r, i) {
+    if (typeof r[0] === 'string' && r[0].trim().toLowerCase() === from.toLowerCase())
+      writes.push({ sh: k, r: 9 + i, c: col, v: to, type: 'text', field: 'kas_' + (9 + i), expect: r[0] });
+  });
+  const res = syncWrite_(ctx, writes, { watch: [k] });
+  const now = String(sh.getRange(row, SYNC_CREW_COLS.name).getDisplayValue()).trim();
+  if (now !== to) throw syncErr_('write_landed_on_moved_row', 'Rows moved while saving (row ' + row + ').', { row: row, expected: to, found: now });
+  return { crew: syncTableRead_(ctx, 'crew', row), renamed: { from: from, to: to, kas: writes.length - 1 }, written: res.written.length ? ['name'] : [], noop: res.noop.length ? ['name'] : [] };
+}
+
+/** A crew member off the Crew tab: their cells A:F go, the rows below move up one (values and number formats only, so
+ *  no formula is rewritten; G:H are the tab's formulas and stay). Refused while Belum Dibayar (G) is above 0. The
+ *  Kas keeps their entries. */
+function api_crew_delete(ctx, a) {
+  const name = String(a.name || '').trim();
+  if (!name || name.length > 120) throw syncErr_('invalid', 'A crew member needs a name');
+  const sh = ctx.ss.getSheetByName('Crew');
+  syncHead_(sh, 3, 1, SYNC_HEAD.crew, 'Crew');
+  const hits = syncCrewRows_(sh, name);
+  if (!hits.length) return { removed_crew: null, noop: true };              // already gone (a retry, or the Sheet)
+  if (hits.length > 1) throw syncErr_('invalid', '"' + name + '" appears more than once in the Crew tab');
+  const row = hits[0];
+  const owed = sh.getRange(row, SYNC_CREW_COLS.unpaid).getValue();
+  if (typeof owed !== 'number') throw syncErr_('needs_sheet', 'Belum Dibayar for ' + name + ' could not be read, so nothing was removed. Check the Crew tab');
+  if (owed > 0) throw syncErr_('invalid', name + ' is still owed money in the Kas. Mark those entries paid first.');
+  const block = sh.getRange(row, 1, 200 - row + 1, 6);
+  syncNoFormula_(block);
+  if (syncProtected_(sh, row, 1)) throw syncErr_('formula_guard', 'Refused: the Crew tab is protected');
+  const was = block.getValues(), fmt = block.getNumberFormats();
+  const gone = syncTableRead_(ctx, 'crew', row);
+  const blank = function (n) { const r = []; for (let i = 0; i < n; i++) r.push(''); return r; };
+  const vals = was.slice(1).concat([blank(6)]), fmts = fmt.slice(1).concat([fmt[fmt.length - 1]]);
+  const check = syncWatch_([sh, ctx.ss.getSheetByName(REKAP), ctx.ss.getSheetByName('Kas')]);
+  block.setNumberFormats(fmts);
+  block.setValues(vals);
+  SpreadsheetApp.flush();
+  const broken = check();
+  if (broken) {
+    block.setNumberFormats(fmt);
+    block.setValues(was);
+    SpreadsheetApp.flush();
+    syncGuardTrip_();
+    throw syncGuardErr_(broken);
+  }
+  return { removed_crew: gone };
 }
 
 // =====================================================================================================
