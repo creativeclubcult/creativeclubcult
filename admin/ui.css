@@ -417,7 +417,7 @@ select.field{appearance:none;padding-right:34px;font:inherit;color:var(--ink);ba
 .payb b{font-size:18px;letter-spacing:-.01em;white-space:nowrap}
 /* crew list, docs */
 .plist{list-style:none;margin:0;padding:0}
-.plist li{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;gap:12px;min-height:60px;padding:8px 0;border-bottom:1px solid var(--line)}
+.plist li{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;gap:12px 20px;min-height:72px;padding:14px 0;border-bottom:1px solid var(--line)}
 .plist li:last-child{border-bottom:0}
 .plist .av{width:40px;height:40px;background:var(--surface-2);color:var(--ink-2)}
 .plist .av .i{width:18px;height:18px}
@@ -437,7 +437,9 @@ select.field{appearance:none;padding-right:34px;font:inherit;color:var(--ink);ba
 .plist .ppay .phist b{display:inline;font-weight:600}
 .plist .fee{text-align:right}
 .plist .fee .amt{display:block;font-size:14px;color:var(--ink)}
-.plist .fee .left{display:block;font-size:12px;font-weight:400;color:var(--ink-2)}
+.plist .fee .left{display:block;margin-top:4px;font-size:12px;font-weight:600;color:var(--red-ink)}
+.plist .fee .left.done{font-weight:400;color:var(--ink-2)}
+.pill.part{background:#FFF1A8;color:#6B5300}
 .pstat.crewsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 8px}
 .pstat.crewsum div{background:var(--surface-2);border-radius:10px;padding:8px 12px}
 .pstat.crewsum span{display:block;font-size:12px;color:var(--ink-2)}
@@ -658,7 +660,7 @@ body.dr-open{overflow:hidden}
   .fgrid{grid-template-columns:1fr}
   .formacts .btn{height:44px}
   .tbl td.act input{width:104px;height:44px}
-  .plist li{grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"av who fee" "av who pd";gap:2px 12px}
+  .plist li{grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"av who fee" "av who pd";gap:6px 16px}
   .plist .av{grid-area:av}.plist li>div{grid-area:who}.plist .fee{grid-area:fee;text-align:right}.plist .pill{grid-area:pd;justify-self:end}.plist button.who{grid-area:who}.plist .ppay{grid-row:3;padding-left:0}
   .add{min-height:44px}
   .chk{min-height:44px}

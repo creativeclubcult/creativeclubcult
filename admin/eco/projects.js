@@ -743,7 +743,7 @@
         var payable = writeMoney && !d.kas.e;
         var row = function (x) {
           var out = x.who ? paidTo[x.key] || 0 : 0, left = Math.max(0, x.fee - out);
-          var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= x.fee ? ['yes', 'Sudah'] : out > 0 ? ['busy', 'Partly'] : ['no', 'Belum'];
+          var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= x.fee ? ['yes', 'Sudah'] : out > 0 ? ['part', 'Partly'] : ['no', 'Belum'];
           var roles = x.lines.map(function (l) { return l.desc || 'No role named'; }).join(', ');
           var secs = x.lines.map(function (l) { return SEC[l.section || 'crew']; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ');
           var panel = null, opener = null;
@@ -760,7 +760,7 @@
             opener || h('div', {}, h('b', { text: x.who || 'No name yet' }), h('span', { text: roles })),
             // the fee, and once something is paid, what is still to pay under it
             h('span', { class: 'fee' }, h('span', { class: 'amt', text: E.num(x.fee) }),
-              !d.kas.e && out > 0 ? h('span', { class: 'left', text: left > 0 ? E.rp(left) + ' left' : 'Paid ' + E.rp(out) }) : null),
+              !d.kas.e && out > 0 ? h('span', { class: left > 0 ? 'left' : 'left done', text: left > 0 ? E.rp(left) + ' left' : 'Paid ' + E.rp(out) }) : null),
             h('span', { class: 'pill ' + st[0], text: st[1] }), panel);
         };
         // paid so far, what is left and the payments, with a form to record the next one in the Kas tab
