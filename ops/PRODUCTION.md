@@ -496,3 +496,18 @@ Rollback, in this order:
 2. Functions: deploy sheets-write and sheets-sync one-line entries from c737873.
 3. Live script: paste Sync.gs from c737873 (1.5.0, SHA-256 de177889…), New version, syncSelfTest.
 No database change, no Sheet layout change. Rates already written stay in the RAB tabs as typed values.
+
+## DP follows the DP received, 2026-11-16 (evening)
+
+The owner asked that the invoice DP follow what the client actually paid; released with "gas kerjain langsung naikin".
+
+* admin/eco/projects.js only. After Save payments takes a DP received above 0 that changed, is at most the grand total
+  and differs from the invoice DP, the admin also sends rab_meta dp_pct = received / grand total (expect = the old
+  dp_pct), so the RAB's DP is that amount and the Pelunasan follows. A date-only save leaves the DP alone. If that second
+  write fails, the payment stays saved and the toast says the DP was not changed.
+* No function, Sync.gs, database or Sheet layout change (rab_meta dp_pct exact shares are Sync.gs 1.6.0, above).
+* Harness: SAMPLE Social Content, DP received 2.500.000 on a 7.503.750 grand total gave DP 2.500.000 (33,3%) and
+  Pelunasan 5.003.750; a date-only save kept them; console clean.
+* Before this, tab 014 (Denri) G36 was set by hand to =2000000/H34 (DP 2.000.000, Pelunasan 4.000.000).
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. DP shares already written stay.

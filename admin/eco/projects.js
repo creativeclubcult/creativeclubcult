@@ -574,7 +574,16 @@
         var pf = E.sheetForm({ label: 'Save payments', op: 'project_set', look: 'mock',
           args: function (set, expect) { return { project_id: p.id, set: set, expect: expect }; },
           check: function (set) { return ['dp_received', 'final_received'].some(function (k) { return set[k] > 1e12; }) ? 'That amount is too large.' : ''; },
-          done: function (r) { saved(p.id, r, 'Payments saved to the Sheet.'); } });
+          done: function (r) {
+            // a DP received that differs from the DP on the invoice moves the invoice's DP to it, so DP and Pelunasan follow
+            var got = E.amount(jumpTo.dp), gt = E.n(m.grand_total), was = E.n(m.dp_received);
+            var follow = r.status === 200 && rab && rab.meta && v2 && got > 0 && got !== was && gt > 0 && got <= gt && got !== E.n(m.dp_amount);
+            if (!follow) return saved(p.id, r, 'Payments saved to the Sheet.');
+            E.writer()('rab_meta', { project_id: p.id, set: { dp_pct: got / gt }, expect: { dp_pct: m.dp_pct } }).then(function (r2) {
+              if (r2.status === 200 || r2.status === 202) return saved(p.id, r2, 'Payments saved. The DP on the invoice is now ' + E.rp(got) + ', the Pelunasan follows.');
+              saved(p.id, r, 'Payments saved, but the DP on the invoice wasn’t changed: ' + E.writeText(r2));
+            }, function (e) { saved(p.id, r, 'Payments saved, but the DP on the invoice wasn’t changed: ' + E.ecoError(e)); });
+          } });
         forms.push(pf);
         jumpTo.dp = pf.field('dp_received', E.amountInput(m.dp_received, 'DP received'), m.dp_received, E.amount);
         out.push(h('div', { class: 'fgrid' },
