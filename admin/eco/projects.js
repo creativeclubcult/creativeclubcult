@@ -430,6 +430,11 @@
     var named = {};
     crewLines.forEach(function (l) { var n = E.words(l.person).trim().toLowerCase(); if (n) named[n] = 1; });
     if (Object.keys(named).length) heads = Object.keys(named).length;
+    // an old layout RAB has no readable crew lines; the Crew pane then lists the people paid Fee Crew in the Kas
+    var kasCrew = {};
+    if (!v2 && !crewLines.length) kasRows.forEach(function (k) {
+      if (k.kind === 'Keluar' && k.category === 'Fee Crew' && E.words(k.counterparty).trim()) kasCrew[E.words(k.counterparty).trim().toLowerCase()] = 1;
+    });
     var eq = rab && rab.equipment && typeof rab.equipment === 'object' && Array.isArray(rab.equipment.groups) ? rab.equipment : null;
     var gearLines = eq ? [].concat.apply([], eq.groups.map(function (g) { return Array.isArray(g.lines) ? g.lines : []; })) : [];
 
@@ -540,7 +545,7 @@
         pane('budget', 'Budget', rab && Array.isArray(rab.sections) ? lineCount() : null, budgetPane());
         pane('money', 'Money', null, moneyPane());
       }
-      pane('crew', 'Crew', money && m ? (crewLines.length ? heads : null) : (p.crew_names || []).length || null, crewPane());
+      pane('crew', 'Crew', money && m ? (crewLines.length ? heads : Object.keys(kasCrew).length || null) : (p.crew_names || []).length || null, crewPane());
       pane(money ? 'quote' : 'docs', money ? 'Quote' : 'Documents', null, docsPane());
     }
 
@@ -817,6 +822,67 @@
           h('div', {}, h('span', { text: 'Crew fees' }), h('b', { text: E.rp(feeAll) })),
           h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(paidAll) })),
           h('div', {}, h('span', { text: 'Left to pay' }), h('b', { class: feeAll - paidAll > 0 ? null : 'soft', text: E.rp(feeAll - paidAll) }))) : null;
+        // an old layout RAB (001 to 009) has no crew lines the admin can read, so the crew comes from this project's
+        // Fee Crew entries in the Kas: each person's fee, what is paid, and Mark paid on what isn't yet
+        if (!crewLines.length && !v2 && !d.kas.e) {
+          var feeBy = {}, feeList = [];
+          kasRows.forEach(function (k) {
+            var who = String(k.counterparty || '').replace(/\s+/g, ' ').trim();
+            if (k.kind !== 'Keluar' || k.category !== 'Fee Crew' || !who) return;
+            var key = E.words(who).trim().toLowerCase(), x = feeBy[key];
+            if (!x) { x = feeBy[key] = { who: who, fee: 0, out: 0, rows: [] }; feeList.push(x); }
+            var a = E.n(k.amount) || 0;
+            x.fee += a; if (k.paid === 'Sudah') x.out += a; x.rows.push(k);
+          });
+          if (feeList.length) {
+            var KK = ['entry_date', 'kind', 'category', 'project_tab', 'description', 'counterparty', 'amount', 'paid', 'method', 'proof_url', 'note'];
+            var markFee = function (k, b) {
+              var match = {}; KK.forEach(function (key) { match[key] = k[key] == null ? null : k[key]; });
+              b.disabled = true; b.textContent = 'Saving…';
+              E.sheetWrite('kas_update', { hint_row: k.sheet_row, match: match, set: { paid: 'Sudah' } }).then(function (r) {
+                if (r.status === 200 || r.status === 202) return saved(p.id, r, 'Marked paid in the Kas.');
+                b.disabled = false; b.textContent = 'Mark paid'; A.toast(E.writeText(r), true);
+              }, function (e) { b.disabled = false; b.textContent = 'Mark paid'; A.toast(E.ecoError(e), true); });
+            };
+            var feeK = 0, outK = 0;
+            feeList.forEach(function (x) { feeK += x.fee; outK += x.out; });
+            var kasLi = function (x) {
+              var left = Math.max(0, x.fee - x.out);
+              var st = x.out >= x.fee ? ['yes', 'Sudah'] : x.out > 0 ? ['part', 'Partly'] : ['no', 'Belum'];
+              var roles = x.rows.map(function (k) { return String(k.description || '').split(',')[0].trim(); })
+                .filter(function (v, i, a) { return v && a.indexOf(v) === i; }).join(', ') || 'Fee Crew';
+              var panel = h('div', { class: 'ppay', hidden: true });
+              var opener = h('button', { class: 'who', type: 'button', 'aria-expanded': 'false' }, h('b', { text: x.who }), h('span', { text: roles }));
+              opener.addEventListener('click', function () {
+                var open = panel.hidden;
+                panel.hidden = !open; opener.setAttribute('aria-expanded', String(open));
+                if (open && !panel.firstChild) A.add(panel, [h('div', { class: 'pstat' },
+                    h('div', {}, h('span', { text: 'Fee' }), h('b', { text: E.rp(x.fee) })),
+                    h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(x.out) })),
+                    h('div', {}, h('span', { text: 'Left' }), h('b', { class: left > 0 ? null : 'soft', text: E.rp(left) }))),
+                  h('ul', { class: 'phist' }, x.rows.slice().sort(function (a, b) { return (a.entry_date || '').localeCompare(b.entry_date || ''); }).map(function (k) {
+                    return h('li', {}, h('span', { text: E.day(k.entry_date, { year: false }) + ', ' + E.rp(k.amount) }),
+                      k.paid === 'Sudah' ? h('span', { class: 'pill yes', text: 'Sudah' })
+                      : writeMoney ? h('button', { class: 'btn sm', type: 'button', onclick: function (e) { markFee(k, e.currentTarget); } }, 'Mark paid')
+                      : h('span', { class: 'pill no', text: 'Belum' }));
+                  })),
+                  h('p', { class: 'help', text: writeMoney ? 'From the Fee Crew entries in the Kas tab. Mark paid sets the entry to Sudah.'
+                    : 'From the Fee Crew entries in the Kas tab. To mark one paid, use Mark paid on it in Finance, Kas.' })]);
+              });
+              return h('li', {}, h('span', { class: 'av', 'aria-hidden': 'true' }, I('crew')), opener,
+                h('span', { class: 'fee' }, h('span', { class: 'amt', text: E.num(x.fee) }),
+                  x.out > 0 ? h('span', { class: left > 0 ? 'left' : 'left done', text: left > 0 ? E.rp(left) + ' left' : 'Paid ' + E.rp(x.out) }) : null),
+                h('span', { class: 'pill ' + st[0], text: st[1] }), panel);
+            };
+            return [paneH('Crew', h('span', { class: 'cnt', text: E.plural(feeList.length, 'person', 'people') })),
+              h('div', { class: 'pstat crewsum' },
+                h('div', {}, h('span', { text: 'Crew fees' }), h('b', { text: E.rp(feeK) })),
+                h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(outK) })),
+                h('div', {}, h('span', { text: 'Left to pay' }), h('b', { class: feeK - outK > 0 ? null : 'soft', text: E.rp(feeK - outK) }))),
+              h('ul', { class: 'plist' }, feeList.map(kasLi)),
+              h('p', { class: 'help', text: 'This old RAB layout has no crew lines the admin can read, so the crew comes from the Kas. Tap a name to see each entry.' })];
+          }
+        }
         return [paneH('Crew in the RAB', crewLines.length ? h('span', { class: 'cnt', text: E.plural(heads, 'person', 'people') }) : null),
           !crewLines.length ? empty(rab ? 'No crew lines in the RAB yet.' : 'The crew lines of this RAB aren’t in the admin yet.')
           : [sums, h('ul', { class: 'plist' }, people.map(row))],
