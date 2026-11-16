@@ -90,7 +90,7 @@
       if (!p.shoot_date) return 'Set the shoot date';
       if (k > 0) return gear(k);
       if (p.shoot_date >= x.today) return 'Shoot on ' + day(p.shoot_date, { weekday: true, year: false });
-      if (!p.final_file_date) return 'Deliver final files, then mark delivered';
+      if (!handedOver(p, x.today)) return 'Deliver final files, then mark delivered';
       if (!mon) return 'Waiting for the payment';
       if (m.pay_status === 'Telat') return 'Overdue: collect ' + rp(m.outstanding);
       if (n(m.outstanding) > 0) return 'Collect ' + rp(m.outstanding) + (p.payment_due ? ' by ' + day(p.payment_due, { year: false }) : '');
@@ -206,8 +206,21 @@
     shoot: { label: 'Shoot', icon: 'camera' }, deliver: { label: 'Files due', icon: 'send' },
     pay: { label: 'Payment due', icon: 'in' }, follow: { label: 'Follow up', icon: 'chat' }
   };
-  function events(projects, money, leads) {
-    var out = [], td = today();
+  // the final files went out: a Files delivered day up to today
+  var handedOver = function (p, td) { return !!p.final_file_date && p.final_file_date <= (td || today()); };
+  // deliveries by project id, each project's in the order they are due
+  function byProject(list) {
+    var o = {};
+    (list || []).forEach(function (d) { (o[d.project_id] = o[d.project_id] || []).push(d); });
+    Object.keys(o).forEach(function (k) { o[k].sort(dueOrder); });
+    return o;
+  }
+  var dueOrder = function (a, b) {
+    var x = a.due_on || '9999', y = b.due_on || '9999';
+    return x < y ? -1 : x > y ? 1 : String(a.created_at || '') < String(b.created_at || '') ? -1 : 1;
+  };
+  function events(projects, money, leads, deliveries) {
+    var out = [], td = today(), dels = byProject(deliveries);
     (projects || []).forEach(function (p) {
       if (p.sheet_state === 'removed' || p.archived_at) return;
       var ph = phase(p), who = clientName(p), href = '#projects/' + p.id, crew = (p.crew_names || []).filter(Boolean);
@@ -216,9 +229,14 @@
         out.push({ type: 'shoot', start: p.shoot_date, end: p.shoot_end && p.shoot_end > p.shoot_date ? p.shoot_end : p.shoot_date,
           title: who, sub: projectLine(p), href: href, crew: crew, pid: p.id, tent: ph === 'Brief' || ph === 'Draft' || ph === 'Dikirim' });
       }
-      if (p.deliver_by && !p.final_file_date && ph !== 'Batal') {
-        out.push({ type: 'deliver', start: p.deliver_by, end: p.deliver_by, title: who, sub: 'Final files for ' + projectLine(p), href: href,
-          late: p.deliver_by < td, crew: crew, pid: p.id });
+      // each delivery not sent yet (a draft, the final files), until the files are handed over; a Files delivered day
+      // still ahead is a plan, not a handover
+      if (ph !== 'Batal' && !handedOver(p, td)) {
+        (dels[p.id] || []).forEach(function (d) {
+          if (d.sent_on || !d.due_on) return;
+          out.push({ type: 'deliver', start: d.due_on, end: d.due_on, title: who, sub: d.label + ' for ' + projectLine(p), href: href,
+            late: d.due_on < td, crew: crew, pid: p.id });
+        });
       }
       var m = money && money[p.id];
       if (m && p.payment_due && n(m.outstanding) > 0 && (ph === 'Deal' || ph === 'Lunas')) {
@@ -321,6 +339,9 @@
       return once('kas', function () { return rows(sb.from('kas_entries').select('*').eq('sheet_state', 'present').order('entry_date', { ascending: false }).limit(5000)); }, fresh);
     },
     docs: function (fresh) { return once('docs', function () { return rows(sb.from('documents').select('*').eq('archived', false).order('created_at', { ascending: false }).limit(2000)); }, fresh); },
+    deliveries: function (fresh) {
+      return once('deliveries', function () { return rows(sb.from('project_deliveries').select('id, project_id, label, due_on, sent_on, created_at').limit(5000)); }, fresh);
+    },
     portfolio: function (fresh) { return once('portfolio', function () { return rows(sb.from('portfolio_items').select('id, project_id, status, title').limit(2000)); }, fresh); }
   };
 
@@ -635,6 +656,6 @@
     SPLIT_CATS: SPLIT_CATS, splitOf: splitOf, fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
     setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search,
     addDays: addDays, clientName: clientName, projectLine: projectLine, initial: initial, stage: stage, OPEN_LEAD: OPEN_LEAD, tip: tip,
-    EVENT: EVENT, events: events, cardHead: cardHead, projectCard: projectCard
+    EVENT: EVENT, events: events, handedOver: handedOver, byProject: byProject, dueOrder: dueOrder, cardHead: cardHead, projectCard: projectCard
   };
 })();

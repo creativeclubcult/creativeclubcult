@@ -1546,6 +1546,22 @@ span.sw.pay{grid-template-columns:none;gap:0}
 .pg-det .fmsg{display:block;margin-top:6px}
 .pg-det .fmsg:empty{display:none}
 .pg-det .src{margin-top:12px}
+/* Details: the deliveries (drafts and the final files) between the shoot and Files delivered */
+.dlv{padding:12px 0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.dlv-h{margin:0 0 2px;font-size:14px;font-weight:400;color:var(--ink-2)}
+.dlv-list{list-style:none;margin:0;padding:0}
+.dlv-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.dlv-list li:last-child{border-bottom:0}
+.dlv-list .nm{grid-column:1;font-weight:600;overflow-wrap:anywhere}
+.dlv-list .dt{grid-column:1;font-size:13px;color:var(--ink-2)}
+.dlv-list .dt.late{color:var(--red-ink);font-weight:600}
+.dlv-list .act{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;gap:10px}
+.dlv-list li.dlv-ed{grid-template-columns:minmax(0,1fr) 150px;gap:8px 10px;align-items:end}
+.dlv-list li.dlv-ed .f{margin:0}
+.dlv-list li.dlv-ed .field{height:40px}
+.dlv-list li.dlv-ed .row-act{grid-column:1 / -1;display:flex;gap:14px;align-items:center}
+.dlv-list li.dlv-ed .rm{margin-left:auto}
+.dlv .dlv-add{margin-top:6px}
 /* the RAB line editor (rab.js): its fields in a grid of their own, Remove line at the far end */
 .ed{grid-template-columns:minmax(0,1fr)}
 .ed-f{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}

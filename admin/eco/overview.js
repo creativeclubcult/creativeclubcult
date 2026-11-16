@@ -205,8 +205,9 @@
       if (f.issues_open > 0) put(1, '', { icon: 'alert', tone: 'amber', text: E.plural(f.issues_open, 'sync issue') + ' to settle', sub: 'Something in the Sheet needs a look', href: '#settings' });
     }
     if (r.projects.e || r.money.e) needBroken++;
+    if (r.deliveries.e) needBroken++;
     else {
-      var shown = {};
+      var shown = {}, dels = E.byProject(r.deliveries.v);
       (r.portfolio.v || []).forEach(function (it) { if (it.project_id && it.status !== 'archived') shown[it.project_id] = true; });
       r.projects.v.forEach(function (p) {
         if (p.sheet_state === 'removed') return;
@@ -233,13 +234,15 @@
         if (ph === 'Deal' && m && p.status_changed_at && E.n(m.dp_amount) > 0 && !(E.n(m.dp_received) > 0) && E.days(E.jkt(p.status_changed_at), td) >= 7) {
           put(5, p.status_changed_at, { icon: 'wallet', tone: 'amber', text: 'No DP yet', sub: who + ', deal since ' + E.day(E.jkt(p.status_changed_at), { year: false }), href: href, tag: ago(p.status_changed_at) });
         }
-        if (p.deliver_by && !p.final_file_date && E.isActive(p) && E.days(td, p.deliver_by) <= 3) {
-          var dd = E.days(td, p.deliver_by);
-          put(6, p.deliver_by, { icon: 'send', tone: dd < 0 ? 'red' : 'violet', text: 'Deliver the final files', sub: who + ', ' + line, href: href,
-            tag: dd < 0 ? E.plural(-dd, 'day') + ' late' : dd === 0 ? 'Due today' : 'Due ' + E.when(p.deliver_by), tagTone: dd < 0 ? 'red' : '', tagIcon: dd < 0 ? 'clock' : 'cal' });
+        // the next delivery not sent yet (a draft or the final files), once it is three days off or late
+        var mine = dels[p.id] || [], next = mine.filter(function (d) { return !d.sent_on && d.due_on; })[0];
+        if (next && !E.handedOver(p, td) && E.isActive(p) && E.days(td, next.due_on) <= 3) {
+          var dd = E.days(td, next.due_on);
+          put(6, next.due_on, { icon: 'send', tone: dd < 0 ? 'red' : 'violet', text: 'Send ' + next.label, sub: who + ', ' + line, href: href,
+            tag: dd < 0 ? E.plural(-dd, 'day') + ' late' : dd === 0 ? 'Due today' : 'Due ' + E.when(next.due_on), tagTone: dd < 0 ? 'red' : '', tagIcon: dd < 0 ? 'clock' : 'cal' });
         } else {
           var shot = p.shoot_end || p.shoot_date;
-          if (ph === 'Deal' && shot && shot < td && !p.final_file_date && !p.deliver_by) {
+          if (ph === 'Deal' && shot && shot < td && !E.handedOver(p, td) && !r.deliveries.e && !mine.some(function (d) { return !d.sent_on; })) {
             put(6, shot, { icon: 'send', tone: 'violet', text: 'Deliver the final files', sub: who + ', shot on ' + E.when(shot), href: href });
           }
         }
@@ -333,12 +336,12 @@
         h('span', { text: i === 0 ? 'Today' : wd[0] }), h('b', { text: wd[1] })));
     }
     box.appendChild(days);
-    if (r.projects.e || r.money.e || r.followAll.e) {
+    if (r.projects.e || r.money.e || r.followAll.e || r.deliveries.e) {
       box.appendChild(h('p', { class: 'quiet is-err', text: 'The week couldn’t be loaded. Reload to try again.' }));
       return;
     }
     var RANK = { shoot: 0, deliver: 1, pay: 2, follow: 3 };
-    var list = E.events(r.projects.v, r.money.v, r.followAll.v).filter(function (ev) { return ev.end >= td && ev.start <= end; })
+    var list = E.events(r.projects.v, r.money.v, r.followAll.v, r.deliveries.v).filter(function (ev) { return ev.end >= td && ev.start <= end; })
       .sort(function (x, y) { return (x.start < td ? td : x.start) < (y.start < td ? td : y.start) ? -1 : (x.start < td ? td : x.start) > (y.start < td ? td : y.start) ? 1 : RANK[x.type] - RANK[y.type]; });
     // a day with something on it gets a mark; the list under the days says what (a bar per day can't hold a name)
     list.forEach(function (ev) {
@@ -432,7 +435,7 @@
     wait(ui.needs);
     var wk = new Date(Date.now() - 7 * 864e5).toISOString(), td = E.today();
     var r = {
-      flow: E.settle(E.data.flow(true)), projects: E.settle(E.data.projects()), money: E.settle(E.data.money()),
+      flow: E.settle(E.data.flow(true)), projects: E.settle(E.data.projects()), money: E.settle(E.data.money()), deliveries: E.settle(E.data.deliveries()),
       docs: E.settle(E.data.docs()), kas: E.settle(E.data.kas()), portfolio: E.settle(E.data.portfolio()), values: E.settle(E.data.values()),
       leads: forEditors(function () { return sb.from('lead_inbox').select('id, kind, created_at, name, company, about, description').eq('status', 'new').order('created_at').limit(20); }),
       follow: forEditors(function () {

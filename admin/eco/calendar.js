@@ -1,4 +1,4 @@
-/* The Calendar: one month of shoot days, final files due, payments due (only with money access) and lead follow ups
+/* The Calendar: one month of shoot days, files due (each draft and the final files), payments due (only with money access) and lead follow ups
    (only owners and admins read leads; the database checks the same), all from E.events. A laptop sees the month as a
    grid, where a shoot of several days is one bar; a tablet or phone sees a list of the days that have something on.
    The month sits in the address (#calendar/2026-12), so Back from a project lands on the same month. Filters: one
@@ -93,7 +93,7 @@
       ? E.settle(E.rows(sb.from('lead_inbox').select('id, name, status, next_step, next_step_on').in('status', E.OPEN_LEAD)
         .not('next_step_on', 'is', null).order('next_step_on').limit(1000)))
       : Promise.resolve({ v: [] });
-    Promise.all([E.settle(E.data.projects()), E.settle(E.data.money()), leads]).then(function (r) {
+    Promise.all([E.settle(E.data.projects()), E.settle(E.data.money()), leads, E.settle(E.data.deliveries())]).then(function (r) {
       if (mine !== gen) return;
       if (r[0].e) {
         loaded = null;
@@ -102,7 +102,7 @@
           h('button', { class: 'btn sm', type: 'button', onclick: function () { E.forget(); load(); } }, 'Try again')));
         return;
       }
-      loaded = { projects: r[0].v, list: E.events(r[0].v, r[1].v || {}, r[2].v || []), noMoney: !!r[1].e, noLeads: !!r[2].e };
+      loaded = { projects: r[0].v, list: E.events(r[0].v, r[1].v || {}, r[2].v || [], r[3].v || []), noMoney: !!r[1].e, noLeads: !!r[2].e, noDeliveries: !!r[3].e };
       filters();
       draw();
     });
@@ -149,6 +149,7 @@
   function notes(list, inMonth, a, z) {
     ui.note.innerHTML = '';
     if (loaded.noMoney) ui.note.appendChild(h('p', { class: 'quiet is-err', text: 'Payment dates couldn’t be loaded, so they are missing here. Reload to try again.' }));
+    if (loaded.noDeliveries) ui.note.appendChild(h('p', { class: 'quiet is-err', text: 'Files due couldn’t be loaded, so they are missing here. Reload to try again.' }));
     if (loaded.noLeads) ui.note.appendChild(h('p', { class: 'quiet is-err', text: 'Lead follow ups couldn’t be loaded, so they are missing here. Reload to try again.' }));
     if (inMonth.length) return;
     if (!loaded.list.length) {

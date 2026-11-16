@@ -1,7 +1,7 @@
 /* Projects: every RAB in the Sheet (a Rekap Project row and its tab) and the Briefs not in the Sheet yet. The list
    shows the active projects by stage, then every project, the most urgent first. A project opens as a page of its own
    (#projects/<id>): its stage, its money, the RAB's lines, the crew, the quote and what needs doing next. What the
-   admin keeps itself (shoot and deliver dates, notes) saves to the database. The stage, the delivery date, payments,
+   admin keeps itself (shoot dates, deliveries, notes) saves to the database. The stage, the files delivered date, payments,
    the quote settings, locking gear prices, the PDFs, the RAB's lines and its actual costs (rab.js) are written to the
    Sheet through sheets-write, which checks the role and every value again; a new RAB is made in the Sheet from a
    Brief. RAB 001 to 009 (the old tabs) stay read only. */
@@ -13,7 +13,7 @@
   // the project whose last change the Sheet queued: its page says so once, as it doesn't show the change yet
   var queued = null;
   var FIELD = { shoot_date: 'Shoot starts', shoot_end: 'Shoot ends', deliver_by: 'Deliver by', notes: 'Notes', status: 'Status', plan_title: 'Name',
-    archived_at: 'Archived', portfolio_skip: 'Not for the portfolio', final_file_date: 'Files delivered', payment_due: 'Payment due', quote_date: 'Quote date' };
+    archived_at: 'Archived', portfolio_skip: 'Not for the portfolio', final_file_date: 'Files delivered', payment_due: 'Payment due', quote_date: 'Quote date', delivery: 'Delivery' };
   var VIEWS = {
     active: E.isActive,
     done: function (p) { return p.sheet_state === 'present' && p.status === 'Lunas'; },
@@ -201,7 +201,8 @@
       money ? E.settle(E.rows(sb.from('sync_changes').select('at, source, actor_email, field, old_value, new_value').eq('entity_id', id).order('at', { ascending: false }).limit(50)))
         : Promise.resolve({ v: [] }),
       E.settle(E.rows(sb.from('activity_log').select('at, actor_email, action, source').eq('entity', 'project').eq('entity_id', id).order('at', { ascending: false }).limit(20))),
-      E.settle(E.data.clients())
+      E.settle(E.data.clients()),
+      E.settle(E.rows(sb.from('project_deliveries').select('id, project_id, label, due_on, sent_on, created_at').eq('project_id', id).limit(200)))
     ]).then(function (r) {
       if (!current(mine, id)) return;
       if (r[0].error) return pageState(E.ecoError(r[0].error), true, function () { open(id); });
@@ -209,7 +210,7 @@
       var p = r[0].data, lid = A.canEdit() ? p.inquiry_id || p.manual_lead_id : null; // leads are for owners and admins
       (lid ? E.settle(E.rows(sb.from('lead_inbox').select('id, name, status').eq('id', lid))) : Promise.resolve({ v: [] })).then(function (lr) {
         if (!current(mine, id)) return;
-        show({ p: p, m: r[1].data || null, mErr: r[1].error || null, values: r[2], docs: r[3], kas: r[4], port: r[5], changes: r[6], acts: r[7], lead: lr, clients: r[8] });
+        show({ p: p, m: r[1].data || null, mErr: r[1].error || null, values: r[2], docs: r[3], kas: r[4], port: r[5], changes: r[6], acts: r[7], lead: lr, clients: r[8], dels: r[9] });
         if (keep) window.scrollTo(0, y);
         if (lead) refocus(at);
       });
@@ -1121,6 +1122,95 @@
     }
     var todo = needsCard();
     function refreshNeeds() { var next = needsCard(); todo.replaceWith(next); todo = next; }
+    // Deliveries: the drafts and the final files, each with a due day; Mark sent sets the day it went out. Owners and
+    // admins add, change and remove them (the database checks the same); each change shows in the History.
+    function deliveries() {
+      var COLS = 'id, project_id, label, due_on, sent_on, created_at';
+      var list = (d.dels.v || []).slice().sort(E.dueOrder), editing = null, busy = false, td = E.today();
+      var box = h('div', { class: 'dlv', 'data-k': 'dlv' }), msg = h('p', { class: 'fmsg', role: 'status' });
+      var nice = function (v) { return E.day(v, { weekday: true, year: false }); };
+      var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+      var done = function (t) { E.forget(); editing = null; paint(); say(t); refreshNeeds(); };
+      var fail = function (e) { busy = false; say(e && e.message ? E.ecoError(e) : 'Your account isn’t allowed to change this.', true); };
+      function send(q, then) {
+        if (busy) return;
+        busy = true; say('Saving…');
+        q.select(COLS).then(function (r) {
+          busy = false;
+          if (r.error) return fail(r.error);
+          if (!r.data || !r.data.length) return fail();
+          then(r.data[0]);
+        }, fail);
+      }
+      function markSent(dv) {
+        send(sb.from('project_deliveries').update({ sent_on: td }).eq('id', dv.id), function (row) {
+          list = list.map(function (x) { return x.id === row.id ? row : x; });
+          done(dv.label + ' marked sent.');
+        });
+      }
+      function item(dv) {
+        var late = !dv.sent_on && dv.due_on && dv.due_on < td && !E.handedOver(p, td);
+        var when = (dv.due_on ? 'Due ' + nice(dv.due_on) : 'No due date') + (dv.sent_on ? ', sent ' + nice(dv.sent_on) : late ? ', late' : '');
+        var act = h('span', { class: 'act' });
+        if (dv.sent_on) act.appendChild(h('span', { class: 'pill yes', text: 'Sent' }));
+        else if (edit) act.appendChild(h('button', { class: 'btn sm', type: 'button', onclick: function () { markSent(dv); } }, 'Mark sent'));
+        if (edit) act.appendChild(h('button', { class: 'add', type: 'button', 'aria-label': 'Change ' + dv.label, onclick: function () { editing = dv.id; say(''); paint(true); } }, 'Change'));
+        return h('li', {}, h('span', { class: 'nm', text: dv.label }), h('span', { class: 'dt' + (late ? ' late' : ''), text: when }), act);
+      }
+      function form(dv) {
+        var name = h('input', { class: 'field', value: dv ? dv.label : '', maxlength: 60, placeholder: 'Draft 1, Final files', 'aria-label': 'Delivery name' });
+        var due = h('input', { class: 'field', type: 'date', value: dv && dv.due_on || '', 'aria-label': 'Due' });
+        var sentOn = dv && dv.sent_on ? h('input', { class: 'field', type: 'date', value: dv.sent_on, 'aria-label': 'Sent on' }) : null;
+        var save = function () {
+          var v = { label: name.value.trim(), due_on: due.value || null };
+          if (!v.label) { name.setAttribute('aria-invalid', 'true'); name.focus(); return say('Give the delivery a name.', true); }
+          if (sentOn) v.sent_on = sentOn.value || null;
+          if (dv) {
+            send(sb.from('project_deliveries').update(v).eq('id', dv.id), function (row) {
+              list = list.map(function (x) { return x.id === row.id ? row : x; }).sort(E.dueOrder);
+              done('Saved.');
+            });
+          } else {
+            v.project_id = p.id;
+            send(sb.from('project_deliveries').insert(v), function (row) { list.push(row); list.sort(E.dueOrder); done(row.label + ' added.'); });
+          }
+        };
+        var remove = function () {
+          A.ask('Remove ' + dv.label + '?', 'It comes off this project and the calendar. The History keeps a note of it.', 'Remove', true).then(function (go) {
+            if (!go) return;
+            send(sb.from('project_deliveries').delete().eq('id', dv.id), function () {
+              list = list.filter(function (x) { return x.id !== dv.id; });
+              done(dv.label + ' removed.');
+            });
+          });
+        };
+        var li = h('li', { class: 'dlv-ed' },
+          h('label', { class: 'f' }, 'Name', name), h('label', { class: 'f' }, 'Due', due), sentOn ? h('label', { class: 'f' }, 'Sent on', sentOn) : null,
+          h('div', { class: 'row-act' }, h('button', { class: 'btn lime sm', type: 'button', onclick: save }, 'Save'),
+            h('button', { class: 'link', type: 'button', onclick: function () { editing = null; say(''); paint(); } }, 'Cancel'),
+            dv ? h('button', { class: 'link rm', type: 'button', onclick: remove }, 'Remove') : null));
+        li.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); }
+          if (e.key === 'Escape') { e.preventDefault(); editing = null; say(''); paint(); }
+        });
+        return li;
+      }
+      function paint(focus) {
+        box.innerHTML = '';
+        box.appendChild(h('h3', { class: 'dlv-h', text: 'Deliveries' }));
+        if (d.dels.e) return box.appendChild(h('p', { class: 'quiet is-err', text: 'The deliveries couldn’t be loaded. Reload to try again.' }));
+        var ul = h('ul', { class: 'dlv-list' });
+        list.forEach(function (dv) { ul.appendChild(editing === dv.id ? form(dv) : item(dv)); });
+        if (editing === 'new') ul.appendChild(form(null));
+        if (ul.children.length) box.appendChild(ul);
+        else box.appendChild(E.quiet(edit ? 'None yet. Add the drafts and the final files with their due days.' : 'None yet'));
+        if (edit && editing !== 'new') box.appendChild(h('button', { class: 'add dlv-add', type: 'button', onclick: function () { editing = 'new'; say(''); paint(true); } }, 'Add a delivery'));
+        box.appendChild(msg);
+        if (focus) { var f = box.querySelector('li.dlv-ed input'); if (f) f.focus(); else { var b = box.querySelector('.dlv-add'); if (b) b.focus(); } }
+      }
+      paint();
+      return box;
+    }
     function details() {
       var dl = h('dl', { class: 'props' });
       var row = function (dt, dd) {
@@ -1135,8 +1225,8 @@
       if (!brief) row('Quote date', p.quote_date ? E.day(p.quote_date) : E.quiet('Not set'));
       row('Shoot', editor('shoot', 'the shoot dates', [dateField('Starts', function () { return p.shoot_date; }, kept('shoot_date')),
         dateField('Ends', function () { return p.shoot_end; }, kept('shoot_end'))], function () { return E.shootText(p); }, 'Add dates', edit));
-      row('Deliver by', editor('deliver', 'the deliver by date', [dateField('Deliver by', function () { return p.deliver_by; }, kept('deliver_by'))],
-        function () { return p.deliver_by ? E.day(p.deliver_by) : ''; }, 'Add a date', edit));
+      var top = dl;
+      dl = h('dl', { class: 'props' });
       if (!brief) {
         row(h('dt', {}, 'Files delivered', write ? [I('sheet', 'sh'), h('span', { class: 'sr', text: ', saved to Rekap Project in the Sheet' })] : null),
           editor('delivered', 'the files delivered date', [dateField('Files delivered', function () { return p.final_file_date; }, toSheet)],
@@ -1168,7 +1258,7 @@
         notes = [h('label', { class: 'f dnote' }, 'Notes', noteBox), noteMsg];
       } else if (p.notes) notes = block('Notes', p.notes);
       return h('section', { class: 'card pg-det', 'aria-labelledby': 'det-h', 'data-k': 'det' },
-        h('header', { class: 'card-h' }, h('h2', { id: 'det-h', text: 'Details' })), dl,
+        h('header', { class: 'card-h' }, h('h2', { id: 'det-h', text: 'Details' })), top, deliveries(), dl,
         sheetNote ? block('Note in the Sheet', sheetNote) : null, notes,
         h('p', { class: 'src' }, I('sheet'), h('span', { text: write ? 'Files delivered is saved to Rekap Project. Dates and notes save as you change them.'
           : edit ? 'Dates and notes save as you change them.' : brief ? 'Kept in the admin until its RAB is made in the Sheet.' : E.fromSheet(vals, p.rab_seen_at || p.sheet_seen_at) + '.' })));
@@ -1312,7 +1402,7 @@
     };
     var btn = h('button', { class: 'btn lime', type: 'button', onclick: function () {
       var row = { plan_title: f.title.value.trim(), shoot_date: f.shoot_date.value || null, shoot_end: f.shoot_end.value || null,
-        deliver_by: f.deliver_by.value || null, notes: f.notes.value.trim() || null };
+        notes: f.notes.value.trim() || null };
       // a failed check names the field and puts the cursor in it
       var bad = function (el, t) { say(t, true); el.setAttribute('aria-invalid', 'true'); el.focus(); };
       [f.title, f.client, f.cname, f.shoot_end].forEach(function (el) { el.removeAttribute('aria-invalid'); });
@@ -1333,9 +1423,14 @@
       sb.from('projects').insert(row).select('id').single().then(function (r) {
         if (r.error || !r.data) { btn.disabled = false; return say(r.error ? E.ecoError(r.error) : 'Your account isn’t allowed to do this.', true); }
         A.guard(null); E.forget();
-        A.toast('Brief saved. Make its RAB when the quote is ready.');
-        // the new project's own page, wherever the Brief was started (the list, a lead, the search)
-        location.hash = '#projects/' + r.data.id;
+        var id = r.data.id, due = f.deliver_by.value;
+        // the deliver by day becomes the project's Final files delivery; then the new project's own page, wherever the
+        // Brief was started (the list, a lead, the search)
+        var go = function (t) { A.toast(t); location.hash = '#projects/' + id; };
+        if (!due) return go('Brief saved. Make its RAB when the quote is ready.');
+        sb.from('project_deliveries').insert({ project_id: id, label: 'Final files', due_on: due }).select('id').then(function (x) {
+          go(x.error || !x.data || !x.data.length ? 'Brief saved, but its deliver by day wasn’t. Add it under Deliveries.' : 'Brief saved. Make its RAB when the quote is ready.');
+        }, function () { go('Brief saved, but its deliver by day wasn’t. Add it under Deliveries.'); });
       }, function (e) { btn.disabled = false; say(E.ecoError(e), true); });
     } }, 'Save brief');
     E.drawer(null, null, [
