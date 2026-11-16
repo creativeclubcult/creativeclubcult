@@ -692,7 +692,10 @@
           }
           return h('li', {}, h('span', { class: 'av', 'aria-hidden': 'true' }, I('crew')),
             opener || h('div', {}, h('b', { text: x.who || 'No name yet' }), h('span', { text: roles })),
-            h('span', { class: 'fee', text: E.num(x.fee) }), h('span', { class: 'pill ' + st[0], text: st[1] }), panel);
+            // the fee, and once something is paid, what is still to pay under it
+            h('span', { class: 'fee' }, h('span', { class: 'amt', text: E.num(x.fee) }),
+              !d.kas.e && out > 0 ? h('span', { class: 'left', text: left > 0 ? E.rp(left) + ' left' : 'Paid ' + E.rp(out) }) : null),
+            h('span', { class: 'pill ' + st[0], text: st[1] }), panel);
         };
         // paid so far, what is left and the payments, with a form to record the next one in the Kas tab
         var payForm = function (x, out, left, secs) {
@@ -740,9 +743,16 @@
             h('p', { class: 'help', text: 'Saved to the Kas tab as Fee Crew, paid, for this project.' })];
         };
         var heads = people.filter(function (x) { return x.who; }).length;
+        // the whole crew: fees, what the Kas paid them and what is left
+        var feeAll = 0, paidAll = 0;
+        people.forEach(function (x) { feeAll += x.fee; if (x.who) paidAll += Math.min(x.fee, paidTo[x.key] || 0); });
+        var sums = crewLines.length && !d.kas.e ? h('div', { class: 'pstat crewsum' },
+          h('div', {}, h('span', { text: 'Crew fees' }), h('b', { text: E.rp(feeAll) })),
+          h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(paidAll) })),
+          h('div', {}, h('span', { text: 'Left to pay' }), h('b', { class: feeAll - paidAll > 0 ? null : 'soft', text: E.rp(feeAll - paidAll) }))) : null;
         return [paneH('Crew in the RAB', crewLines.length ? h('span', { class: 'cnt', text: E.plural(heads, 'person', 'people') }) : null),
           !crewLines.length ? empty(rab ? 'No crew lines in the RAB yet.' : 'The crew lines of this RAB aren’t in the admin yet.')
-          : h('ul', { class: 'plist' }, people.map(row)),
+          : [sums, h('ul', { class: 'plist' }, people.map(row))],
           crewLines.length && payable ? h('p', { class: 'help', text: 'Tap a name to see what is paid and record a payment.' }) : null];
       }
       var names = p.crew_names || [];
