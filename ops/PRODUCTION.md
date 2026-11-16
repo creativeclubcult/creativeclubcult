@@ -562,3 +562,19 @@ Owner paid Faishal Hafizh 500.000 of 1.000.000 (Kas row 16 Nov) and wanted the r
 * No data change. Harness desktop and phone checked.
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
+
+## Split at Lunas into the Kas, 2026-11-16 (night)
+
+Owner keeps Kas CCC and net profit in separate accounts and wanted the split recorded automatically; released with "naikin".
+
+* admin/eco/core.js, projects.js, finance.js, admin/ui.css: once a project is Lunas, the Money tab shows "Split to the
+  accounts" (Fee PR, Fee Internal, Setor Kas CCC, Setor Net Profit, amounts from the RAB's ALOKASI DANA). Fee recipients
+  are typed per project; "Record in Kas" adds one Keluar row per non-zero item as Belum, "Mark paid" sets Sudah.
+  Needs you asks to record the split, then shows "Move the split: Rp X" for the Belum rows. A loss shows nothing to move.
+  Crew paid totals ignore the four split categories.
+* Sheet (DEV then live), Kas tab, Data validation on C9:C1008 only: added Fee PR, Fee Internal, Setor Kas CCC,
+  Setor Net Profit to the dropdown (13 items before, 17 after). Kode.gs, Sync.gs and the RAB tabs unchanged.
+  While opening the live rule a mistyped range landed in G37 of 014 Denri ("PELUNASAN"); undone at once, cell checked.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. Remove the 4 dropdown items by
+hand only if no Kas row uses them.
