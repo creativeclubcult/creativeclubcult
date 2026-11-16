@@ -519,7 +519,14 @@
             E.n(m.dp_amount) != null && E.n(m.dp_pct) != null ? 'DP ' + E.pct(m.dp_pct) + ' is ' + E.rp(m.dp_amount) : null, gt == null ? 'soft' : null),
           tile('out', 'Cost', cost == null ? 'Not in the Sheet' : E.rp(cost),
             m.cost_override != null ? 'Set by hand in Rekap Project' : cost == null ? null : 'From the RAB', cost == null ? 'soft' : null),
-          tile('trend', 'Profit', pr == null ? 'Not in the Sheet' : E.rp(pr), mg != null ? 'Margin ' + E.pct(mg) : null, pr == null ? 'soft' : pr < 0 ? 'neg' : null),
+          // CCC's own profit: the price less the PR and internal fees, the Kas share and the RAB cost (the allocation's
+          // net profit plus what is left in the production budget, a loss when the RAB costs more than the budget)
+          (function () {
+            var al = rab && rab.internal && rab.internal.alloc, np = al && typeof al === 'object' ? E.n(al.net_profit) : null;
+            if (np != null && E.n(al.left) != null) np += E.n(al.left);
+            if (np == null) return tile('trend', 'Profit', pr == null ? 'Not in the Sheet' : E.rp(pr), mg != null ? 'Margin ' + E.pct(mg) : null, pr == null ? 'soft' : pr < 0 ? 'neg' : null);
+            return tile('trend', 'Net profit', E.rp(np), pr == null ? null : E.rp(pr) + ' before fees', np < 0 ? 'neg' : null);
+          })(),
           tile('in', 'To collect', col[0], col[1], col[2], late ? h('span', { class: 'tag red', text: 'Telat' }) : null));
       }
     }

@@ -511,3 +511,16 @@ The owner asked that the invoice DP follow what the client actually paid; releas
 * Before this, tab 014 (Denri) G36 was set by hand to =2000000/H34 (DP 2.000.000, Pelunasan 4.000.000).
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. DP shares already written stay.
+
+## Net profit card on the project page, 2026-11-16 (evening)
+
+The owner saw the Profit card show the RAB profit (Omset less RAB cost) although that money pays the internal fee;
+released with "ganti aja dan langsung naikin ke live".
+
+* admin/eco/projects.js only. When the RAB has an ALOKASI DANA block, the card reads "Net profit": the allocation's net
+  profit plus what is left in the production budget (= price less PR fee, internal fee, Kas and the RAB cost, a loss
+  when the RAB costs more than the budget), with "Rp X before fees" (the RAB profit) under it. Without the block it
+  stays "Profit" as before.
+* Harness: SAMPLE Social Content shows −Rp 945.473 (0 − 375.188 − 225.113 − 345.172), "Rp 0 before fees"; console clean.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. No data change.
