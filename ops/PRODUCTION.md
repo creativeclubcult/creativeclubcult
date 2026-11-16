@@ -470,3 +470,29 @@ Rollback, in this order:
    person from C, so first copy I back to C on the crew rows (only 012 row 71 has one) and clear the I headers.
 3. Functions: deploy the three one-line entries from 309aead again.
 No database change.
+
+## Allocation and DP in Rp or %, 2026-11-16 (live since about 16:40 WIB)
+
+The owner asked to type the split and the DP as a % or an amount in Rp, with the other worked out; released with "naikin".
+
+* Commit e9ddc32 (Sync.gs 1.6.0, ops.ts, ops_test.ts, admin/eco/projects.js, ui.css, README section 5c). Pushed to
+  admin-ecosystem, main and site as fast forwards from c737873 / 1d192e9. Live projects.js and ui.css are byte for byte
+  the commit's.
+* Allocation: PR fee, internal fee, net profit and Kas each take a % or an amount; Save split writes the changed rates
+  (pr_pct, internal_pct, net_profit_pct, kas_pct) to the J cells of the ALOKASI DANA block, found by exact label.
+  Limits: net profit 0% to 25%, the others 0% to 100%, PR + internal and net profit + Kas at most 100%.
+* DP in Quote settings takes an amount too, sent as the whole share so ROUND(grand total * DP) is that amount.
+  Sync.gs counts a % expect within 0.00005 of the cell as unchanged (the snapshot rounds shares to 4 decimals).
+* DEV: sheets-write at e9ddc32 (v12), DEV script Sync.gs 1.6.0 (web app version 9), a temporary zzAllocDevTest on a
+  copy of 010 passed (PR Rp 250.000 exact, internal 0, Kas 6%, stale and empty refused, DP Rp 2.000.000 exact, DP
+  changed again with the rounded expect); the copy and the function were removed, syncSelfTest ok.
+* Live script: Sync.gs 1.5.0 (de177889…) replaced by 1.6.0 (SHA-256 c448f6be…, fetched from the commit and checked),
+  web app version 6 "Sync 1.6.0", syncSelfTest ok with writes on. Kode.gs and NoOtomatis.gs untouched.
+* PROD functions sheets-write (v10) and sheets-sync (v10) import from e9ddc32; without credentials both answer 401.
+  sheets-bridge unchanged (c737873).
+
+Rollback, in this order:
+1. Code: push 1d192e9's tree (c737873) to main and site, or Vercel instant rollback.
+2. Functions: deploy sheets-write and sheets-sync one-line entries from c737873.
+3. Live script: paste Sync.gs from c737873 (1.5.0, SHA-256 de177889…), New version, syncSelfTest.
+No database change, no Sheet layout change. Rates already written stay in the RAB tabs as typed values.
