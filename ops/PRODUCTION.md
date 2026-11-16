@@ -578,3 +578,12 @@ Owner keeps Kas CCC and net profit in separate accounts and wanted the split rec
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. Remove the 4 dropdown items by
 hand only if no Kas row uses them.
+
+## Crew tab colours and spacing, 2026-11-16 (night)
+
+Owner asked for Partly in yellow, what is left in yellow or red, and more room; released with "naikin".
+
+* admin/ui.css, admin/eco/projects.js: Partly pill is yellow (#FFF1A8 / #6B5300, 6.43:1), "Rp X left" is red and bold,
+  "Paid Rp X" stays grey; crew rows have more padding and gap (desktop and phone). No data change.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
