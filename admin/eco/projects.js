@@ -249,59 +249,127 @@
     }, function (e) { undo(E.ecoError(e)); });
   }
 
-  // The split of the project price: the ALOKASI DANA block of the RAB tab. The PR and internal fees come off first,
-  // net profit and the Kas share are taken from what is left, and the rest is the production budget. Net profit
-  // (0% to 25%) is the one rate that changes here; it is written to the RAB tab like any other RAB setting.
+  // The split of the project price: the ALOKASI DANA block of the RAB tab. The PR and internal fees come off the project
+  // price, net profit and the Kas share come off what is left, and the rest is the production budget. Each of the four
+  // rates takes a % or an amount in Rp (the other follows, worked out like the Sheet does); Save split writes the rates
+  // that changed to the RAB tab, and the Sheet works the amounts out again.
   var SPLIT = [['Project price (Omset)', 'price'], ['PR fee', 'pr'], ['Internal fee', 'internal'], ['After fees', 'shared', 'mid'],
     ['Net profit', 'net_profit'], ['Kas CCC', 'kas'], ['Production budget', 'budget', 'sum'],
     ['Production cost in the RAB', 'production_cost', 'mid', true], ['Left in the budget', 'left', 'sum', true]];
+  var RATES = { pr: 'pr_pct', internal: 'internal_pct', net_profit: 'net_profit_pct', kas: 'kas_pct' };
+  // a percent as the field shows it: 4,17 (up to 2 decimals)
+  var pcText = function (r) { return r == null ? '' : String(Math.round(r * 10000) / 100).replace('.', ','); };
+  // the Sheet's arithmetic (SYNC_ALOKASI): ROUND per amount, the budget and what is left by subtraction
+  function splitOf(price, cost, r) {
+    var pr = Math.round(price * r.pr), inn = Math.round(price * r.internal), sh = price - pr - inn;
+    var np = Math.round(sh * r.net_profit), kas = Math.round(sh * r.kas), bud = sh - np - kas;
+    return { price: price, pr: pr, internal: inn, shared: sh, net_profit: np, kas: kas, budget: bud, production_cost: cost,
+      left: cost == null ? null : bud - cost, price_pct: 1, pr_pct: r.pr, internal_pct: r.internal, shared_pct: 1,
+      net_profit_pct: r.net_profit, kas_pct: r.kas, budget_pct: 1 - r.net_profit - r.kas };
+  }
   function allocation(p, a, canSet) {
-    var tb = h('tbody'), cur = E.n(a.net_profit_pct), msg = h('span', { class: 'fmsg', role: 'status' }), pick = null;
-    if (canSet) {
-      var rates = [];
-      for (var i = 0; i <= 25; i++) rates.push(i / 100);
-      // a rate typed in the Sheet that isn't a whole percent stays visible, in its place in the list
-      if (cur != null && rates.indexOf(cur) < 0) rates.push(cur);
-      rates.sort(function (x, y) { return x - y; });
-      var opts = rates.map(function (r) { return [String(r), E.pct(r)]; });
-      // an empty or unreadable rate shows as Not set, never as the first rate in the list (0%), and can't be picked
-      if (cur == null) opts.unshift(['', 'Not set']);
-      pick = A.select(opts, cur == null ? '' : String(cur), { class: 'field', 'aria-label': 'Net profit' });
-      if (cur == null) pick.options[0].disabled = true;
-      pick.addEventListener('change', function () {
-        if (pick.value === '') return;
-        var v = Number(pick.value), before = cur;
-        pick.disabled = true; msg.textContent = 'Saving to the Sheet…'; msg.classList.remove('is-err');
-        var undo = function (t) { pick.disabled = false; pick.value = before == null ? '' : String(before); msg.textContent = t; msg.classList.add('is-err'); };
-        E.sheetWrite('rab_meta', { project_id: p.id, set: { net_profit_pct: v }, expect: { net_profit_pct: before } }).then(function (r) {
-          if (r.status === 202) { pick.disabled = false; msg.textContent = E.writeText(r); return; }
-          if (r.status !== 200) return undo(E.writeText(r));
-          pick.disabled = false; cur = v; msg.textContent = 'Saved to the Sheet';
-          // the Sheet's answer carries the tab as it reads now, with the split worked out again
-          var rab = r.body.record && r.body.record.rab && r.body.record.rab.data;
-          if (rab && rab.internal && rab.internal.alloc) paint(rab.internal.alloc);
-          E.forget();
-        }, function (e) { undo(E.ecoError(e)); });
-      });
+    var tb = h('tbody'), msg = h('span', { class: 'fmsg', role: 'status' });
+    var price = E.n(a.price), was = {}, now = {}, inputs = {};
+    Object.keys(RATES).forEach(function (k) { was[k] = E.n(a[k + '_pct']); now[k] = was[k]; });
+    // the fields only when the RAB has a price to split and every rate reads as a number (a missing rate is fixed in the Sheet)
+    var editable = canSet && price != null && price > 0 && Object.keys(RATES).every(function (k) { return was[k] != null; });
+    var save = h('button', { class: 'btn lime', type: 'button', disabled: true }, 'Save split');
+    var cancel = h('button', { class: 'link', type: 'button', hidden: true }, 'Cancel');
+    var changed = function () { return Object.keys(RATES).filter(function (k) { return now[k] !== was[k]; }); };
+    var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+    function base(k, x) { return k === 'pr' || k === 'internal' ? price : x.shared; }
+    function preview() {
+      var x = splitOf(price, E.n(a.production_cost), now);
+      paint(x);
+      var dirty = changed().length > 0;
+      save.disabled = !dirty; cancel.hidden = !dirty;
+      if (dirty) say('');
+      return x;
     }
-    // the rows are made once and their figures filled in, so the net profit picker keeps focus when they change
+    // what a field holds, or NaN; a share typed as 4,17 or 4.17, an amount as 250.000
+    function typed(k, kind) { return kind === 'p' ? E.share(inputs[k].p) : E.amount(inputs[k].r); }
+    function onType(k, kind) {
+      var v = typed(k, kind);
+      if (v == null || isNaN(v)) return;
+      var x = splitOf(price, E.n(a.production_cost), now), b = base(k, x);
+      now[k] = kind === 'p' ? v : (b > 0 ? v / b : now[k]);
+      preview();
+    }
     var cells = SPLIT.map(function (s) {
       var pc = h('td', { class: 'num pc' }), amt = h('td', { class: 'num' });
-      if (s[1] === 'net_profit' && pick) pc.appendChild(pick);
+      if (editable && RATES[s[1]]) {
+        var k = s[1];
+        var pIn = E.shareInput(was[k], s[0] + ' %'), rIn = E.amountInput(null, s[0] + ' Rp');
+        pIn.classList.add('field', 'pct'); rIn.classList.add('field');
+        pIn.addEventListener('input', function () { onType(k, 'p'); });
+        rIn.addEventListener('input', function () { onType(k, 'r'); });
+        // leaving a field puts the worked-out figures back in both, so they always agree
+        [pIn, rIn].forEach(function (el) { el.addEventListener('blur', function () { paint(splitOf(price, E.n(a.production_cost), now)); }); });
+        inputs[k] = { p: pIn, r: rIn };
+        pc.appendChild(pIn); amt.appendChild(rIn);
+      }
       tb.appendChild(h('tr', { class: s[2] || null }, h('td', { text: s[0] }), pc, amt));
       return { key: s[1], pc: pc, amt: amt, plain: !!s[3] };
     });
     function paint(x) {
       cells.forEach(function (c) {
-        if (!(c.key === 'net_profit' && pick)) c.pc.textContent = c.plain || E.n(x[c.key + '_pct']) == null ? '' : E.pct(x[c.key + '_pct']);
-        var v = E.n(x[c.key]);
+        var v = E.n(x[c.key]), io = inputs[c.key], act = document.activeElement;
+        if (io) {
+          if (act !== io.p) io.p.value = pcText(x[c.key + '_pct']);
+          if (act !== io.r) io.r.value = v == null ? '' : E.num(v);
+          return;
+        }
+        c.pc.textContent = c.plain || E.n(x[c.key + '_pct']) == null ? '' : E.pct(x[c.key + '_pct']);
         c.amt.textContent = E.num(v); c.amt.classList.toggle('neg', v != null && v < 0);
       });
     }
+    function check() {
+      for (var k in RATES) {
+        var bad = ['p', 'r'].some(function (t) { var v = typed(k, t); return v !== null && isNaN(v); });
+        if (bad) return 'Type the ' + SPLIT.filter(function (s) { return s[1] === k; })[0][0].toLowerCase() + ' as a number, like 5 or 250.000.';
+        if (!(now[k] >= 0 && now[k] <= 1)) return 'Each rate must be between 0% and 100%.';
+      }
+      if (now.net_profit > 0.25) return 'Net profit can be 0% to 25%.';
+      if (now.pr + now.internal > 1) return 'The PR and internal fees can’t be more than the project price.';
+      if (now.net_profit + now.kas > 1) return 'Net profit and Kas can’t be more than what is left after the fees.';
+      return '';
+    }
+    var send = E.writer();
+    save.addEventListener('click', function () {
+      var keys = changed();
+      if (!keys.length) return say('Nothing changed.');
+      var bad = check();
+      if (bad) return say(bad, true);
+      var set = {}, expect = {};
+      keys.forEach(function (k) { set[RATES[k]] = now[k]; expect[RATES[k]] = was[k]; });
+      save.disabled = true; cancel.hidden = true; say('Saving to the Sheet…');
+      Object.keys(inputs).forEach(function (k) { inputs[k].p.disabled = inputs[k].r.disabled = true; });
+      var free = function () { Object.keys(inputs).forEach(function (k) { inputs[k].p.disabled = inputs[k].r.disabled = false; }); };
+      var undo = function (t) { free(); save.disabled = false; cancel.hidden = false; say(t, true); };
+      send('rab_meta', { project_id: p.id, set: set, expect: expect }).then(function (r) {
+        if (r.status === 202) { free(); say(E.writeText(r)); return; }
+        if (r.status !== 200) return undo(E.writeText(r));
+        free();
+        // the Sheet's answer carries the tab as it reads now, with the split worked out again
+        var rab = r.body.record && r.body.record.rab && r.body.record.rab.data, got = rab && rab.internal && rab.internal.alloc;
+        if (got) { a = got; price = E.n(a.price); Object.keys(RATES).forEach(function (k) { was[k] = E.n(a[k + '_pct']); now[k] = was[k]; }); paint(a); }
+        else { keys.forEach(function (k) { was[k] = now[k]; }); }
+        save.disabled = true; say('Saved to the Sheet');
+        E.forget();
+      }, function (e) { undo(E.ecoError(e)); });
+    });
+    cancel.addEventListener('click', function () {
+      if (tb.contains(document.activeElement)) document.activeElement.blur();
+      Object.keys(RATES).forEach(function (k) { now[k] = was[k]; });
+      paint(a); save.disabled = true; cancel.hidden = true; say('');
+    });
     paint(a);
+    var help = !canSet ? null : editable
+      ? h('p', { class: 'help' }, 'Type a % or an amount in Rp, the other one follows. PR and internal fees come off the project price; net profit (0% to 25%) and Kas come off what is left after the fees.')
+      : h('p', { class: 'help' }, price == null || !(price > 0) ? 'The split can be changed once the RAB has a project price.' : 'A rate in the ALOKASI DANA block isn’t a number. Fix it in the Sheet first.');
     return [paneH('Allocation', src('RAB internal summary')),
       h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact alloc' }, E.thead(['Split of the project price', ['%', 'num'], ['Rp', 'num']]), tb)),
-      canSet ? h('p', { class: 'help' }, 'Net profit can be 0% to 25%. Changing it saves to the RAB tab in the Sheet. ', msg) : null];
+      help, editable ? h('div', { class: 'formacts' }, save, cancel, msg) : msg];
   }
 
   function show(d) {
@@ -671,6 +739,7 @@
     }
     // the RAB header and its percentages, written to the RAB tab (the Sheet works out the totals again)
     function quoteForm() {
+      var dpExact = null;   // the DP share worked out from an amount typed in Rp (kept whole, so the Sheet's DP comes out at that amount)
       var qf = E.sheetForm({ label: 'Save quote settings', op: 'rab_meta', look: 'mock',
         args: function (set, expect) { return { project_id: p.id, set: set, expect: expect }; },
         check: function (set) {
@@ -679,7 +748,9 @@
           if ('client_label' in set && !set.client_label) return 'The client on the invoice can’t be empty.';
           if ('quote_date' in set && !set.quote_date) return 'The quote date can’t be empty: the invoice number is made from it.';
           var badPct = ['discount_pct', 'ppn_pct', 'dp_pct', 'pph23_pct'].some(function (k) { return k in set && set[k] !== null && !(set[k] >= 0 && set[k] <= 1); });
-          return badPct ? 'Type percentages as numbers from 0 to 100, like 11 or 2,5.' : '';
+          if (badPct) return dpExact != null && dpExact > 1 ? 'The DP can’t be more than the grand total.' : 'Type percentages as numbers from 0 to 100, like 11 or 2,5.';
+          if (dpExact != null && 'dp_pct' in set && ('discount_pct' in set || 'ppn_pct' in set)) return 'Save the Diskon and PPN first, then type the DP in Rp: it is worked out from the grand total.';
+          return '';
         },
         done: function (r) { saved(p.id, r, 'Quote settings saved to the Sheet.'); } });
       forms.push(qf);
@@ -696,6 +767,27 @@
         return lab;
       };
       var pcField = function (key, label) { return h('label', { class: 'f' }, label, qf.field(key, E.shareInput(m[key], label), m[key], E.share)); };
+      // DP as a % or an amount in Rp off the grand total: the other one follows, and the share is what goes to the Sheet
+      var dpFields = function () {
+        var gt = E.n(m.grand_total), dp = E.n(m.dp_pct);
+        // the amount as the Sheet worked it out (the % reaches the admin rounded to 4 decimals)
+        var pIn = E.shareInput(dp, 'DP (%)'), rIn = E.amountInput(E.n(m.dp_amount) != null ? E.n(m.dp_amount) : gt != null && dp != null ? Math.round(gt * dp) : null, 'DP (Rp)');
+        var start = E.share(pIn), startRp = E.amount(rIn);
+        pIn.addEventListener('input', function () {
+          dpExact = null;
+          var v = E.share(pIn);
+          if (gt != null && v != null && !isNaN(v)) rIn.value = E.num(Math.round(gt * v));
+        });
+        rIn.addEventListener('input', function () {
+          var v = E.amount(rIn);
+          if (!(gt > 0) || v == null) return;
+          dpExact = v === startRp ? null : v / gt;
+          pIn.value = dpExact == null ? String(start == null ? '' : Math.round(start * 10000) / 100).replace('.', ',') : String(Math.round(dpExact * 10000) / 100).replace('.', ',');
+        });
+        if (!(gt > 0)) { rIn.disabled = true; rIn.placeholder = 'Needs a grand total'; }
+        return [h('label', { class: 'f' }, 'DP (%)', qf.field('dp_pct', pIn, m.dp_pct, function (el) { return dpExact != null ? dpExact : E.share(el); })),
+          h('label', { class: 'f' }, 'DP (Rp)', rIn)];
+      };
       var types = docType(meta.doc_type) ? DOC_TYPES : [['', 'Not set']].concat(DOC_TYPES);
       return [paneH('Quote settings', src('RAB header')), h('div', { class: 'fgrid' },
         h('label', { class: 'f' }, 'Document type', qf.field('doc_type', A.select(types, docType(meta.doc_type)), meta.doc_type)),
@@ -704,7 +796,7 @@
         text('photographer', 'Photographer'), text('location', 'Location'),
         text('locations', 'Number of locations', 200, false, '1'), text('shooting_days', 'Shooting days', 200, false, '1'),
         text('usage', 'Usage'), text('language', 'Language'),
-        pcField('discount_pct', 'Diskon (%)'), pcField('ppn_pct', 'PPN (%)'), pcField('dp_pct', 'DP (%)'), pcField('pph23_pct', 'PPh 23 (%)')), qf.bar];
+        pcField('discount_pct', 'Diskon (%)'), pcField('ppn_pct', 'PPN (%)'), dpFields(), pcField('pph23_pct', 'PPh 23 (%)')), qf.bar];
     }
 
     // a Brief becomes a RAB in the Sheet: a new tab from the template, its Rekap Project row, and the client if it's new

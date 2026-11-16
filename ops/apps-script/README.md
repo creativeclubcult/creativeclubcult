@@ -121,6 +121,14 @@ To add it, deploy the web app version first, then run `syncPeopleSetup` from the
 
 To undo on one tab: copy I back to C on the crew rows and clear the I header cells. Nothing else changes.
 
+## 5c. Split rates and DP from the admin (Sync.gs 1.6.0 and later)
+
+`rab_meta` also takes `pr_pct`, `internal_pct` and `kas_pct`: the J cells of the `Fee PR / freelance`, `Fee internal (yang bawa project)` and `Kas CCC` rows of the ALOKASI DANA block, found by their exact label under the block's title. A renamed row is refused as a layout problem and nothing is written. Each takes any fraction from 0 to 1 and refuses an empty value; net profit keeps its own rule (0% to 25%). The admin lets the owner type a % or an amount in Rp and sends the share; the Sheet's formulas work the amounts out.
+
+The DP can be typed in Rp too. The admin sends the whole share (amount / grand total), so `ROUND(grand total * DP)` comes out at that amount. Shares reach the admin rounded to 4 decimals, so an `expect` on a % counts as unchanged when it is within 0.00005 of the cell.
+
+No setup to run: deploy the web app version and run `syncSelfTest`.
+
 ## 6. Local test harness (no Google account needed)
 
 `Work CCC/harness/` is gitignored. It holds:

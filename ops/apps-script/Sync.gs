@@ -19,7 +19,7 @@
  *  Pairing (the only unsigned calls): here → bridge {kind:'pair', v:1, sheet, env, r}; the bridge asks this web
  *  app {v:1, op:'pair_check'} for SHA-256(r) and only then answers with a new SYNC_SECRET. Nobody types the secret.
  */
-const SYNC_VERSION = '1.5.0';
+const SYNC_VERSION = '1.6.0';
 // the live Sheet: "CCC - RAB & Keuangan" in the Shared Drive "CCC" of hello@creativeclubcult.com (since 2026-11-04)
 const SYNC_PROD_SHEET = '1a5bRCaYtcTrhDyJtpaeCAQeKV58-kvd3NOfuJWGkVtM';
 // the live Sheet before 2026-11-04, kept in the personal Drive as an archive
@@ -93,6 +93,8 @@ const SYNC_ALOKASI = [
   ['left', 'SISA BUDGET', null, '=L{BUD}-L{PC}', 'total'],
 ];
 const SYNC_ALOKASI_ROWS = ['P', 'PR', 'IN', 'SH', 'NP', 'KAS', 'BUD', 'PC', 'LEFT'];
+// the block's rates the admin can change besides net profit (SYNC_PCT): field → SYNC_ALOKASI key (1.6.0)
+const SYNC_ALOKASI_PCT = { pr_pct: 'pr', internal_pct: 'internal', kas_pct: 'kas' };
 // breakdown sections (column-A title → key, editable columns for M6)
 const SYNC_SECTIONS = [
   ['PRE-PRODUCTION', 'pre', [1, 2, 4, 5, 6, 7, 9]],
@@ -498,7 +500,11 @@ function syncWrite_(ctx, writes, opts) {
     const val = syncValue_(w.field, w.v, ctx.tz, w.list, w.type);
     const cur = cell.getValue();
     if (syncSame_(cur, val, ctx.tz)) { noop.push(w.field); return; }                       // retry or already done
-    if (!opts.force && w.expect !== undefined && !syncSame_(cur, w.expect, ctx.tz))
+    // a % reaches the admin rounded to 4 decimals (norm.ts ratio), so a share kept whole in the Sheet (a DP worked out
+    // from an amount, 1.6.0) still matches what the admin saw
+    const sawIt = w.type === 'pct' && typeof cur === 'number' && typeof w.expect === 'number'
+      ? Math.abs(cur - w.expect) <= 0.00005 + 1e-12 : syncSame_(cur, w.expect, ctx.tz);
+    if (!opts.force && w.expect !== undefined && !sawIt)
       throw syncErr_('conflict', 'Changed in the Sheet: ' + w.field, { field: w.field, sheet_value: syncCell_(cur, ctx.tz), you_saw: w.expect });
     todo.push([cell, val]); undo.push([cell, cur]);
   });
@@ -1473,6 +1479,18 @@ function syncPctCell_(sh, def) {
   throw syncErr_('layout', 'Label "' + def[1] + '" not found in column ' + def[0] + ' rows 20-60');
 }
 
+/** The J cell of an ALOKASI DANA row: its exact label in I, within the rows under the block's title (rows 20-60). */
+function syncAllocCell_(sh, key) {
+  const def = SYNC_ALOKASI.filter(function (d) { return d[0] === key; })[0];
+  const v = sh.getRange(20, 9, 41, 1).getDisplayValues().map(function (r) { return String(r[0]).trim().toUpperCase(); });
+  const top = v.indexOf('ALOKASI DANA');
+  if (top < 0) throw syncErr_('layout', 'This RAB tab has no ALOKASI DANA block');
+  for (let i = top + 1; i <= Math.min(top + SYNC_ALOKASI.length, v.length - 1); i++) {
+    if (v[i] === def[1].toUpperCase()) return [20 + i, 10];
+  }
+  throw syncErr_('layout', 'Label "' + def[1] + '" not found in the ALOKASI DANA block');
+}
+
 function syncV2_(sh) {
   if (String(sh.getRange('I13').getDisplayValue()).trim().toUpperCase() !== 'NO. URUT INVOICE') {
     throw syncErr_('invalid', 'This is an old (v1) RAB tab. Edit it in the Sheet.');
@@ -1497,6 +1515,11 @@ function api_rab_meta(ctx, a) {
     }
     if (SYNC_PCT[f]) {
       const rc = syncPctCell_(sh, SYNC_PCT[f]);
+      return { sh: sh, r: rc[0], c: rc[1], v: set[f], type: 'pct', field: f, expect: has ? expect[f] : undefined };
+    }
+    if (SYNC_ALOKASI_PCT[f]) {
+      if (set[f] === null || set[f] === '') throw syncErr_('invalid', f + " can't be empty");
+      const rc = syncAllocCell_(sh, SYNC_ALOKASI_PCT[f]);
       return { sh: sh, r: rc[0], c: rc[1], v: set[f], type: 'pct', field: f, expect: has ? expect[f] : undefined };
     }
     throw syncErr_('invalid', f + " can't be changed from the admin");

@@ -127,6 +127,9 @@ const RAB_META: Record<string, FieldRule> = {
   // ALOKASI DANA block: net profit share of the money left after the PR and internal fees, 0% to 25% (0% since
   // 2026-11-11: a job whose whole budget goes to the team). Empty is refused, so a missing rate never becomes 0%.
   net_profit_pct: { kind: 'pct', min: 0, max: 0.25, required: true },
+  // the other rates of the block (since 2026-11-16): PR and internal fees off the project price, Kas off what is left.
+  // Typed as a % or worked out from an amount in Rp, so any fraction from 0% to 100%. Empty is refused, like net profit.
+  pr_pct: { kind: 'pct', required: true }, internal_pct: { kind: 'pct', required: true }, kas_pct: { kind: 'pct', required: true },
 };
 
 export const KAS_RULES: Record<string, FieldRule> = {

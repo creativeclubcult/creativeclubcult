@@ -135,6 +135,17 @@ Deno.test('rab_meta: net profit takes 0% to 25% and refuses an empty rate', () =
   eq(r.ok && r.args, { project_id: PID, set: { net_profit_pct: 0.15 }, expect: { net_profit_pct: 0 }, force: false });
 });
 
+Deno.test('rab_meta: PR, internal and Kas rates take any fraction from 0% to 100% and refuse an empty rate', () => {
+  for (const k of ['pr_pct', 'internal_pct', 'kas_pct']) {
+    const f = (v: unknown) => err('rab_meta', { set: { [k]: v } });
+    eq([f(0), f(0.05), f(250000 / 6000000), f(1)], ['ok', 'ok', 'ok', 'ok'], k);
+    for (const v of [-0.01, 1.01, '0.05', true]) eq(f(v), k + ' must be between 0% and 100%.', k + ' ' + String(v));
+    for (const v of [null, '']) eq(f(v), k + " can't be empty.", k + ' ' + String(v));
+  }
+  const r = run('rab_meta', { set: { pr_pct: 0.04, kas_pct: 0.06 }, expect: { pr_pct: 0.05, kas_pct: 0.05 } });
+  eq(r.ok && r.args, { project_id: PID, set: { pr_pct: 0.04, kas_pct: 0.06 }, expect: { pr_pct: 0.05, kas_pct: 0.05 }, force: false });
+});
+
 Deno.test('crew_rename and crew_delete: checked args, money ops, the commit re-reads crew (and Kas after a rename)', () => {
   const r = OPS.crew_rename.check({ name: ' Andi ', to: '  Andi   Pratama ' }, OP);
   eq(r, { ok: true, args: { name: 'Andi', to: 'Andi Pratama' }, target: 'crew:andi', money: true });

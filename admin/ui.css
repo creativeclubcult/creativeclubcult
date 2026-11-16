@@ -1514,6 +1514,8 @@ span.sw.pay{grid-template-columns:none;gap:0}
 .tbl .field{height:36px}
 .tbl.alloc tr.mid td{color:var(--ink-2)}
 .tbl.alloc select.field{display:inline-block;width:auto;min-width:92px;padding-left:12px;text-align:left}
+.tbl.alloc td.num input.field{display:inline-block;width:116px;padding:0 10px;text-align:right}
+.tbl.alloc td.num input.field.pct{width:76px}
 /* Details: a date opens in place, the notes under the list */
 .dedit{display:grid;gap:8px;text-align:left}
 .props dd span + .add{margin-left:10px}
@@ -1568,6 +1570,8 @@ span.sw.pay{grid-template-columns:none;gap:0}
   .rab.ro .ln{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm t" "q t"}
   /* the Allocation table fits a phone: its long first heading wraps instead of pushing the amounts out of view */
   .tbl.alloc th{white-space:normal}
+  .tbl.alloc td.num input.field{width:92px}
+  .tbl.alloc td.num input.field.pct{width:58px}
   .pj-page .tbl.compact th,.pj-page .tbl.compact td{padding-left:8px;padding-right:8px}
 }
 /* a field in a table row keeps the mockup's size (the admin's field rule above would stretch it across its cell), and
