@@ -524,3 +524,16 @@ released with "ganti aja dan langsung naikin ke live".
 * Harness: SAMPLE Social Content shows −Rp 945.473 (0 − 375.188 − 225.113 − 345.172), "Rp 0 before fees"; console clean.
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. No data change.
+
+## Reports: split of the omset, 2026-11-16 (evening)
+
+Owner asked where Kas CCC and net profit add up; mockup approved and released with "naikin".
+
+* admin/eco/core.js: the money loader also reads alloc:rab->internal->alloc (authenticated has SELECT on rab; the
+  path select was checked against the DEV API). admin/eco/reports.js: card "Split of the omset" per Deal or Lunas project
+  of the year with Omset, PR and internal fees, Kas CCC, Cost and Net profit (price less fees, Kas and RAB cost), with
+  totals. Projects without an ALOKASI DANA block are left out and counted in a note, never as 0.
+* No function, Sync.gs, database or Sheet change. The Net profit tile still reads the Keuangan tab.
+* Harness: 10 SAMPLE projects, SAMPLE Social Content −945.473 as on its project page; desktop and phone layouts, console clean.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
