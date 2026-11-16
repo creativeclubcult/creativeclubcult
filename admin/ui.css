@@ -424,6 +424,17 @@ select.field{appearance:none;padding-right:34px;font:inherit;color:var(--ink);ba
 .plist b{display:block;font-weight:400}
 .plist span{font-size:13px;color:var(--ink-2)}
 .plist .fee{font-weight:700;color:var(--ink);font-size:14px;white-space:nowrap}
+.plist button.who{all:unset;display:block;min-width:0;cursor:pointer;border-radius:8px}
+.plist button.who:hover b{text-decoration:underline}
+.plist button.who:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.plist .ppay{grid-column:1/-1;grid-row:2;padding:6px 0 10px 52px}
+.plist .ppay .pstat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.plist .ppay .pstat div{background:var(--surface-2);border-radius:10px;padding:8px 12px}
+.plist .ppay .pstat span{display:block;font-size:12px}
+.plist .ppay .pstat b{font-weight:700;font-size:14px}
+.plist .ppay .phist{list-style:none;margin:0 0 10px;padding:0}
+.plist .ppay .phist li{display:flex;justify-content:space-between;min-height:0;padding:4px 0;border-bottom:1px solid var(--line);grid-template-columns:none}
+.plist .ppay .phist b{display:inline;font-weight:600}
 .plist-h{margin:18px 0 2px;font-size:13px;font-weight:600;color:var(--ink-2)}
 .plist-h:first-of-type{margin-top:4px}
 .docs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -640,7 +651,7 @@ body.dr-open{overflow:hidden}
   .formacts .btn{height:44px}
   .tbl td.act input{width:104px;height:44px}
   .plist li{grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"av who fee" "av who pd";gap:2px 12px}
-  .plist .av{grid-area:av}.plist li>div{grid-area:who}.plist .fee{grid-area:fee;text-align:right}.plist .pill{grid-area:pd;justify-self:end}
+  .plist .av{grid-area:av}.plist li>div{grid-area:who}.plist .fee{grid-area:fee;text-align:right}.plist .pill{grid-area:pd;justify-self:end}.plist button.who{grid-area:who}.plist .ppay{grid-row:3;padding-left:0}
   .add{min-height:44px}
   .chk{min-height:44px}
   .tabs button{flex:none}

@@ -656,29 +656,94 @@
     // crew: names for everyone, fees and payments with money access
     function crewPane() {
       if (money && m) {
-        var paidTo = {};
+        // what the Kas paid each person on this project (Keluar, Sudah) and the entries themselves
+        var paidTo = {}, paidRows = {};
         kasRows.forEach(function (k) {
-          var name = E.words(k.counterparty).trim();
-          if (k.kind === 'Keluar' && name && k.paid === 'Sudah') paidTo[name] = (paidTo[name] || 0) + (E.n(k.amount) || 0);
+          var name = E.words(k.counterparty).trim().toLowerCase();
+          if (k.kind === 'Keluar' && name && k.paid === 'Sudah') {
+            paidTo[name] = (paidTo[name] || 0) + (E.n(k.amount) || 0);
+            (paidRows[name] = paidRows[name] || []).push(k);
+          }
         });
-        // a person on several lines (Videographer here, Editor there) is paid once for all of them: their status
-        // weighs what the Kas paid them on this project against all their fees on it
-        var feeOf = {};
-        crewLines.forEach(function (l) { var n = E.words(l.person).trim(); if (n) feeOf[n] = (feeOf[n] || 0) + (E.n(l.total) || 0); });
-        var row = function (l) {
-          var who = E.words(l.person).trim(), out = who ? paidTo[who] || 0 : 0, fee = who ? feeOf[who] : E.n(l.total) || 0;
-          var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= fee ? ['yes', 'Sudah'] : out > 0 ? ['busy', 'Partly, ' + E.rp(out)] : ['no', 'Belum'];
+        // one row per person with all their lines added up (Offline Editing and Color Grading by the same editor are one
+        // fee); a line with no name yet stays on its own
+        var SEC = { pre: 'Pre-Production', crew: 'Production Crew', post: 'Post Production' };
+        var people = [], byName = {};
+        crewLines.forEach(function (l) {
+          var who = String(l.person || '').replace(/\s+/g, ' ').trim(), key = E.words(l.person).trim().toLowerCase(), x = who ? byName[key] : null;
+          if (!x) { x = { who: who, key: key, fee: 0, lines: [] }; people.push(x); if (who) byName[key] = x; }
+          x.fee += E.n(l.total) || 0; x.lines.push(l);
+        });
+        var payable = writeMoney && !d.kas.e;
+        var row = function (x) {
+          var out = x.who ? paidTo[x.key] || 0 : 0, left = Math.max(0, x.fee - out);
+          var st = d.kas.e ? ['off', 'Couldn’t check'] : out > 0 && out >= x.fee ? ['yes', 'Sudah'] : out > 0 ? ['busy', 'Partly'] : ['no', 'Belum'];
+          var roles = x.lines.map(function (l) { return l.desc || 'No role named'; }).join(', ');
+          var secs = x.lines.map(function (l) { return SEC[l.section || 'crew']; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ');
+          var panel = null, opener = null;
+          if (x.who && payable) {
+            panel = h('div', { class: 'ppay', hidden: true });
+            opener = h('button', { class: 'who', type: 'button', 'aria-expanded': 'false' }, h('b', { text: x.who }), h('span', { text: roles }));
+            opener.addEventListener('click', function () {
+              var open = panel.hidden;
+              panel.hidden = !open; opener.setAttribute('aria-expanded', String(open));
+              if (open && !panel.firstChild) A.add(panel, payForm(x, out, left, secs));
+            });
+          }
           return h('li', {}, h('span', { class: 'av', 'aria-hidden': 'true' }, I('crew')),
-            h('div', {}, h('b', { text: l.desc || 'No role named' }), h('span', { text: l.person || 'No name yet' })),
-            h('span', { class: 'fee', text: E.num(l.total) }), h('span', { class: 'pill ' + st[0], text: st[1] }));
+            opener || h('div', {}, h('b', { text: x.who || 'No name yet' }), h('span', { text: roles })),
+            h('span', { class: 'fee', text: E.num(x.fee) }), h('span', { class: 'pill ' + st[0], text: st[1] }), panel);
         };
-        // lines from before the Sheet named its sections carry none: they are Production Crew
-        var parts = [['pre', 'Pre-Production'], ['crew', 'Production Crew'], ['post', 'Post Production']].map(function (s) {
-          return [s[1], crewLines.filter(function (l) { return (l.section || 'crew') === s[0]; })];
-        }).filter(function (x) { return x[1].length; });
+        // paid so far, what is left and the payments, with a form to record the next one in the Kas tab
+        var payForm = function (x, out, left, secs) {
+          var amt = E.amountInput(left || null, 'Amount to pay'), day = h('input', { type: 'date', value: E.today() });
+          var method = 'Transfer', msg = h('span', { class: 'fmsg', role: 'status' });
+          var how = E.seg([['Transfer', 'Transfer'], ['Cash', 'Cash'], ['QRIS', 'QRIS']], method, function (v) { method = v; }, { 'aria-label': 'Method' });
+          var btn = h('button', { class: 'btn lime', type: 'button' }, 'Record payment');
+          var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+          var send = E.writer();
+          btn.addEventListener('click', function () {
+            var a = E.amount(amt), dt = day.value;
+            if (!(a > 0)) return say('Fill in the amount.', true);
+            if (a > 1e12) return say('That amount is too large.', true);
+            if (!dt) return say('Pick the date.', true);
+            var r = { entry_date: dt, kind: 'Keluar', category: 'Fee Crew', project_tab: p.tab_name || null,
+              description: ('Fee ' + x.lines.map(function (l) { return l.desc; }).filter(Boolean).join(', ') + (p.title ? ', ' + p.title : '')).slice(0, 1000),
+              counterparty: x.who, amount: a, paid: 'Sudah', method: method, proof_url: null };
+            btn.disabled = true; say('Saving to the Kas tab…');
+            var add = function (dup) {
+              return send('kas_add', { row: r, allow_duplicate: dup }).then(function (res) {
+                if (!(res.status === 409 && res.body && res.body.duplicate)) return res;
+                return E.sheetWrite('outbox_discard', { op_id: res.op_id }).catch(function () {}).then(function () {
+                  return A.ask('Record it again?', 'A payment of ' + E.rp(a) + ' to ' + x.who + ' on that date is already in Kas. Record another one anyway?', 'Record another')
+                    .then(function (go) { return go ? add(true) : null; });
+                });
+              });
+            };
+            add(false).then(function (res) {
+              if (!res) { btn.disabled = false; say(''); return; }
+              if (res.status !== 200 && res.status !== 202) { btn.disabled = false; say(E.writeText(res), true); return; }
+              saved(p.id, res, 'Payment to ' + x.who + ' saved to Kas.');
+            }, function (e) { btn.disabled = false; say(E.ecoError(e), true); });
+          });
+          var hist = (paidRows[x.key] || []).slice().sort(function (a, b) { return (a.entry_date || '').localeCompare(b.entry_date || ''); });
+          return [h('div', { class: 'pstat' },
+              h('div', {}, h('span', { text: 'Fee' }), h('b', { text: E.rp(x.fee) })),
+              h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(out) })),
+              h('div', {}, h('span', { text: 'Left' }), h('b', { class: left > 0 ? null : 'soft', text: E.rp(left) }))),
+            hist.length ? h('ul', { class: 'phist' }, hist.map(function (k) {
+              return h('li', {}, h('span', { text: E.day(k.entry_date, { year: false }) + (k.method ? ', ' + k.method : '') }), h('b', { text: E.rp(k.amount) }));
+            })) : null,
+            left > 0 ? [h('div', { class: 'fgrid' }, h('label', { class: 'f' }, 'Amount (Rp)', amt), h('label', { class: 'f' }, 'Date', day),
+              h('div', { class: 'f full' }, h('span', { 'aria-hidden': 'true', text: 'Method' }), how)),
+              h('div', { class: 'formacts' }, btn, msg)] : h('p', { class: 'help', text: 'Paid in full.' }),
+            h('p', { class: 'help', text: 'Saved to the Kas tab as Fee Crew, paid, for this project.' })];
+        };
+        var heads = people.filter(function (x) { return x.who; }).length;
         return [paneH('Crew in the RAB', crewLines.length ? h('span', { class: 'cnt', text: E.plural(heads, 'person', 'people') }) : null),
           !crewLines.length ? empty(rab ? 'No crew lines in the RAB yet.' : 'The crew lines of this RAB aren’t in the admin yet.')
-          : parts.map(function (x) { return [h('h4', { class: 'plist-h', text: x[0] }), h('ul', { class: 'plist' }, x[1].map(row))]; })];
+          : h('ul', { class: 'plist' }, people.map(row)),
+          crewLines.length && payable ? h('p', { class: 'help', text: 'Tap a name to see what is paid and record a payment.' }) : null];
       }
       var names = p.crew_names || [];
       return [paneH('Crew in the RAB', names.length ? h('span', { class: 'cnt', text: E.plural(names.length, 'person', 'people') }) : null),
