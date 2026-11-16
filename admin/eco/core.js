@@ -99,23 +99,39 @@
     }
     if (ph === 'Lunas') {
       if (x.money && x.kasOwed > 0) return 'Pay crew: ' + rp(x.kasOwed);
+      // the split goes into the Kas once, as Belum, then each transfer is marked paid
+      var sp = x.money && mon && x.splitAny === false ? splitOf(m.alloc || (m.rab && m.rab.internal && m.rab.internal.alloc)) : null;
+      if (sp && sp.some(function (r) { return r.amount > 0; })) return 'Record the split in Kas';
+      if (x.money && x.splitOwed > 0) return 'Move the split: ' + rp(x.splitOwed);
       // only projects that turned Lunas while the admin was watching (older ones were never meant for it)
       if (p.status_changed_at && !p.portfolio_skip && x.inPortfolio === false) return 'Add to the portfolio';
       return 'Done';
     }
     return '';
   }
+  // the split of a Lunas project's money as Kas rows: the fees to the people who earned them, the Kas share and CCC's
+  // net profit to their own accounts (the net profit is the allocation's plus what is left of the production budget)
+  var SPLIT_CATS = ['Fee PR', 'Fee Internal', 'Setor Kas CCC', 'Setor Net Profit'];
+  function splitOf(a) {
+    if (!a || typeof a !== 'object' || n(a.price) == null) return null;
+    var net = (n(a.net_profit) || 0) + (n(a.left) || 0);
+    return [{ cat: 'Fee PR', amount: n(a.pr) || 0, person: true }, { cat: 'Fee Internal', amount: n(a.internal) || 0, person: true },
+      { cat: 'Setor Kas CCC', amount: n(a.kas) || 0, to: 'Rekening Kas CCC' }, { cat: 'Setor Net Profit', amount: Math.max(0, net), to: 'Rekening Net Profit', net: net }];
+  }
   // what nextStep needs beyond the project; a list that couldn't be loaded is passed as undefined and its check is skipped
   function stepContext(docs, kas, portfolio) {
-    var kinds = {}, owed = {}, shown = {};
+    var kinds = {}, owed = {}, shown = {}, splitOwed = {}, splitAny = {};
     (docs || []).forEach(function (d) { if (d.project_id) (kinds[d.project_id] = kinds[d.project_id] || []).push(d.kind); });
     (kas || []).forEach(function (k) {
-      if (k.project_id && k.kind === 'Keluar' && k.paid === 'Belum') owed[k.project_id] = (owed[k.project_id] || 0) + (n(k.amount) || 0);
+      if (!k.project_id || k.kind !== 'Keluar') return;
+      var split = SPLIT_CATS.indexOf(k.category) > -1;
+      if (split) splitAny[k.project_id] = true;
+      if (k.paid === 'Belum') { var o = split ? splitOwed : owed; o[k.project_id] = (o[k.project_id] || 0) + (n(k.amount) || 0); }
     });
     (portfolio || []).forEach(function (it) { if (it.project_id && it.status !== 'archived') shown[it.project_id] = true; });
     var td = today(), money = A.canMoney();
     return function (p) {
-      return { today: td, money: money, docs: docs ? kinds[p.id] || [] : undefined, kasOwed: owed[p.id] || 0,
+      return { today: td, money: money, docs: docs ? kinds[p.id] || [] : undefined, kasOwed: owed[p.id] || 0, splitOwed: splitOwed[p.id] || 0, splitAny: kas ? !!splitAny[p.id] : undefined,
         inPortfolio: portfolio ? !!shown[p.id] : undefined };
     };
   }
@@ -616,7 +632,7 @@
     uuid: uuid, sheetWrite: sheetWrite, writeText: writeText, pullSoon: pullSoon, writer: writer, writesOn: writesOn, frozen: frozen,
     rupiah: rupiah, amount: amount, amountInput: amountInput, share: share, shareInput: shareInput, isoDay: isoDay, dayOf: dayOf, sheetForm: sheetForm,
     SOURCES: SOURCES, isId: isId, ecoError: ecoError, failed: failed, fullRow: fullRow, waitRow: waitRow, errRow: errRow, thead: thead,
-    fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
+    SPLIT_CATS: SPLIT_CATS, splitOf: splitOf, fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
     setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search,
     addDays: addDays, clientName: clientName, projectLine: projectLine, initial: initial, stage: stage, OPEN_LEAD: OPEN_LEAD, tip: tip,
     EVENT: EVENT, events: events, cardHead: cardHead, projectCard: projectCard

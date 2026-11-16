@@ -499,6 +499,7 @@
     if (!got) { A.toast('Still loading. Try again in a moment.'); return; }
     var x = k || {}, cats = (val('labels') || {}).kas_categories;
     cats = Array.isArray(cats) && cats.length ? cats.slice() : CATS.slice();
+    E.SPLIT_CATS.forEach(function (c) { if (cats.indexOf(c) < 0) cats.push(c); });
     if (x.category && cats.indexOf(x.category) < 0) cats.push(x.category);
     var tabs = got.projects.filter(function (p) { return p.sheet_state === 'present' && p.tab_name; });
     var opts = (k ? [] : [['', 'Pick one']]).concat([['-', 'Operasional']], tabs.map(function (p) { return [p.tab_name, [E.short(p), p.title].filter(Boolean).join(', ')]; }));

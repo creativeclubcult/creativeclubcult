@@ -623,7 +623,7 @@
       }
       if (m.cost_override != null) out.push(h('p', { class: 'note' }, I('sheet'), h('span', { text: 'The cost is set by hand in Rekap Project (' + E.rp(m.cost_override) + '), so the Sheet uses it instead of the RAB.' })));
       var al = rab && rab.internal && rab.internal.alloc;
-      if (al && typeof al === 'object') out = out.concat(allocation(p, al, write));
+      if (al && typeof al === 'object') out = out.concat(allocation(p, al, write), splitPane(al));
 
       out.push(paneH('Cash entries', src('Kas')));
       out.push(d.kas.e ? empty(E.ecoError(d.kas.e), true) : !kasRows.length ? empty('No cash entries for this project yet.')
@@ -635,6 +635,72 @@
           })))));
       return out;
     }
+    // the split of the money to the accounts: recorded in the Kas once the project is Lunas, each row Belum until the
+    // transfer is made and marked paid here
+    function splitPane(al) {
+      var plan = E.splitOf(al), done = kasRows.filter(function (k) { return k.kind === 'Keluar' && E.SPLIT_CATS.indexOf(k.category) > -1; });
+      if (!plan || (ph !== 'Lunas' && !done.length)) return [];
+      var out = [paneH('Split to the accounts', src('Kas'))];
+      jumpTo.split = null;
+      if (d.kas.e) return out.concat(empty(E.ecoError(d.kas.e), true));
+      var KEYS = ['entry_date', 'kind', 'category', 'project_tab', 'description', 'counterparty', 'amount', 'paid', 'method', 'proof_url', 'note'];
+      var send = E.writer(), names = {}, msg = h('span', { class: 'fmsg', role: 'status' });
+      var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
+      var markPaid = function (k, b) {
+        var match = {}; KEYS.forEach(function (key) { match[key] = k[key] == null ? null : k[key]; });
+        b.disabled = true; b.textContent = 'Saving…';
+        E.sheetWrite('kas_update', { hint_row: k.sheet_row, match: match, set: { paid: 'Sudah' } }).then(function (r) {
+          if (r.status === 200 || r.status === 202) return saved(p.id, r, 'Marked paid in the Kas.');
+          b.disabled = false; b.textContent = 'Mark paid'; A.toast(E.writeText(r), true);
+        }, function (e) { b.disabled = false; b.textContent = 'Mark paid'; A.toast(E.ecoError(e), true); });
+      };
+      var todo = [];
+      var rows = plan.map(function (x) {
+        var have = done.filter(function (k) { return k.category === x.cat; });
+        if (have.length) return have.map(function (k) {
+          return h('tr', {}, h('td', { text: x.cat }), h('td', { text: k.counterparty || '' }), h('td', { class: 'num', text: E.num(k.amount) }),
+            h('td', { class: 'num' }, k.paid === 'Sudah' ? h('span', { class: 'pill yes', text: 'Sudah' })
+              : writeMoney ? h('button', { class: 'btn sm', type: 'button', onclick: function (e) { markPaid(k, e.currentTarget); } }, 'Mark paid') : h('span', { class: 'pill no', text: 'Belum' })));
+        });
+        if (!(x.amount > 0)) return h('tr', { 'data-zero': '' }, h('td', { text: x.cat }), h('td', { class: 'muted', text: x.cat === 'Setor Net Profit' && x.net < 0 ? 'A loss of ' + E.rp(-x.net) + ', nothing to move' : 'Nothing to move' }), h('td', { class: 'num muted', text: '0' }), h('td'));
+        todo.push(x);
+        var to = x.person && writeMoney ? (names[x.cat] = h('input', { class: 'field', type: 'text', maxlength: 200, autocomplete: 'off', list: 'pj-crew-names', placeholder: 'Who gets it', 'aria-label': x.cat + ' to' })) : x.to || '';
+        return h('tr', {}, h('td', { text: x.cat }), h('td', {}, to), h('td', { class: 'num', text: E.num(x.amount) }), h('td', { class: 'num' }, h('span', { class: 'tag', text: 'Not in Kas' })));
+      });
+      jumpTo.split = names['Fee PR'] || names['Fee Internal'] || null;
+      out.push(h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact split' }, E.thead(['For', 'To', ['Rp', 'num'], ['Status', 'num']]), h('tbody', {}, [].concat.apply([], rows)))));
+      if (todo.length && writeMoney && ph === 'Lunas') {
+        var list = h('datalist', { id: 'pj-crew-names' });
+        E.rows(A.sb.from('crew').select('name').eq('sheet_state', 'present').order('name').limit(2000)).then(function (r) {
+          r.forEach(function (c) { if (c.name) list.appendChild(h('option', { value: c.name })); });
+        }, function () {});
+        var go = h('button', { class: 'btn lime', type: 'button' }, 'Record in Kas');
+        go.addEventListener('click', function () {
+          var miss = todo.filter(function (x) { return x.person && !String(names[x.cat].value || '').trim(); });
+          if (miss.length) return say('Fill in who gets the ' + miss.map(function (x) { return x.cat; }).join(' and ') + '.', true);
+          go.disabled = true; say('Saving to the Kas tab…');
+          var made = 0, first = null;
+          var next = function (i) {
+            if (i >= todo.length) return saved(p.id, first, 'The split is in the Kas, each row Belum until you transfer it.');
+            var x = todo[i], r = { entry_date: E.today(), kind: 'Keluar', category: x.cat, project_tab: p.tab_name || null,
+              description: (x.cat + (p.title ? ', ' + p.title : '')).slice(0, 1000), counterparty: x.person ? String(names[x.cat].value).trim() : x.to,
+              amount: x.amount, paid: 'Belum', method: null, proof_url: null };
+            send('kas_add', { row: r, allow_duplicate: false }).then(function (res) {
+              if (res.status !== 200 && res.status !== 202) {
+                go.disabled = false;
+                return say((made ? made + ' of ' + todo.length + ' rows are in the Kas. ' : '') + E.writeText(res), true);
+              }
+              made++; first = first || res; next(i + 1);
+            }, function (e) { go.disabled = false; say((made ? made + ' of ' + todo.length + ' rows are in the Kas. ' : '') + E.ecoError(e), true); });
+          };
+          next(0);
+        });
+        out.push(list, h('div', { class: 'formacts' }, go, msg),
+          h('p', { class: 'help', text: 'Adds a Keluar row per item to the Kas tab as Belum. Mark each one paid after the transfer.' }));
+      }
+      return out;
+    }
+
     // read only: the costs outside the RAB too, and the totals as the Sheet has them (an empty actual counts as its estimate)
     function costsToRead() {
       var inn = (rab && rab.internal) || {}, tot = E.rabCostTotals(rab, cats);
@@ -660,7 +726,7 @@
         var paidTo = {}, paidRows = {};
         kasRows.forEach(function (k) {
           var name = E.words(k.counterparty).trim().toLowerCase();
-          if (k.kind === 'Keluar' && name && k.paid === 'Sudah') {
+          if (k.kind === 'Keluar' && name && k.paid === 'Sudah' && E.SPLIT_CATS.indexOf(k.category) < 0) {
             paidTo[name] = (paidTo[name] || 0) + (E.n(k.amount) || 0);
             (paidRows[name] = paidRows[name] || []).push(k);
           }
@@ -968,6 +1034,8 @@
       else if (/^Collect /.test(step)) add('in', null, step, null, collect);
       else if (step === 'Paid in full: mark Lunas') add('check', 'lime', 'Paid in full', 'Mark it Lunas.', write ? btn('Mark Lunas', function () { pickStatus('Lunas'); }) : null);
       else if (/^Pay crew: /.test(step)) add('wallet', 'amber', step, 'Marked Belum in the Kas', money ? link('Open Finance', '#finance') : null);
+      else if (step === 'Record the split in Kas') add('wallet', 'amber', 'Record the split in Kas', 'Fees, Kas CCC and net profit to their accounts', btn('Open the split', function () { jump('money', jumpTo.split); }));
+      else if (/^Move the split: /.test(step)) add('wallet', 'amber', step, 'Split rows marked Belum in the Kas', btn('Open the split', function () { jump('money', jumpTo.split); }));
       else if (step === 'Add to the portfolio') add('image', null, 'Add to the portfolio', 'A case study for the Work page', edit
         ? h('div', { class: 'acts' }, btn('Start a portfolio item', startPortfolio, true, 'plus'),
           h('button', { class: 'btn sm quiet', type: 'button', onclick: function (e) { setSkip(true, e.currentTarget); } }, 'Not for the portfolio'))
