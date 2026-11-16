@@ -587,3 +587,20 @@ Owner asked for Partly in yellow, what is left in yellow or red, and more room; 
   "Paid Rp X" stays grey; crew rows have more padding and gap (desktop and phone). No data change.
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
+
+## Several deliveries per project, 2026-11-16 (night)
+
+Owner wanted drafts as well as the final files, and the Denri delivery was missing from the Calendar (its Files
+delivered day, 25 Nov, is still ahead and hid it); released with "naikin".
+
+* PROD migration project_deliveries (ops/migrations/20261116_project_deliveries.sql): table with RLS (team reads,
+  can_edit writes and deletes), column grants, stamp trigger, private.log_delivery writing each change to
+  sync_changes (field "delivery"). The one deliver_by day became a "Final files" delivery: 1 row (014 Denri, due
+  2026-11-21, not sent). projects.deliver_by is left in place, no longer read by the admin.
+* admin/eco/core.js, calendar.js, overview.js, projects.js, admin/ui.css: Deliveries list in Details (Mark sent, Change,
+  Remove, Add a delivery); each unsent delivery is a Files due event; Needs you shows "Send <name>" from 3 days before.
+  A Files delivered day still ahead no longer counts as handed over. New project form's Deliver by makes a Final files
+  delivery. Load failures show an error, not an empty list.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. The table can stay (the old
+code ignores it); drop it only after copying any rows the team added.
