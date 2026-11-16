@@ -294,7 +294,7 @@
       if (!A.canMoney()) return Promise.resolve({});
       return once('money', function () {
         return rows(sb.from('project_money').select('project_id, updated_at, grand_total, dp_amount, final_amount, dp_received, dp_date, '
-          + 'final_received, final_date, paid_total, outstanding, pay_status, cost_override, revenue, cost, profit, margin, dp_pct').limit(2000)).then(byKey('project_id'));
+          + 'final_received, final_date, paid_total, outstanding, pay_status, cost_override, revenue, cost, profit, margin, dp_pct, alloc:rab->internal->alloc').limit(2000)).then(byKey('project_id'));
       }, fresh);
     },
     clients: function (fresh) { return once('clients', function () { return rows(sb.from('clients').select('*').order('name').limit(2000)); }, fresh); },

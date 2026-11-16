@@ -75,6 +75,7 @@
       kids = edit ? [chart(y, list, broken), leadsCard(y), pj.el, clientsCard(y, list, broken)]
         : [chart(y, list, broken), clientsCard(y, list, broken), pj.el];
       if (!edit) pj.el.classList.add('rfull');
+      kids.push(splitCard(y, list, broken));
     } else kids = [leadsCard(y)];
     panel.innerHTML = '';
     A.add(panel, [
@@ -304,6 +305,38 @@
       h('tfoot', {}, h('tr', {}, h('td', { text: E.plural(list.length, 'project') }), num(tot.omset, 'Omset'), num(tot.cost, 'Cost'), num(tot.profit, 'Profit'), h('td')))),
       notes.length ? note(null, notes.join(' ')) : null, line]);
     return { el: sec, line: line };
+  }
+
+  // ---------- where each project's price goes, from the ALOKASI DANA block of its RAB ----------
+  // net profit is CCC's own: the allocation's net profit plus what is left in the production budget (a loss when the RAB
+  // costs more), so fees, Kas, cost and net profit add up to the omset
+  function splitCard(y, list, broken) {
+    var sec = card('Split of the omset', null, 'rfull');
+    if (broken) { sec.appendChild(fail(broken)); return sec; }
+    var tot = {}, without = 0, rows = [];
+    list.forEach(function (p) {
+      var a = (got.money.v[p.id] || {}).alloc;
+      if (!a || typeof a !== 'object' || E.n(a.price) == null || E.n(a.production_cost) == null) { without++; return; }
+      var r = { fees: (E.n(a.pr) || 0) + (E.n(a.internal) || 0), kas: E.n(a.kas) || 0, cost: E.n(a.production_cost), omset: E.n(a.price) };
+      r.net = r.omset - r.fees - r.kas - r.cost;
+      ['omset', 'fees', 'kas', 'cost', 'net'].forEach(function (k) { plus(tot, k, r[k]); });
+      rows.push([p, r]);
+    });
+    var gap = without ? E.plural(without, 'project', 'projects') + ' of ' + y + (without === 1 ? ' has' : ' have') + ' no ALOKASI DANA block in ' + (without === 1 ? 'its' : 'their') + ' RAB (older layout), so ' + (without === 1 ? 'it isn’t' : 'they aren’t') + ' counted here.' : '';
+    if (!rows.length) { A.add(sec, [empty('No Deal or Lunas project of ' + y + ' has an ALOKASI DANA block yet.'), gap ? note(null, gap) : null]); return sec; }
+    var num = function (v, label) { var x = E.n(v); return h('td', { class: 'num' + (x < 0 ? ' neg' : ''), 'data-l': label, text: E.num(x) }); };
+    var COLS = [['omset', 'Omset'], ['fees', 'PR and internal fees'], ['kas', 'Kas CCC'], ['cost', 'Cost'], ['net', 'Net profit']];
+    A.add(sec, [h('div', { class: 'scrollx' }, h('table', { class: 'tbl rep' },
+      h('thead', {}, h('tr', {}, h('th', { text: 'Project' }), COLS.map(function (c) { return h('th', { class: 'num', text: c[1] }); }))),
+      h('tbody', {}, rows.map(function (x) {
+        var p = x[0];
+        return h('tr', {}, h('td', {}, h('div', { class: 'pj' }, h('span', { class: 'av', 'aria-hidden': 'true', text: E.initial(p.client_label || E.clientName(p)) }),
+          h('div', {}, h('b', {}, h('a', { href: '#projects/' + p.id, text: E.short(p) })), p.title ? h('span', { text: p.title }) : null))),
+          COLS.map(function (c) { return num(x[1][c[0]], c[1]); }));
+      })),
+      h('tfoot', {}, h('tr', {}, h('td', { text: E.plural(rows.length, 'project') }), COLS.map(function (c) { return num(tot[c[0]], c[1]); }))))),
+      note('sheet', 'From the ALOKASI DANA block of each RAB. Net profit is what stays with CCC after the fees, the Kas share and the cost.' + (gap ? ' ' + gap : ''))]);
+    return sec;
   }
 
   // ---------- clients that year, by omset ----------
