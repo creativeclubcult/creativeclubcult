@@ -537,3 +537,18 @@ Owner asked where Kas CCC and net profit add up; mockup approved and released wi
 * Harness: 10 SAMPLE projects, SAMPLE Social Content −945.473 as on its project page; desktop and phone layouts, console clean.
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
+
+## Project Crew tab: per person totals and crew payments, 2026-11-16 (evening)
+
+Owner asked that one name shows one summed fee and that crew payments (also partial) can be recorded from the project;
+mockup approved, released with "naikin".
+
+* admin/eco/projects.js and admin/ui.css. The Crew tab lists one row per person (all their RAB lines added up, roles
+  under the name); a line without a name stays on its own. With money write access, tapping a name shows Fee, Paid
+  (Kas Keluar, Sudah, matched on the name for this project), Left and the payments, and records a payment through the
+  existing kas_add op: Keluar, Fee Crew, project_tab = the RAB tab, counterparty = the name, paid Sudah, method.
+  A same day duplicate asks before adding another (as Finance does).
+* No function, Sync.gs, database or Sheet layout change. Harness: two lines for SAMPLE Bayu summed, a 1.000.000 payment
+  of 1.500.000 showed Partly, Paid 1.000.000, Left 500.000; phone and desktop layouts, console clean.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. Kas rows already written stay.
