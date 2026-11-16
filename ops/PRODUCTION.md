@@ -552,3 +552,13 @@ mockup approved, released with "naikin".
   of 1.500.000 showed Partly, Paid 1.000.000, Left 500.000; phone and desktop layouts, console clean.
 
 Rollback: push the previous commit's tree to main and site, or Vercel instant rollback. Kas rows already written stay.
+
+## Crew tab: left to pay, 2026-11-16 (evening)
+
+Owner paid Faishal Hafizh 500.000 of 1.000.000 (Kas row 16 Nov) and wanted the rest visible; released with "naikin".
+
+* admin/eco/projects.js and admin/ui.css: each person's fee shows "Rp X left" (or "Paid Rp X" when settled) once
+  something is paid; the tab opens with Crew fees, Paid and Left to pay for the whole crew (paid counted up to each fee).
+* No data change. Harness desktop and phone checked.
+
+Rollback: push the previous commit's tree to main and site, or Vercel instant rollback.
