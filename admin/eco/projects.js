@@ -531,7 +531,11 @@
             var al = rab && rab.internal && rab.internal.alloc, np = al && typeof al === 'object' ? E.n(al.net_profit) : null;
             if (np != null && E.n(al.left) != null) np += E.n(al.left);
             if (np == null) return tile('trend', 'Profit', pr == null ? 'Not in the Sheet' : E.rp(pr), mg != null ? 'Margin ' + E.pct(mg) : null, pr == null ? 'soft' : pr < 0 ? 'neg' : null);
-            return tile('trend', 'Net profit', E.rp(np), pr == null ? null : E.rp(pr) + ' before fees', np < 0 ? 'neg' : null);
+            // under it where the rest of the margin goes: the Kas share and the fees, so Net profit at Rp 0 reads right
+            var kasA = E.n(al.kas), intA = E.n(al.internal), prA = E.n(al.pr);
+            var sub = [kasA != null ? 'Kas ' + E.rp(kasA) : null, intA > 0 ? 'internal ' + E.rp(intA) : null, prA > 0 ? 'PR ' + E.rp(prA) : null]
+              .filter(Boolean).join(', ') || (pr == null ? null : E.rp(pr) + ' before fees');
+            return tile('trend', 'Net profit', E.rp(np), sub, np < 0 ? 'neg' : null);
           })(),
           tile('in', 'To collect', col[0], col[1], col[2], late ? h('span', { class: 'tag red', text: 'Telat' }) : null));
       }
@@ -729,13 +733,15 @@
     function crewPane() {
       if (money && m) {
         // what the Kas paid each person on this project (Keluar, Sudah) and the entries themselves
-        var paidTo = {}, paidRows = {};
+        // and what is still owed to them as Belum entries, which a payment settles before it adds a new row
+        var paidTo = {}, paidRows = {}, owedRows = {};
         kasRows.forEach(function (k) {
           var name = E.words(k.counterparty).trim().toLowerCase();
-          if (k.kind === 'Keluar' && name && k.paid === 'Sudah' && E.SPLIT_CATS.indexOf(k.category) < 0) {
+          if (k.kind !== 'Keluar' || !name || E.SPLIT_CATS.indexOf(k.category) >= 0) return;
+          if (k.paid === 'Sudah') {
             paidTo[name] = (paidTo[name] || 0) + (E.n(k.amount) || 0);
             (paidRows[name] = paidRows[name] || []).push(k);
-          }
+          } else if (k.paid === 'Belum' && E.n(k.amount) > 0) (owedRows[name] = owedRows[name] || []).push(k);
         });
         // one row per person with all their lines added up (Offline Editing and Color Grading by the same editor are one
         // fee); a line with no name yet stays on its own
@@ -777,42 +783,79 @@
           var btn = h('button', { class: 'btn lime', type: 'button' }, 'Record payment');
           var say = function (t, err) { msg.textContent = t || ''; msg.classList.toggle('is-err', !!err); };
           var send = E.writer();
+          var byDate = function (a, b) { return (a.entry_date || '').localeCompare(b.entry_date || '') || (a.sheet_row || 0) - (b.sheet_row || 0); };
+          var owed = (owedRows[x.key] || []).slice().sort(byDate);
+          var KK = ['entry_date', 'kind', 'category', 'project_tab', 'description', 'counterparty', 'amount', 'paid', 'method', 'proof_url', 'note'];
+          var matchOf = function (k) { var mm = {}; KK.forEach(function (key) { mm[key] = k[key] == null ? null : k[key]; }); return mm; };
+          var ok = function (res) { return res && (res.status === 200 || res.status === 202); };
           btn.addEventListener('click', function () {
             var a = E.amount(amt), dt = day.value;
             if (!(a > 0)) return say('Fill in the amount.', true);
             if (a > 1e12) return say('That amount is too large.', true);
             if (!dt) return say('Pick the date.', true);
-            var r = { entry_date: dt, kind: 'Keluar', category: 'Fee Crew', project_tab: p.tab_name || null,
-              description: ('Fee ' + x.lines.map(function (l) { return l.desc; }).filter(Boolean).join(', ') + (p.title ? ', ' + p.title : '')).slice(0, 1000),
-              counterparty: x.who, amount: a, paid: 'Sudah', method: method, proof_url: null };
+            // the payment settles this person's Belum entries first, oldest first: one it covers becomes Sudah on the
+            // payment date; one it covers only in part keeps the rest as Belum and the paid part is added as Sudah.
+            // Only what is left after every Belum entry is added as a new Sudah row.
+            var steps = [], rest = a;
+            owed.forEach(function (k) {
+              var v = E.n(k.amount) || 0;
+              if (!(rest > 0) || !(v > 0)) return;
+              if (v <= rest) { steps.push({ upd: k, set: { paid: 'Sudah', entry_date: dt, method: method } }); rest -= v; }
+              else { steps.push({ upd: k, set: { amount: v - rest } }); steps.push({ add: rest }); rest = 0; }
+            });
+            if (rest > 0) steps.push({ add: rest, extra: true });
+            var row = function (v) {
+              return { entry_date: dt, kind: 'Keluar', category: 'Fee Crew', project_tab: p.tab_name || null,
+                description: ('Fee ' + x.lines.map(function (l) { return l.desc; }).filter(Boolean).join(', ') + (p.title ? ', ' + p.title : '')).slice(0, 1000),
+                counterparty: x.who, amount: v, paid: 'Sudah', method: method, proof_url: null };
+            };
             btn.disabled = true; say('Saving to the Kas tab…');
-            var add = function (dup) {
-              return send('kas_add', { row: r, allow_duplicate: dup }).then(function (res) {
+            var add = function (v, dup) {
+              return send('kas_add', { row: row(v), allow_duplicate: dup }).then(function (res) {
                 if (!(res.status === 409 && res.body && res.body.duplicate)) return res;
                 return E.sheetWrite('outbox_discard', { op_id: res.op_id }).catch(function () {}).then(function () {
-                  return A.ask('Record it again?', 'A payment of ' + E.rp(a) + ' to ' + x.who + ' on that date is already in Kas. Record another one anyway?', 'Record another')
-                    .then(function (go) { return go ? add(true) : null; });
+                  return A.ask('Record it again?', 'A payment of ' + E.rp(v) + ' to ' + x.who + ' on that date is already in Kas. Record another one anyway?', 'Record another')
+                    .then(function (go) { return go ? add(v, true) : null; });
                 });
               });
             };
-            add(false).then(function (res) {
-              if (!res) { btn.disabled = false; say(''); return; }
-              if (res.status !== 200 && res.status !== 202) { btn.disabled = false; say(E.writeText(res), true); return; }
-              saved(p.id, res, 'Payment to ' + x.who + ' saved to Kas.');
-            }, function (e) { btn.disabled = false; say(E.ecoError(e), true); });
+            var done = 0, last = null;
+            var stop = function (t) {
+              btn.disabled = false;
+              if (done) { A.toast((done === 1 ? '1 change' : done + ' changes') + ' already saved to Kas. ' + t, true); E.forget(); open(p.id, true); }
+              else say(t, true);
+            };
+            var next = function (i) {
+              if (i >= steps.length) {
+                var settled = steps.filter(function (s) { return s.upd && s.set.paid; }).length;
+                return saved(p.id, last, 'Payment to ' + x.who + ' saved to Kas' + (settled ? ', ' + E.plural(settled, 'unpaid entry', 'unpaid entries') + ' now Sudah.' : '.'));
+              }
+              var s = steps[i];
+              var go = s.upd ? E.sheetWrite('kas_update', { hint_row: s.upd.sheet_row, match: matchOf(s.upd), set: s.set }) : add(s.add, false);
+              go.then(function (res) {
+                if (!res) { btn.disabled = false; say(''); if (done) { E.forget(); open(p.id, true); } return; }
+                if (!ok(res)) return stop(E.writeText(res));
+                done++; last = res; next(i + 1);
+              }, function (e) { stop(E.ecoError(e)); });
+            };
+            next(0);
           });
-          var hist = (paidRows[x.key] || []).slice().sort(function (a, b) { return (a.entry_date || '').localeCompare(b.entry_date || ''); });
+          var hist = (paidRows[x.key] || []).concat(owed).sort(byDate);
           return [h('div', { class: 'pstat' },
               h('div', {}, h('span', { text: 'Fee' }), h('b', { text: E.rp(x.fee) })),
               h('div', {}, h('span', { text: 'Paid' }), h('b', { text: E.rp(out) })),
               h('div', {}, h('span', { text: 'Left' }), h('b', { class: left > 0 ? null : 'soft', text: E.rp(left) }))),
             hist.length ? h('ul', { class: 'phist' }, hist.map(function (k) {
-              return h('li', {}, h('span', { text: E.day(k.entry_date, { year: false }) + (k.method ? ', ' + k.method : '') }), h('b', { text: E.rp(k.amount) }));
+              return h('li', {}, h('span', { text: E.day(k.entry_date, { year: false }) + (k.paid === 'Sudah' && k.method ? ', ' + k.method : '') }),
+                k.paid === 'Sudah' ? h('b', { text: E.rp(k.amount) })
+                : h('span', { class: 'owed' }, h('span', { class: 'pill no', text: 'Belum' }), h('b', { text: E.rp(k.amount) })));
             })) : null,
             left > 0 ? [h('div', { class: 'fgrid' }, h('label', { class: 'f' }, 'Amount (Rp)', amt), h('label', { class: 'f' }, 'Date', day),
               h('div', { class: 'f full' }, h('span', { 'aria-hidden': 'true', text: 'Method' }), how)),
               h('div', { class: 'formacts' }, btn, msg)] : h('p', { class: 'help', text: 'Paid in full.' }),
-            h('p', { class: 'help', text: 'Saved to the Kas tab as Fee Crew, paid, for this project.' })];
+            h('p', { class: 'help', text: owed.length
+              ? 'Settles the Belum entries above first, oldest first, and sets them to Sudah. Only an amount above them is added as a new Fee Crew row.'
+              : 'Saved to the Kas tab as Fee Crew, paid, for this project.' })];
         };
         var heads = people.filter(function (x) { return x.who; }).length;
         // the whole crew: fees, what the Kas paid them and what is left
