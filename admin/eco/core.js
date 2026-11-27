@@ -560,13 +560,18 @@
   // what the crew is still owed, as Finance and Crew & Vendors both put it: the Kas entries not paid yet (Keluar and
   // Belum), how many there are, and who the oldest is for and how long it has waited. kas is null when it couldn't be loaded
   function crewOwed(kas) {
-    var unpaid = kas ? kas.filter(function (k) { return k.kind === 'Keluar' && k.paid === 'Belum'; }) : null;
+    // a split row (Kas share, net profit, PR and internal fee) waiting to be moved is not owed to the crew: it is left
+    // out here, and less() takes it off the Sheet's own unpaid total, which counts every Belum row
+    var belum = kas ? kas.filter(function (k) { return k.kind === 'Keluar' && k.paid === 'Belum'; }) : null;
+    var unpaid = belum && belum.filter(function (k) { return SPLIT_CATS.indexOf(k.category) < 0; });
+    var split = belum ? belum.reduce(function (t, k) { return t + (SPLIT_CATS.indexOf(k.category) > -1 ? n(k.amount) || 0 : 0); }, 0) : 0;
     var old = unpaid && unpaid.slice().sort(function (a, b) { return (a.entry_date || '9').localeCompare(b.entry_date || '9'); })[0];
     var since = old && old.entry_date ? days(old.entry_date, today()) : null;
     var sub = !unpaid ? 'The Kas entries couldn\u2019t be loaded' : !unpaid.length ? 'Nothing unpaid'
       : unpaid.length === 1 ? [old.counterparty || old.description || old.category, since != null ? plural(since, 'day') : null].filter(Boolean).join(', ')
       : old.entry_date ? 'The oldest from ' + day(old.entry_date, { year: false }) : plural(unpaid.length, 'entry', 'entries');
-    return { unpaid: unpaid, sub: sub, tag: unpaid && unpaid.length ? h('span', { class: 'tag amber', text: unpaid.length + ' unpaid' }) : null };
+    return { unpaid: unpaid, sub: sub, tag: unpaid && unpaid.length ? h('span', { class: 'tag amber', text: unpaid.length + ' unpaid' }) : null,
+      split: split, less: function (v) { return n(v) == null ? v : Math.max(0, n(v) - split); } };
   }
   var dsec = function (title, right) {
     // a control beside the heading stays out of it, so the heading reads as its title alone

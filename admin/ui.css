@@ -1420,6 +1420,16 @@ span.sw.pay{grid-template-columns:none;gap:0}
 .pipe.age{grid-template-columns:repeat(4,minmax(0,1fr))}
 .pipe.age.n5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .pipe.age b{font-size:22px;white-space:nowrap}
+@media (min-width:761px){
+  .pipe.age.acct.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pipe.age.acct.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .pipe.age.acct .st{grid-template-areas:"t b" "v v"}
+  .pipe.age.acct .st .v{text-align:left}
+}
+.pipe.age.acct div.st{cursor:default}
+.pipe.age.acct div.st:hover{background:transparent}
 .pipe.age .st[disabled]{cursor:default}
 .pipe.age .st[disabled]:hover{background:transparent}
 .pipe.age .st[disabled] b{color:var(--ink-3)}

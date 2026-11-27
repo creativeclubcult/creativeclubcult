@@ -65,7 +65,7 @@
       var owe = E.crewOwed(r[1].e ? null : r[1].v);
       var paid = (crew.v || []).filter(function (c) { return c.sheet_state !== 'missing' && E.n(c.paid_this_year) != null; });
       var list = [
-        tile('out', 'Owed to crew', owe.tag, amountOf(ks.owed, !!vals.e), owe.sub),
+        tile('out', 'Owed to crew', owe.tag, amountOf(owe.less(ks.owed), !!vals.e), owe.sub),
         tile('check', 'Paid this year', null, amountOf(paid.length ? paid.reduce(function (t, c) { return t + E.n(c.paid_this_year); }, 0) : null, !!crew.e), 'From the Crew tab')];
       if (both) {
         var f = fresh.v;

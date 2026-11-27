@@ -162,7 +162,7 @@
       var age = oldest ? E.days(oldest, E.today()) : null;
       cash.push(h('div', { class: 'kpi-viz' }, h('div', { class: 'hbars' }, hb('In', inn, 'in'), hb('Out', out, 'out')),
         h('div', { class: 'inset' },
-          h('div', {}, h('span', { text: 'Owed to crew' }), h('b', { text: E.n(m.owed) == null ? 'Not in the Sheet' : E.rp(m.owed) })),
+          h('div', {}, h('span', { text: 'Owed to crew' }), h('b', { text: E.n(m.owed) == null ? 'Not in the Sheet' : E.rp(r.kas.e ? m.owed : E.crewOwed(r.kas.v).less(m.owed)) })),
           h('div', {}, h('span', { text: 'Oldest unpaid' }), h('b', { text: r.kas.e ? 'Couldn’t load' : age == null ? 'None' : E.plural(age, 'day') })))));
     }
     var nUnpaid = !r.kas.e && r.kas.v ? r.kas.v.filter(function (k) { return k.kind === 'Keluar' && k.paid === 'Belum'; }).length : 0;

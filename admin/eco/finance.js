@@ -71,6 +71,7 @@
       view: 'invoices', age: null,
       wait: h('div', { class: 'fwait' }),
       tiles: h('section', { class: 'tiles', 'aria-label': 'Money' }),
+      accts: h('section', { class: 'card pipe age acct', 'aria-label': 'Moved to the accounts from projects', hidden: true }),
       ages: h('section', { class: 'card pipe age', 'aria-label': 'Money owed by how late it is', hidden: true }),
       gap: h('p', { class: 'note amber', hidden: true }),
       src: h('span', { class: 'src' }),
@@ -94,7 +95,7 @@
         h('button', { class: 'btn sm csv', type: 'button', onclick: exportCsv }, I('in', 's'), 'Export CSV')),
       ui.invBox, ui.kasBox);
     panel.classList.add('fin');
-    A.add(panel, [ui.wait, ui.tiles, ui.ages, ui.gap, ui.card]);
+    A.add(panel, [ui.wait, ui.tiles, ui.accts, ui.ages, ui.gap, ui.card]);
   }
   function setView(v) { ui.view = v; draw(); }
 
@@ -123,13 +124,39 @@
     A.add(ui.tiles, [
       tile('in', 'To collect', telat.length ? h('span', { class: 'tag red', text: telat.length + ' overdue' }) : null, rs.receivable, collectSub),
       tile('wallet', 'Cash in the Kas', null, ks.cash, 'From the Kas tab'),
-      tile('out', 'Owed to crew', crew.tag, ks.owed, crew.sub),
+      tile('out', 'Owed to crew', crew.tag, crew.less(ks.owed), crew.sub),
       tile('trend', 'Omset' + (year ? ' ' + year : ''), null, ku.omset, E.n(ku.profit) == null ? 'Profit isn’t in the Sheet' : 'Profit ' + E.rp(ku.profit))]);
     // the invoices should add up to Rekap Project's own total; when they don't, say so rather than pick one
     var sum = owed.reduce(function (t, b) { return t + b.owe; }, 0), rec = E.n(rs.receivable);
     ui.gap.hidden = rec == null || Math.abs(sum - rec) < 1;
     ui.gap.innerHTML = '';
     if (!ui.gap.hidden) A.add(ui.gap, [I('alert'), h('span', { text: 'The invoices below add up to ' + E.rp(sum) + ' still owed, and Rekap Project’s own total says ' + E.rp(rec) + '.' })]);
+  }
+
+  // what the projects' splits moved to the accounts, from the split rows in the Kas (Sudah), and what of them is
+  // recorded but not moved yet (Belum). Kas CCC and Net profit always show once there is a split row; a fee only when
+  // it has an amount. It is what went in, not a balance: money spent from an account later isn't taken off here.
+  function accounts() {
+    var kas = got.kas && !got.kas.e ? got.kas.v || [] : null, cols = [];
+    var NAMES = { 'Setor Kas CCC': 'Moved to Kas CCC', 'Setor Net Profit': 'Moved to Net profit', 'Fee PR': 'PR fees paid', 'Fee Internal': 'Internal fees paid' };
+    ['Setor Kas CCC', 'Setor Net Profit', 'Fee PR', 'Fee Internal'].forEach(function (cat, i) {
+      var rows = (kas || []).filter(function (k) { return k.kind === 'Keluar' && k.category === cat; });
+      var sum = function (st) { return rows.reduce(function (t, k) { return t + (k.paid === st ? E.n(k.amount) || 0 : 0); }, 0); };
+      var done = sum('Sudah'), wait = sum('Belum'), from = {};
+      rows.forEach(function (k) { if (k.paid === 'Sudah') from[k.project_id || k.project_tab || k.id] = 1; });
+      if (i > 1 && !(done > 0) && !(wait > 0)) return;
+      cols.push({ label: NAMES[cat], done: done, wait: wait, from: Object.keys(from).length, any: rows.length });
+    });
+    ui.accts.innerHTML = '';
+    ui.accts.hidden = !kas || !cols.some(function (c) { return c.any; });
+    if (ui.accts.hidden) return;
+    ui.accts.className = 'card pipe age acct c' + cols.length;
+    cols.forEach(function (c) {
+      ui.accts.appendChild(h('div', { class: 'st' },
+        h('span', { class: 'row' }, h('span', { class: 'tag', text: c.label })),
+        h('b', { text: E.rp(c.done) }),
+        h('span', { class: 'v', text: [c.from ? 'From ' + E.plural(c.from, 'project') : 'Nothing yet', c.wait > 0 ? E.rp(c.wait) + ' still to move' : null].filter(Boolean).join(', ') })));
+    });
   }
 
   // money owed by how late it is; a block filters the invoices below to it, a second press shows them all again
@@ -670,7 +697,7 @@
       got = { values: r[0], projects: r[1], money: r[2], kas: r[3], clients: r[4], links: r[5], bank: r[6] };
       got.list = bills();
       ui.wait.hidden = true; ui.card.hidden = false;
-      figures(got.list); ages(got.list); fillFilters(); draw();
+      figures(got.list); accounts(); ages(got.list); fillFilters(); draw();
       // #finance/kas opens on the Kas; an address with an entry or a project (#finance/<id>) opens it once the lists are here
       if (want === 'kas') { want = null; setView('kas'); E.setHash('finance'); }
       else if (want) {
@@ -684,7 +711,7 @@
     }, function (e) {
       if (mine !== turn) return;
       got = null;
-      ui.tiles.innerHTML = ''; ui.ages.hidden = true; ui.gap.hidden = true; ui.card.hidden = true;
+      ui.tiles.innerHTML = ''; ui.accts.hidden = true; ui.ages.hidden = true; ui.gap.hidden = true; ui.card.hidden = true;
       ui.wait.innerHTML = ''; ui.wait.hidden = false;
       A.add(ui.wait, [h('p', { class: 'empty is-err', text: E.ecoError(e) }),
         h('button', { class: 'btn sm', type: 'button', onclick: function () { E.forget(); A.loaders.finance(); } }, 'Try again')]);
