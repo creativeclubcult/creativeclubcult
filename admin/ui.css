@@ -1426,6 +1426,19 @@ span.sw.pay{grid-template-columns:none;gap:0}
 .tile.pick:hover{background:var(--surface-2)}
 .tile.pick[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--ink)}
 .tile.pick:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.internal{display:grid;gap:28px;padding-top:4px}
+.internal .isec{display:grid;gap:10px;min-width:0}
+.internal .isec h3{margin:0;font-size:15px}
+.internal .istat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.internal .istat div{background:var(--surface-2);border-radius:10px;padding:10px 14px}
+.internal .istat span{display:block;font-size:12px;color:var(--ink-2)}
+.internal .istat b{font-weight:700;font-size:18px}
+.internal .istat b.neg{color:var(--red-ink)}
+.internal .help{margin:0}
+.internal tr.irow{cursor:pointer}
+.internal tr.irow:hover td{background:var(--surface-2)}
+.internal tr.irow:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+@media (max-width:760px){ .internal .istat{grid-template-columns:1fr} }
 .acctbox .bar h3{margin:0;font-size:15px}
 .acctbox .help{margin:10px 0 0}
 .pipe.age .st[disabled]{cursor:default}
