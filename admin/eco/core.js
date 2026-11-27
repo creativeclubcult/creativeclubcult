@@ -560,11 +560,13 @@
   // what the crew is still owed, as Finance and Crew & Vendors both put it: the Kas entries not paid yet (Keluar and
   // Belum), how many there are, and who the oldest is for and how long it has waited. kas is null when it couldn't be loaded
   function crewOwed(kas) {
-    // a split row (Kas share, net profit, PR and internal fee) waiting to be moved is not owed to the crew: it is left
-    // out here, and less() takes it off the Sheet's own unpaid total, which counts every Belum row
+    // a transfer to CCC's own accounts (Kas share, net profit) waiting to be moved is not owed to anyone: it is left
+    // out here, and less() takes it off the Sheet's own unpaid total, which counts every Belum row. A PR or internal
+    // fee still to pay is owed to a person, so it stays in.
+    var OWN = ['Setor Kas CCC', 'Setor Net Profit'];
     var belum = kas ? kas.filter(function (k) { return k.kind === 'Keluar' && k.paid === 'Belum'; }) : null;
-    var unpaid = belum && belum.filter(function (k) { return SPLIT_CATS.indexOf(k.category) < 0; });
-    var split = belum ? belum.reduce(function (t, k) { return t + (SPLIT_CATS.indexOf(k.category) > -1 ? n(k.amount) || 0 : 0); }, 0) : 0;
+    var unpaid = belum && belum.filter(function (k) { return OWN.indexOf(k.category) < 0; });
+    var split = belum ? belum.reduce(function (t, k) { return t + (OWN.indexOf(k.category) > -1 ? n(k.amount) || 0 : 0); }, 0) : 0;
     var old = unpaid && unpaid.slice().sort(function (a, b) { return (a.entry_date || '9').localeCompare(b.entry_date || '9'); })[0];
     var since = old && old.entry_date ? days(old.entry_date, today()) : null;
     var sub = !unpaid ? 'The Kas entries couldn\u2019t be loaded' : !unpaid.length ? 'Nothing unpaid'
