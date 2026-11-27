@@ -303,7 +303,7 @@
   // #tab or #tab/<record id>; old addresses keep working
   var loaders = {}, openers = {}, actions = {};
   var TITLES = { overview: 'Overview', leads: 'Leads', clients: 'Clients', projects: 'Projects', calendar: 'Calendar', crew: 'Crew & Vendors',
-    network: 'Crew & Vendors', documents: 'Documents', finance: 'Finance', reports: 'Reports', portfolio: 'Website & Portfolio',
+    network: 'Crew & Vendors', documents: 'Documents', finance: 'Finance', profit: 'Profit & Kas', reports: 'Reports', portfolio: 'Website & Portfolio',
     applicants: 'Careers', jobs: 'Careers', settings: 'Settings' };
   var ALIAS = { inquiries: 'leads', team: 'settings', careers: 'applicants' };
   // pages where #tab/<id> is a page of its own rather than a drawer over the list
@@ -324,6 +324,7 @@
     network: function () { return crewSub(); },
     documents: function () { return canMoney() ? 'Quotes, invoices, receipts, contracts and briefs in Google Drive' : 'Contracts, briefs and other project files in Google Drive'; },
     finance: 'What to collect and the Kas, from the Sheet',
+    profit: 'Where each project’s profit goes, from the Sheet',
     reports: function () { return canMoney() ? 'The year from the Keuangan tab, checked against each project' : 'Leads by source and month'; },
     portfolio: 'Projects for the Work page. Drafts stay private until you publish.',
     applicants: 'Applications for the team and internships, and the roles on the Careers page',

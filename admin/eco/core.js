@@ -112,6 +112,8 @@
   // the split of a Lunas project's money as Kas rows: the fees to the people who earned them, the Kas share and CCC's
   // net profit to their own accounts (the net profit is the allocation's plus what is left of the production budget)
   var SPLIT_CATS = ['Fee PR', 'Fee Internal', 'Setor Kas CCC', 'Setor Net Profit'];
+  // a Keluar entry paid from Kas CCC says so in its Keterangan, as the Kas tab has always written them
+  var FROM_KAS = /dari\s+kas\s+ccc/i;
   function splitOf(a) {
     if (!a || typeof a !== 'object' || n(a.price) == null) return null;
     var net = (n(a.net_profit) || 0) + (n(a.left) || 0);
@@ -660,7 +662,7 @@
     uuid: uuid, sheetWrite: sheetWrite, writeText: writeText, pullSoon: pullSoon, writer: writer, writesOn: writesOn, frozen: frozen,
     rupiah: rupiah, amount: amount, amountInput: amountInput, share: share, shareInput: shareInput, isoDay: isoDay, dayOf: dayOf, sheetForm: sheetForm,
     SOURCES: SOURCES, isId: isId, ecoError: ecoError, failed: failed, fullRow: fullRow, waitRow: waitRow, errRow: errRow, thead: thead,
-    SPLIT_CATS: SPLIT_CATS, splitOf: splitOf, fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
+    SPLIT_CATS: SPLIT_CATS, FROM_KAS: FROM_KAS, splitOf: splitOf, fig: fig, money: money, quiet: quiet, section: section, kv: kv, dhead: dhead, crewOwed: crewOwed, dsec: dsec, props: props, seg: seg, ext: ext, DOC_KIND: DOC_KIND, docItem: docItem, wa: wa, phoneLink: phoneLink, mailLink: mailLink, igLink: igLink,
     setHash: setHash, drawer: drawer, csv: csv, debounce: debounce, words: words, search: search,
     addDays: addDays, clientName: clientName, projectLine: projectLine, initial: initial, stage: stage, OPEN_LEAD: OPEN_LEAD, tip: tip,
     EVENT: EVENT, events: events, handedOver: handedOver, byProject: byProject, dueOrder: dueOrder, cardHead: cardHead, projectCard: projectCard
