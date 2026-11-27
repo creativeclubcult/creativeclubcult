@@ -1428,8 +1428,8 @@ span.sw.pay{grid-template-columns:none;gap:0}
   .pipe.age.acct .st{grid-template-areas:"t b" "v v"}
   .pipe.age.acct .st .v{text-align:left}
 }
-.pipe.age.acct div.st{cursor:default}
-.pipe.age.acct div.st:hover{background:transparent}
+.acctbox .bar h3{margin:0;font-size:15px}
+.acctbox .help{margin:10px 0 0}
 .pipe.age .st[disabled]{cursor:default}
 .pipe.age .st[disabled]:hover{background:transparent}
 .pipe.age .st[disabled] b{color:var(--ink-3)}
