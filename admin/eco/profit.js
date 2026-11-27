@@ -20,7 +20,9 @@
       if (p.sheet_state !== 'present' || (p.status !== 'Deal' && p.status !== 'Lunas')) return;
       if (yr && (p.quote_date || '').slice(0, 4) !== yr) return;
       var m = got.money[p.id] || {}, plan = E.splitOf(m.alloc), profit = E.n(m.profit);
-      if (!profit && !plan) return;
+      // only a project with a profit in the Sheet: one whose cost was typed in equal to its price (profit 0) has
+      // nothing to split, and what it set aside to Kas CCC came out of its cost, so it shows in the account below
+      if (!profit) return;
       var r = { p: p, m: m, profit: profit || 0, paid: p.status === 'Lunas', part: {} };
       PARTS.forEach(function (k) {
         var mine = kas.filter(function (e) { return e.kind === 'Keluar' && e.project_id === p.id && CATS[k].indexOf(e.category) > -1; });
