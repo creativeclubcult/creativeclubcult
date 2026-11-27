@@ -71,8 +71,7 @@
       view: 'invoices', age: null, acct: null,
       wait: h('div', { class: 'fwait' }),
       tiles: h('section', { class: 'tiles', 'aria-label': 'Money' }),
-      accts: h('section', { class: 'card pipe age acct', 'aria-label': 'Moved to the accounts from projects', hidden: true }),
-      acctBox: h('section', { class: 'card tablecard acctbox', 'aria-label': 'Entries of this account', hidden: true }),
+      acctBox: h('section', { class: 'card tablecard acctbox', 'aria-label': 'Kas CCC or profit, project by project', hidden: true }),
       ages: h('section', { class: 'card pipe age', 'aria-label': 'Money owed by how late it is', hidden: true }),
       gap: h('p', { class: 'note amber', hidden: true }),
       src: h('span', { class: 'src' }),
@@ -96,16 +95,20 @@
         h('button', { class: 'btn sm csv', type: 'button', onclick: exportCsv }, I('in', 's'), 'Export CSV')),
       ui.invBox, ui.kasBox);
     panel.classList.add('fin');
-    A.add(panel, [ui.wait, ui.tiles, ui.accts, ui.acctBox, ui.ages, ui.gap, ui.card]);
+    A.add(panel, [ui.wait, ui.tiles, ui.acctBox, ui.ages, ui.gap, ui.card]);
   }
   function setView(v) { ui.view = v; draw(); }
 
   // the four figures, as in the mockup; a figure the Sheet doesn't have says so instead of showing 0
-  function tile(icon, label, tag, amount, sub) {
-    var x = E.n(amount);
+  function tile(icon, label, tag, amount, sub, pick) {
+    var x = E.n(amount), v = 'v' + (x == null ? ' soft' : x < 0 ? ' neg' : ''), text = x == null ? 'Not in the Sheet' : E.rp(x);
+    // a figure that opens its entries below is a button; pressed while they are open
+    if (pick) return h('button', { class: 'tile pick', type: 'button', 'aria-pressed': String(ui.acct === pick), 'aria-expanded': String(ui.acct === pick),
+      onclick: function () { ui.acct = ui.acct === pick ? null : pick; figures(got.list); } },
+      h('span', { class: 'k' }, I(icon), h('span', { text: label }), tag), h('span', { class: v, text: text }), h('span', { class: 'c', text: sub }));
     return h('article', { class: 'tile' },
       h('p', { class: 'k' }, I(icon), h('span', { text: label }), tag),
-      h('p', { class: 'v' + (x == null ? ' soft' : x < 0 ? ' neg' : ''), text: x == null ? 'Not in the Sheet' : E.rp(x) }),
+      h('p', { class: v, text: text }),
       h('p', { class: 'c', text: sub }));
   }
   function figures(list) {
@@ -121,12 +124,17 @@
       : owed.length ? E.plural(owed.length, 'invoice') + ' open' : 'Nothing to collect';
     var crew = E.crewOwed(got.kas.v || null);
     var year = E.n(ku.year);
+    var sp = splits(), more = function () { return h('span', { class: 'tag', text: 'Details' }); };
+    var kasSub = !sp ? 'The Kas entries couldn’t be loaded' : [sp.kasFrom ? 'Set aside from ' + E.plural(sp.kasFrom, 'project') : 'Nothing set aside yet',
+      sp.kasMiss > 0 ? E.rp(sp.kasMiss) + ' not recorded yet' : null].filter(Boolean).join(', ');
+    var profSub = E.n(ku.profit) == null ? 'Profit isn’t in the Sheet' : !sp ? 'From Rekap Project' : E.rp(sp.netDone) + ' moved to Net profit';
     ui.tiles.innerHTML = '';
     A.add(ui.tiles, [
       tile('in', 'To collect', telat.length ? h('span', { class: 'tag red', text: telat.length + ' overdue' }) : null, rs.receivable, collectSub),
-      tile('wallet', 'Cash balance', null, ks.cash, ks.start_date ? 'In minus out since ' + E.day(ks.start_date, { year: false }) : 'In minus out, from the Kas tab'),
       tile('out', 'Owed to crew', crew.tag, crew.less(ks.owed), crew.sub),
-      tile('trend', 'Omset' + (year ? ' ' + year : ''), null, ku.omset, E.n(ku.profit) == null ? 'Profit isn’t in the Sheet' : 'Profit ' + E.rp(ku.profit))]);
+      tile('wallet', 'Kas CCC', sp ? more() : null, sp ? sp.kasDone : null, kasSub, sp ? 'kas' : null),
+      tile('trend', 'Profit' + (year ? ' ' + year : ''), sp ? more() : null, ku.profit, profSub, sp ? 'profit' : null)]);
+    detail(sp, year);
     // the invoices should add up to Rekap Project's own total; when they don't, say so rather than pick one
     var sum = owed.reduce(function (t, b) { return t + b.owe; }, 0), rec = E.n(rs.receivable);
     ui.gap.hidden = rec == null || Math.abs(sum - rec) < 1;
@@ -134,61 +142,78 @@
     if (!ui.gap.hidden) A.add(ui.gap, [I('alert'), h('span', { text: 'The invoices below add up to ' + E.rp(sum) + ' still owed, and Rekap Project’s own total says ' + E.rp(rec) + '.' })]);
   }
 
-  // what the projects' splits moved to the accounts, from the split rows in the Kas (Sudah), what of them is recorded
-  // but not moved yet (Belum), and what a Lunas project's allocation says should be there but has no row yet. Kas CCC
-  // and Net profit always show once there is anything; a fee only when it has an amount. A block opens its entries,
-  // project by project. It is what went in, not a balance: money spent from an account later isn't taken off here.
-  var ACCTS = [['Setor Kas CCC', 'Moved to Kas CCC'], ['Setor Net Profit', 'Moved to Net profit'], ['Fee PR', 'PR fees paid'], ['Fee Internal', 'Internal fees paid']];
-  function accounts() {
-    var kas = got.kas && !got.kas.e ? got.kas.v || [] : null, cols = [];
-    var byId = {}; got.projects.forEach(function (p) { byId[p.id] = p; });
-    ACCTS.forEach(function (a, i) {
-      var cat = a[0], rows = (kas || []).filter(function (k) { return k.kind === 'Keluar' && k.category === cat; });
-      var sum = function (st) { return rows.reduce(function (t, k) { return t + (k.paid === st ? E.n(k.amount) || 0 : 0); }, 0); };
-      var done = sum('Sudah'), wait = sum('Belum'), from = {}, has = {};
-      rows.forEach(function (k) { if (k.project_id) has[k.project_id] = 1; if (k.paid === 'Sudah') from[k.project_id || k.project_tab || k.id] = 1; });
-      // a Lunas project whose allocation has an amount for this account and no row for it in the Kas yet
-      var todo = !kas ? [] : got.projects.filter(function (p) { return p.sheet_state === 'present' && p.status === 'Lunas' && !has[p.id]; }).map(function (p) {
-        var plan = E.splitOf((got.money[p.id] || {}).alloc), x = plan && plan.filter(function (y) { return y.cat === cat; })[0];
-        return x && x.amount > 0 ? { p: p, amount: x.amount } : null;
-      }).filter(Boolean);
-      var miss = todo.reduce(function (t, x) { return t + x.amount; }, 0);
-      if (i > 1 && !(done > 0) && !(wait > 0) && !(miss > 0)) return;
-      cols.push({ cat: cat, label: a[1], rows: rows, todo: todo, done: done, wait: wait, miss: miss, from: Object.keys(from).length });
+  // each project's profit and where its split went, from the actual rows in the Kas: what is set aside to Kas CCC,
+  // moved to Net profit and paid as PR or internal fee (Sudah or Belum). A Lunas project whose allocation has an amount
+  // with no row in the Kas yet shows that amount as planned, "Not recorded". null when the Kas couldn't be loaded.
+  var SPLITS = [['Setor Kas CCC', 'kas'], ['Setor Net Profit', 'net'], ['Fee PR', 'fee'], ['Fee Internal', 'fee']];
+  function splits() {
+    if (!got.kas || got.kas.e) return null;
+    var kas = got.kas.v || [], rows = [], out = { rows: rows, kasDone: 0, kasMiss: 0, netDone: 0, kasFrom: 0 };
+    got.projects.forEach(function (p) {
+      if (p.sheet_state !== 'present') return;
+      var m = got.money[p.id] || {}, plan = p.status === 'Lunas' ? E.splitOf(m.alloc) : null;
+      var r = { p: p, profit: E.n(m.profit), kas: 0, net: 0, fee: 0, belum: 0, planned: {}, entries: [] };
+      SPLITS.forEach(function (c) {
+        var mine = kas.filter(function (k) { return k.kind === 'Keluar' && k.category === c[0] && k.project_id === p.id; });
+        mine.forEach(function (k) { var a = E.n(k.amount) || 0; r[c[1]] += a; if (k.paid !== 'Sudah') r.belum += a; r.entries.push(k); });
+        var x = plan && plan.filter(function (y) { return y.cat === c[0]; })[0];
+        if (!mine.length && x && x.amount > 0) r.planned[c[1]] = (r.planned[c[1]] || 0) + x.amount;
+      });
+      r.any = r.entries.length > 0; r.todo = Object.keys(r.planned).length > 0;
+      rows.push(r);
+      r.entries.forEach(function (k) { if (k.paid === 'Sudah') { if (k.category === 'Setor Kas CCC') out.kasDone += E.n(k.amount) || 0; if (k.category === 'Setor Net Profit') out.netDone += E.n(k.amount) || 0; } });
+      if (r.entries.some(function (k) { return k.category === 'Setor Kas CCC' && k.paid === 'Sudah'; })) out.kasFrom++;
+      out.kasMiss += r.planned.kas || 0;
     });
-    ui.accts.innerHTML = ''; ui.acctBox.innerHTML = '';
-    ui.accts.hidden = !kas || !cols.some(function (c) { return c.rows.length || c.todo.length; });
-    if (ui.accts.hidden) { ui.acctBox.hidden = true; return; }
-    if (ui.acct && !cols.some(function (c) { return c.cat === ui.acct; })) ui.acct = null;
-    ui.accts.className = 'card pipe age acct c' + cols.length;
-    cols.forEach(function (c) {
-      ui.accts.appendChild(h('button', { class: 'st', type: 'button', 'aria-pressed': String(ui.acct === c.cat), 'aria-expanded': String(ui.acct === c.cat),
-        onclick: function () { ui.acct = ui.acct === c.cat ? null : c.cat; accounts(); } },
-        h('span', { class: 'row' }, h('span', { class: 'tag', text: c.label })),
-        h('b', { text: E.rp(c.done) }),
-        h('span', { class: 'v', text: [c.from ? 'From ' + E.plural(c.from, 'project') : 'Nothing yet', c.wait > 0 ? E.rp(c.wait) + ' still to move' : null,
-          c.miss > 0 ? E.rp(c.miss) + ' not recorded yet' : null].filter(Boolean).join(', ') })));
-    });
-    var open = cols.filter(function (c) { return c.cat === ui.acct; })[0];
-    ui.acctBox.hidden = !open;
-    if (!open) return;
-    var name = function (p, k) { return p ? E.clientName(p) + (p.title ? ', ' + p.title : '') : (k && k.project_tab) || 'No project'; };
-    var link = function (p, text) { return p ? h('a', { href: '#projects/' + p.id, text: text }) : h('span', { text: text }); };
-    var tb = h('tbody');
-    open.todo.forEach(function (x) {
-      tb.appendChild(h('tr', {}, h('td', { class: 'muted', text: 'Not yet' }), h('td', {}, link(x.p, name(x.p))),
-        h('td', { class: 'num', text: E.num(x.amount) }), h('td', {}, h('span', { class: 'pill part', text: 'Not recorded' }))));
-    });
-    open.rows.slice().sort(function (a, b) { return (b.entry_date || '').localeCompare(a.entry_date || ''); }).forEach(function (k) {
-      var p = byId[k.project_id];
-      tb.appendChild(h('tr', {}, h('td', { text: k.entry_date ? E.day(k.entry_date) : '' }), h('td', {}, link(p, name(p, k))),
-        h('td', { class: 'num', text: E.num(k.amount) }), h('td', {}, h('span', { class: 'pill ' + (k.paid === 'Sudah' ? 'yes' : 'no'), text: k.paid || '' }))));
-    });
-    tb.appendChild(h('tr', { class: 'sum' }, h('td', { text: 'Moved' }), h('td'), h('td', { class: 'num', text: E.num(open.done) }), h('td')));
-    A.add(ui.acctBox, [h('div', { class: 'bar' }, h('h3', { text: open.label }),
-        h('button', { class: 'btn sm', type: 'button', onclick: function () { ui.acct = null; accounts(); } }, 'Close')),
-      h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact' }, E.thead(['Date', 'Project', ['Rp', 'num'], 'Status']), tb)),
-      open.todo.length ? h('p', { class: 'help', text: 'Not recorded: the project is Lunas and its allocation has this amount, with no entry in the Kas yet. Open the project, Money, Record in Kas.' }) : null]);
+    rows.sort(function (a, b) { return (b.p.seq || 0) - (a.p.seq || 0); });
+    return out;
+  }
+  // the entries behind the Kas CCC or the Profit figure, project by project
+  function detail(sp, year) {
+    ui.acctBox.innerHTML = '';
+    ui.acctBox.hidden = !sp || !ui.acct;
+    if (ui.acctBox.hidden) return;
+    var name = function (p) { return h('a', { href: '#projects/' + p.id, text: E.clientName(p) + (p.title ? ', ' + p.title : '') }); };
+    var pill = function (r) { return r.todo ? h('span', { class: 'pill part', text: 'Not recorded' }) : r.belum > 0 ? h('span', { class: 'pill no', text: 'Belum' })
+      : r.any ? h('span', { class: 'pill yes', text: 'Sudah' }) : null; };
+    // an amount in the Kas as it is; one only in the allocation so far in grey
+    var cell = function (r, k) { return r[k] > 0 ? h('td', { class: 'num', text: E.num(r[k]) }) : r.planned[k] > 0 ? h('td', { class: 'num muted', text: E.num(r.planned[k]) }) : h('td', { class: 'num muted', text: '0' }); };
+    var tb = h('tbody'), head, title, help, todo = false;
+    if (ui.acct === 'kas') {
+      title = 'Kas CCC, project by project';
+      head = ['Date', 'Project', ['Rp', 'num'], 'Status'];
+      var list = sp.rows.filter(function (r) { return r.kas > 0 || r.planned.kas > 0; });
+      list.forEach(function (r) {
+        var k = r.entries.filter(function (x) { return x.category === 'Setor Kas CCC'; }).sort(function (a, b) { return (b.entry_date || '').localeCompare(a.entry_date || ''); })[0];
+        if (!k) todo = true;
+        tb.appendChild(h('tr', {}, h('td', { class: k ? null : 'muted', text: k && k.entry_date ? E.day(k.entry_date) : 'Not yet' }), h('td', {}, name(r.p)), cell(r, 'kas'),
+          h('td', {}, k ? h('span', { class: 'pill ' + (k.paid === 'Sudah' ? 'yes' : 'no'), text: k.paid || '' }) : h('span', { class: 'pill part', text: 'Not recorded' }))));
+      });
+      if (!list.length) E.fullRow(tb, 4, 'Nothing set aside to Kas CCC yet.');
+      else tb.appendChild(h('tr', { class: 'sum' }, h('td', { text: 'Set aside' }), h('td'), h('td', { class: 'num', text: E.num(sp.kasDone) }), h('td')));
+      help = 'What each project set aside to Kas CCC, from the Setor Kas CCC entries in the Kas. Money spent from Kas CCC later isn’t taken off.';
+    } else {
+      title = 'Profit' + (year ? ' ' + year : '') + ', project by project';
+      head = ['Project', ['Profit', 'num'], ['Kas CCC', 'num'], ['Net profit', 'num'], ['Fees', 'num'], 'Split'];
+      var yr = year ? String(year) : null, tot = { profit: 0, kas: 0, net: 0, fee: 0 };
+      var rowsP = sp.rows.filter(function (r) {
+        return (r.p.status === 'Deal' || r.p.status === 'Lunas') && (!yr || (r.p.quote_date || '').slice(0, 4) === yr) && (r.profit || r.any || r.todo);
+      });
+      rowsP.forEach(function (r) {
+        if (r.todo) todo = true;
+        tot.profit += r.profit || 0; tot.kas += r.kas; tot.net += r.net; tot.fee += r.fee;
+        tb.appendChild(h('tr', {}, h('td', {}, name(r.p)), h('td', { class: 'num', text: r.profit == null ? '' : E.num(r.profit) }),
+          cell(r, 'kas'), cell(r, 'net'), cell(r, 'fee'), h('td', {}, pill(r))));
+      });
+      if (!rowsP.length) E.fullRow(tb, 6, 'No project with a profit or a split yet.');
+      else tb.appendChild(h('tr', { class: 'sum' }, h('td', { text: 'Total' }), h('td', { class: 'num', text: E.num(tot.profit) }),
+        h('td', { class: 'num', text: E.num(tot.kas) }), h('td', { class: 'num', text: E.num(tot.net) }), h('td', { class: 'num', text: E.num(tot.fee) }), h('td')));
+      help = 'Profit is the project price less its cost, from Rekap Project. Kas CCC, Net profit and Fees are the split entries in the Kas.';
+    }
+    if (todo) help += ' Grey with Not recorded: the amount is in the project’s allocation and has no entry in the Kas yet. Open the project, Money, Record in Kas.';
+    A.add(ui.acctBox, [h('div', { class: 'bar' }, h('h3', { text: title }),
+        h('button', { class: 'btn sm', type: 'button', onclick: function () { ui.acct = null; figures(got.list); } }, 'Close')),
+      h('div', { class: 'scrollx' }, h('table', { class: 'tbl compact' }, E.thead(head), tb)), h('p', { class: 'help', text: help })]);
   }
 
   // money owed by how late it is; a block filters the invoices below to it, a second press shows them all again
@@ -307,7 +332,9 @@
       E.fullRow(tb, cols, got.kas.v.length ? 'No cash entries match these filters.'
         : w ? 'No cash entries yet. Add one here, or keep using the Kas form on your phone.' : 'No cash entries yet. Entries in the Kas tab of the Sheet show up here.');
     }
-    ui.count.textContent = E.plural(rows.length, 'entry', 'entries');
+    // the Kas tab's own balance sits with its entries: money in less money out since the Kas start
+    var ks = val('kas_summary') || {}, bal = E.n(ks.cash);
+    ui.count.textContent = E.plural(rows.length, 'entry', 'entries') + (bal == null ? '' : ', cash balance ' + E.rp(bal) + (ks.start_date ? ' since ' + E.day(ks.start_date, { year: false }) : ''));
   }
   function fillFilters() {
     var months = {}, tabs = {}, mo = ui.month.value, pr = ui.proj.value;
@@ -729,7 +756,7 @@
       got = { values: r[0], projects: r[1], money: r[2], kas: r[3], clients: r[4], links: r[5], bank: r[6] };
       got.list = bills();
       ui.wait.hidden = true; ui.card.hidden = false;
-      figures(got.list); accounts(); ages(got.list); fillFilters(); draw();
+      figures(got.list); ages(got.list); fillFilters(); draw();
       // #finance/kas opens on the Kas; an address with an entry or a project (#finance/<id>) opens it once the lists are here
       if (want === 'kas') { want = null; setView('kas'); E.setHash('finance'); }
       else if (want) {
@@ -743,7 +770,7 @@
     }, function (e) {
       if (mine !== turn) return;
       got = null;
-      ui.tiles.innerHTML = ''; ui.accts.hidden = true; ui.acctBox.hidden = true; ui.ages.hidden = true; ui.gap.hidden = true; ui.card.hidden = true;
+      ui.tiles.innerHTML = ''; ui.acctBox.hidden = true; ui.ages.hidden = true; ui.gap.hidden = true; ui.card.hidden = true;
       ui.wait.innerHTML = ''; ui.wait.hidden = false;
       A.add(ui.wait, [h('p', { class: 'empty is-err', text: E.ecoError(e) }),
         h('button', { class: 'btn sm', type: 'button', onclick: function () { E.forget(); A.loaders.finance(); } }, 'Try again')]);

@@ -1420,14 +1420,12 @@ span.sw.pay{grid-template-columns:none;gap:0}
 .pipe.age{grid-template-columns:repeat(4,minmax(0,1fr))}
 .pipe.age.n5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .pipe.age b{font-size:22px;white-space:nowrap}
-@media (min-width:761px){
-  .pipe.age.acct.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .pipe.age.acct.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
-}
-@media (max-width:760px){
-  .pipe.age.acct .st{grid-template-areas:"t b" "v v"}
-  .pipe.age.acct .st .v{text-align:left}
-}
+.tile.pick{width:100%;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.tile.pick>span{display:block}
+.tile.pick>.k{display:flex}
+.tile.pick:hover{background:var(--surface-2)}
+.tile.pick[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.tile.pick:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .acctbox .bar h3{margin:0;font-size:15px}
 .acctbox .help{margin:10px 0 0}
 .pipe.age .st[disabled]{cursor:default}
